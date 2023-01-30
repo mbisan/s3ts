@@ -8,8 +8,8 @@ Data acquisition and preprocessing for the neural network.
 from __future__ import annotations
 
 # package imports
-from s3ts.data_str import AugProbabilities, TaskParameters
-from s3ts.data_aux import download_dataset, build_STS, compute_medoids
+from s3ts.structures import AugProbabilities, TaskParameters
+from s3ts.data.aux import download_dataset, build_STS, compute_medoids
 from s3ts.data_esm import compute_OESM_parallel
 
 # external imports
