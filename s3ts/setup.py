@@ -58,7 +58,7 @@ def prepare_data_modules(
 
     # divide en labeled y unlabeled
     print(f"Splitting train and pretrain sets (seed: {seed_label})")
-    X_pre, X_tra, Y_pre, Y_tra = train_test_split(X_train, Y_train, 
+    X_tra, X_pre, Y_tra, Y_pre = train_test_split(X_train, Y_train, 
         test_size=pret_frac, stratify=Y_train, random_state=seed_label, shuffle=True)
 
     # pattern selection ~~~~~~~~~~~~~~~~~~~~~~~~~

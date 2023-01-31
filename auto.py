@@ -37,9 +37,9 @@ BATCH_SIZE = 128
 PRETRAIN_FRAC = 0.8
 DATASET = "GunPoint"
 
-N_FRAMES_TRAIN = 5000
-N_FRAMES_PRE = 5000
-N_FRAMES_TEST = 5000
+N_FRAMES_TRAIN = 10000
+N_FRAMES_PRE =   40000
+N_FRAMES_TEST =  10000
 
 STOP_METRIC = "val_f1"
 PRETRAIN_PATIENCE: int = 5
@@ -78,8 +78,7 @@ for i, (train_index, test_index) in enumerate(skf.split(X, Y)):
             pret_frac=PRETRAIN_FRAC, stop_metric=STOP_METRIC,
             nframes_tra=N_FRAMES_TRAIN, nframes_pre=N_FRAMES_PRE, nframes_test=N_FRAMES_TEST,
             pre_patience=PRETRAIN_PATIENCE, pre_maxepoch=PRETRAIN_MAXEPOCH,
-            tra_patience=TRAIN_PATIENCE, tra_maxepoch=TRAIN_MAXEPOCH,
-        )
+            tra_patience=TRAIN_PATIENCE, tra_maxepoch=TRAIN_MAXEPOCH)
 
         runs.append(run_data)
         pd.concat(runs, ignore_index=True).to_csv("results/results.csv", index=False)
