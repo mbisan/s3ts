@@ -1,5 +1,5 @@
 """
-Kind obvious tbh.
+Automatic training under several conditions.
 
 @author Raúl Coterillo
 @version 2023-01
