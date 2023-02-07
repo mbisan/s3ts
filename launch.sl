@@ -3,7 +3,6 @@
 #SBATCH --job-name=S3TS_test
 #SBATCH --partition=bcam-exclusive
 #SBATCH --gres=gpu
-#SBATCH --mem=200gb
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4
