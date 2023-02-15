@@ -137,6 +137,7 @@ def evaluate_trained_network(dataMod, batch_size, model, root_dir):
 
 
 if __name__ == '__main__':
+    
     parser = argparse.ArgumentParser(description='Train a ResNet from the DTWs created previously')
 
     parser.add_argument('--dataset_name', type=str, required=True,

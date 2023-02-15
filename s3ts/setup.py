@@ -137,6 +137,8 @@ def setup_trainer(
     stop_metric: str = "val_f1",
     ) -> tuple[Trainer, ModelCheckpoint]:
 
+    """ Shared setup for the Trainer objects. """
+
     checkpoint = ModelCheckpoint(monitor=stop_metric, mode="max")    
     trainer = Trainer(default_root_dir=directory,  accelerator="auto",
         # progress logs
@@ -153,6 +155,57 @@ def setup_trainer(
         max_epochs=epoch_max,  deterministic = False,
         log_every_n_steps=1, check_val_every_n_epoch=1
     )
+
+    return trainer, checkpoint
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def train_model(
+    directory: Path,
+    label: str,
+    epoch_max: int,
+    epoch_patience: int,
+    dm: FramesDataModule,
+    arch: type[LightningModule],
+    stop_metric: str = "val_f1",
+    ) -> tuple[Trainer, ModelCheckpoint]:
+
+    results = pd.Series(dtype="object")
+
+    # create the model
+    train_model = PredModel(
+            n_labels=dm.n_labels, 
+            n_patterns=dm.n_patterns,
+            l_patterns=dm.l_patterns,
+            window_size=dm.window_size,
+            lab_shifts=[0],
+            arch=arch) 
+
+    # train the model
+    trainer, checkpoint = setup_trainer(directory=directory,  version=label,
+        epoch_max=epoch_max, epoch_patience=epoch_patience, stop_metric=stop_metric)
+    trainer.fit(train_model, datamodule=dm)
+
+    # load best checkpoint
+    train_model = train_model.load_from_checkpoint(checkpoint.best_model_path)
+
+    # log val results
+    val_results = trainer.validate(train_model, datamodule=dm)
+    results[f"{label}_val_acc"] = val_results[0]["val_acc"]
+    results[f"{label}_val_f1"] = val_results[0]["val_f1"]
+    results[f"{label}_val_auroc"] = val_results[0]["val_auroc"]
+
+    # log test results
+    if dm.test:
+        test_results = trainer.test(train_model, datamodule=dm)
+        results[f"{label}_test_acc"] = test_results[0]["test_acc"]
+        results[f"{label}_test_f1"] = test_results[0]["test_f1"]
+        results[f"{label}_test_auroc"] = test_results[0]["test_auroc"]
+
+    # load model info
+    results[f"{label}_best_model"] = checkpoint.best_model_path
+    results[f"{label}_train_csv"] = str(directory  / "logs" / label / "metrics.csv")
+    results[f"{label}_nepochs"] = pd.read_csv(results[f"{label}_train_csv"])["epoch_train_acc"].count()
 
     return trainer, checkpoint
 
