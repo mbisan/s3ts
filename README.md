@@ -1,6 +1,12 @@
 # Self-Supervised Streaming Time Series Classification
 
-Time-series classification though convolutional neural networks, where the time-series data is converted to images through an online, DTW-based (Dynamic Time Warping) similarity measure. 
+Implementation of self-supervised learning to the **streaming time series (STS) classification** using an **image-based feature representation**. 
+
+The images, known as **dissimilarity frames** (DFs), are constructed using the **dynamic time Warping** (DTW) similarity measure between the STS and several of pattern time series.
+
+The **pretext tasks** for the self-supervised learning (unsupervised pretraining) of the 2D convolutional decoder, **quantile identification** and **frame ordering**, are based on the image-time series duality of the approach.
+
+**DISCLAIMER:** The code in this repository is intended for testing and development of this methodology for later publication, and under no circumstance should it be used in a production setting.
 
 ## Environment / Setup
 
@@ -15,5 +21,5 @@ python -m pip install -e .                      # install dev package
 
 ## Visualize Training Progress
 ```bash
-tensorboard --logdir=data/[whatever-dir-name]/lightning_logs/
+tensorboard --logdir=[whatever-dir-name]/logs
 ```
