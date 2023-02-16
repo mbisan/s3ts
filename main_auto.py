@@ -36,6 +36,8 @@ RANDOM_STATE = 0
 DATASETS = ["GunPoint"]
 ENCODERS = [CNN_Encoder]#, ResNet_Encoder]
 
+# BUG WITH THE SPLIT, MORE TRAIN SAMPLES THAN SHOULD
+
 # =================================
 
 for i, (dataset, arch) in enumerate(product(DATASETS, ENCODERS)):
