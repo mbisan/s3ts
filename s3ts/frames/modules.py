@@ -6,6 +6,12 @@ import torch
 
 import multiprocessing as mp
 import numpy as np
+import logging
+
+# set up logging
+from s3ts import LOGH_FILE, LOGH_CLI
+log = logging.getLogger(__name__)
+log.addHandler(LOGH_FILE), log.addHandler(LOGH_CLI) 
 
 # ================================================================= #
 
@@ -16,7 +22,7 @@ class FramesDataset(Dataset):
             series: np.ndarray,
             labels: np.ndarray,
             indexes: np.ndarray,
-            lab_shifts: list[int],
+            quant_shifts: list[int],
             window_size: int,
             transform = None, 
             target_transform = None
@@ -27,17 +33,19 @@ class FramesDataset(Dataset):
         self.labels = labels
         self.indexes = indexes
 
-        self.n_shifts = len(lab_shifts)
+        self.n_shifts = len(quant_shifts)
         self.n_samples = len(self.indexes)
         self.window_size = window_size
-        self.lab_shifts = lab_shifts
+        self.quant_shifts = quant_shifts
+
+        self.frac_available: float = 1.0
 
         self.transform = transform
         self.target_transform = target_transform
 
     def __len__(self) -> int:
         """ Return the number of samples in the dataset. """
-        return self.n_samples
+        return int(self.n_samples*self.frac_available)
 
     def __getitem__(self, idx: int) -> tuple[np.ndarray, int]:
 
@@ -47,11 +55,11 @@ class FramesDataset(Dataset):
         
         if self.n_shifts > 1:
             label = []
-            for s in self.lab_shifts:
+            for s in self.quant_shifts:
                 label.append(self.labels[idx+s,:])
             label = torch.stack(label)
         else:
-            label = self.labels[idx+self.lab_shifts[0],:]
+            label = self.labels[idx+self.quant_shifts[0],:]
 
         frame = self.frames[:,:,idx - self.window_size:idx]
         
@@ -72,10 +80,10 @@ class FramesDataModule(LightningDataModule):
             DFS_train: np.ndarray,
             labels_train: np.ndarray,
             nframes_train: int, 
-            # ~~~~~~~~~~~~~~~~~~~~~~
             window_size: int, 
             batch_size: int,
-            lab_shifts: list[int],
+            # ~~~~~~~~~~~~~~~~~~~~~~
+            quant_shifts: list[int],
             random_state: int = 0,
             # ~~~~~~~~~~~~~~~~~~~~~~
             STS_test: np.ndarray = None,
@@ -102,15 +110,15 @@ class FramesDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.window_size = window_size
         self.frame_buffer = 3*window_size
-        self.lab_shifts = np.array(lab_shifts, dtype=int)
+        self.quant_shifts = np.array(quant_shifts, dtype=int)
         self.random_state = random_state 
         self.num_workers = mp.cpu_count()//2        
 
         train_stop = int(nframes_train*2./3.)
         self.train_idx = np.arange(self.frame_buffer, self.frame_buffer+train_stop)
-        self.valid_idx = np.arange(self.frame_buffer+train_stop, self.l_DFS_train-np.max(lab_shifts))
-        print("Train samples:", len(self.train_idx))
-        print("Valid samples:", len(self.valid_idx))
+        self.valid_idx = np.arange(self.frame_buffer+train_stop, self.l_DFS_train-np.max(quant_shifts))
+        log.info(f"Train frames: {len(self.train_idx)}")
+        log.info(f"Val frames: {len(self.valid_idx)}")
 
         # normalization_transform
         transform = tv.transforms.Normalize(
@@ -119,13 +127,13 @@ class FramesDataModule(LightningDataModule):
 
         # training dataset
         self.ds_train = FramesDataset(
-            indexes=self.train_idx, lab_shifts=lab_shifts,
+            indexes=self.train_idx, quant_shifts=quant_shifts,
             frames=self.DFS_train, series=self.STS_train, labels=self.labels_train,
             window_size=self.window_size, transform=transform)
 
         # validation dataset
-        self.ds_eval = FramesDataset(
-            indexes=self.valid_idx, lab_shifts=lab_shifts,
+        self.ds_val = FramesDataset(
+            indexes=self.valid_idx, quant_shifts=quant_shifts,
             frames=self.DFS_train, series=self.STS_train, labels=self.labels_train, 
             window_size=self.window_size, transform=transform)
 
@@ -137,11 +145,11 @@ class FramesDataModule(LightningDataModule):
             self.labels_test = torch.from_numpy(labels_test).to(torch.int64)
             self.labels_test = torch.nn.functional.one_hot(self.labels_test)
             self.l_DFS_test = DFS_test.shape[2]
-            self.test_idx = np.arange(self.frame_buffer, nframes_test-np.max(lab_shifts))
-            print("Test samples:", len(self.test_idx))
+            self.test_idx = np.arange(self.frame_buffer, nframes_test-np.max(quant_shifts))
+            print(f"Test frames: {len(self.test_idx)}")
 
             self.ds_test = FramesDataset(
-                indexes=self.test_idx, lab_shifts=lab_shifts,
+                indexes=self.test_idx, quant_shifts=quant_shifts,
                 frames=self.DFS_test, series=self.STS_test, labels=self.labels_test, 
                 window_size=self.window_size, transform=transform)
 
@@ -156,7 +164,7 @@ class FramesDataModule(LightningDataModule):
 
     def val_dataloader(self):
         """ Returns the validation DataLoader. """
-        return DataLoader(self.ds_eval, batch_size=self.batch_size, 
+        return DataLoader(self.ds_val, batch_size=self.batch_size, 
             num_workers=self.num_workers, shuffle=False)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #

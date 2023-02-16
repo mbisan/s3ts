@@ -1,7 +1,19 @@
+import logging # set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        
+    ]
+)
 
-import warnings
+LOGH_CLI = logging.StreamHandler()
+LOGH_FILE = logging.FileHandler("debug.log")
+for h in [LOGH_CLI, LOGH_FILE]:
+    h.setFormatter(logging.Formatter(
+        fmt="%(asctime)s [%(levelname)s] %(message)s", 
+        datefmt='%Y-%m-%d %H:%M:%S'))
 
-RANDOM_STATE = 0
-
-#seed_everything(RANDOM_STATE, workers=True)
+import warnings # shut up warnings
 warnings.simplefilter("ignore", category=UserWarning)

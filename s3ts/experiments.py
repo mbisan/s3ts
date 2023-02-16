@@ -1,16 +1,36 @@
+#/usr/bin/python3
+
 """
 Functions to perform the experiments presented in the article.
 """
 
-from pytorch_lightning import LightningModule
+# data processing stuff
+from s3ts.frames.tasks.compute import compute_medoids, compute_STS
+from s3ts.frames.tasks.oesm import compute_OESM
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import KBinsDiscretizer
 
-from s3ts.setup import train_model
+# models / modules
+from pytorch_lightning import LightningModule
+from s3ts.frames.modules import FramesDataModule
+from s3ts.models.wrapper import PredModel
+
+# training stuff
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
+from pytorch_lightning import Trainer, seed_everything
 
 from datetime import datetime
+from pathlib import Path
 import pandas as pd
 import numpy as np
+import logging
 
-from pathlib import Path
+# set up logging
+from s3ts import LOGH_FILE, LOGH_CLI
+log = logging.getLogger(__name__)
+log.addHandler(LOGH_FILE), log.addHandler(LOGH_CLI) 
 
 # default values
 # ~~~~~~~~~~~~~~~~~~~~~~ #
@@ -33,7 +53,7 @@ order: bool = True
 order_nframes: int = 4
 
 # training procedure settings
-stop_metric: str = "val_f1"
+stop_metric: str = "val_auroc"
 pre_patience: int = 5
 pre_maxepoch: int = 100
 tra_patience: int = 40
@@ -57,17 +77,199 @@ def create_folders() -> None:
     for path in [dir_cache, dir_train, dir_results]:
         path.mkdir(parents=True, exist_ok=True)
 
-def base_results(dataset: str, fold_number: int, 
-        arch: type[LightningModule], random_state: int = 0) -> pd.DataFrame:
+
+def prepare_dms(
+        dataset: str, 
+        X_train: np.ndarray, X_test: np.ndarray, 
+        Y_train: np.ndarray, Y_test: np.ndarray,
+        rho_dfs: float, pret_frac: float,
+        batch_size: int, window_size: int,                  # NOTE: can be changed without recalcs
+        # ptask 1 settings: quantile prediction
+        quant_shifts: list[int], quant_intervals: int,      # NOTE: can be changed without recalcs
+        # multipliers for the number of frames generated
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        nframes_tra: float = None, nframes_pre: float = None, nframes_test: float = None,
+        # cross validation stuff
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        fold_number: int = 0, random_state: int = 0,
+        ) -> tuple[FramesDataModule, FramesDataModule]:
+
+    """ Prepares the data modules for the training. """
+
+    # print dataset info
+    log.info(f"Dataset: {dataset}")
+    log.info(f"Fold number: {fold_number}")
+    log.info(f"Total samples: {X_train.shape[0] + X_test.shape[0]}")
+    log.info("~~~~~~~~~~~~~~~~~~~~~~~")
+
+    # prtrain/train set splitting
+    log.info(f"Splitting train and pretrain sets (seed: {random_state})")
+    X_tra, X_pre, Y_tra, Y_pre = train_test_split(X_train, Y_train, 
+        test_size=pret_frac, stratify=Y_train, random_state=random_state, shuffle=True)
+
+    # print more dataset info
+    log.info(f"Pretrain samples: {X_pre.shape[0]}")
+    log.info(f"Train samples: {X_tra.shape[0]}")
+    log.info(f"Test samples: {X_test.shape[0]}")
+    log.info("~~~~~~~~~~~~~~~~~~~~~~~")
+
+    # pattern selection: shape = [n_patterns,  l_patterns]
+    log.info(f"Selecting the DFS patterns from the train data")
+    medoids, medoid_ids = compute_medoids(X_tra, Y_tra, distance_type="dtw")
+
+    log.info("Generating 'train' STS...")       # train STS generation
+    STS_tra, labels_tra, frames_tra = compute_STS(X=X_tra,Y=Y_tra, target_nframes=nframes_tra, 
+        frame_buffer=window_size*3,random_state=random_state)
+
+    log.info("Generating 'pretrain' STS...")    # pretrain STS generation
+    STS_pre, _, frames_pre = compute_STS(X=X_pre, Y=Y_pre, target_nframes=nframes_pre, 
+        frame_buffer=window_size*3,random_state=random_state)
     
+    kbd = KBinsDiscretizer(n_bins=quant_intervals, encode="ordinal", strategy="quantile", random_state=random_state)
+    kbd.fit(STS_pre.reshape(-1,1))
+    labels_pre = kbd.transform(STS_pre.reshape(-1,1)).squeeze().astype(int)
+    
+    log.info("Generating 'test' STS...")        # test STS generation
+    STS_test, labels_test, frames_test = compute_STS(X=X_test, Y=Y_test, target_nframes=nframes_test, 
+        frame_buffer=window_size*3,random_state=random_state)
+
+    # DFS generation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    fracs = f"pf{pret_frac}"
+    seeds = f"f{fold_number}-rs{random_state}"
+    frames = f"tr{frames_tra}-pr{frames_pre}-ts{frames_test}"
+    cache_file = dir_cache / f"DFS_{dataset}_{fracs}_{seeds}_{frames}.npz"
+    if not Path(cache_file).exists():
+        log.info("Generating 'train' DFS...")
+        DFS_tra = compute_OESM(STS_tra, medoids, rho=rho_dfs)
+        log.info("Generating 'pretrain' DFS...")
+        DFS_pre = compute_OESM(STS_pre, medoids, rho=rho_dfs) 
+        log.info("Generating 'test' DFS...")
+        DFS_test = compute_OESM(STS_test, medoids, rho=rho_dfs) 
+        np.savez_compressed(cache_file, DFS_tra=DFS_tra, DFS_pre=DFS_pre, DFS_test=DFS_test)
+    else:
+        log.info(f"Loading DFS from cached file... ({cache_file})")
+        with np.load(cache_file) as data:
+            DFS_tra, DFS_pre, DFS_test = data["DFS_tra"], data["DFS_pre"], data["DFS_test"]
+
+    log.info("Creating 'train' dataset...")
+    dm_tra = FramesDataModule(
+        STS_train=STS_tra, DFS_train=DFS_tra, labels_train=labels_tra, nframes_train=frames_tra,
+        STS_test=STS_test, DFS_test=DFS_test, labels_test=labels_test, nframes_test=frames_test,
+        window_size=window_size, batch_size=batch_size, quant_shifts=[0])
+
+    log.info("Creating 'pretrain' dataset...")
+    quant_shifts = np.round(np.array(quant_shifts)*X_train.shape[1]).astype(int)
+    log.info(f"Number of quantiles: {quant_intervals}")
+    log.info(f"Label shifts: {quant_shifts}")    
+
+    # create data module (pretrain)
+    dm_pre = FramesDataModule(
+        STS_train=STS_pre, DFS_train=DFS_pre, labels_train=labels_pre, nframes_train=frames_pre,
+        window_size=window_size, batch_size=batch_size, quant_shifts=quant_shifts)   
+
+    return dm_tra, dm_pre
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def setup_trainer(
+    directory: Path,
+    version: str,
+    epoch_max: int,
+    epoch_patience: int,
+    stop_metric: str = stop_metric,
+    ) -> tuple[Trainer, ModelCheckpoint]:
+
+    """ Shared setup for the Trainer objects. """
+
+    checkpoint = ModelCheckpoint(monitor=stop_metric, mode="max")    
+    trainer = Trainer(default_root_dir=directory,  accelerator="auto",
+        # progress logs
+        logger = [
+            TensorBoardLogger(save_dir=directory, name="logs", version=version),
+            CSVLogger(save_dir=directory, name="logs", version=version)
+        ],
+        callbacks=[
+            # early stop the model
+            EarlyStopping(monitor=stop_metric, mode="max", patience=epoch_patience),         
+            LearningRateMonitor(logging_interval='step'),  # learning rate logger
+            checkpoint  # save best model version
+            ],
+        max_epochs=epoch_max,  deterministic = False,
+        log_every_n_steps=1, check_val_every_n_epoch=1
+    )
+
+    return trainer, checkpoint
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+def train_model(
+    directory: Path,
+    label: str,
+    epoch_max: int,
+    epoch_patience: int,
+    dm: FramesDataModule,
+    arch: type[LightningModule],
+    stop_metric: str = stop_metric,
+    encoder: LightningModule = None,
+    ) -> tuple[Trainer, ModelCheckpoint]:
+
+    results = pd.Series(dtype="object")
+
+    # create the model
+    model = PredModel(
+            n_labels=dm.n_labels, 
+            n_patterns=dm.n_patterns,
+            l_patterns=dm.l_patterns,
+            window_size=dm.window_size,
+            lab_shifts=[0],
+            arch=arch)
+    
+    # set encoder if one was passed
+    if encoder is not None:
+        model.encoder = encoder
+
+    # train the model
+    trainer, checkpoint = setup_trainer(directory=directory,  version=label,
+        epoch_max=epoch_max, epoch_patience=epoch_patience, stop_metric=stop_metric)
+    trainer.fit(model, datamodule=dm)
+
+    # load best checkpoint
+    model = model.load_from_checkpoint(checkpoint.best_model_path)
+
+    # log val results
+    val_results = trainer.validate(model, datamodule=dm)
+    results[f"{label}_val_acc"] = val_results[0]["val_acc"]
+    results[f"{label}_val_f1"] = val_results[0]["val_f1"]
+    results[f"{label}_val_auroc"] = val_results[0]["val_auroc"]
+
+    # log test results
+    if dm.test:
+        test_results = trainer.test(model, datamodule=dm)
+        results[f"{label}_test_acc"] = test_results[0]["test_acc"]
+        results[f"{label}_test_f1"] = test_results[0]["test_f1"]
+        results[f"{label}_test_auroc"] = test_results[0]["test_auroc"]
+
+    # load model info
+    results[f"{label}_best_model"] = checkpoint.best_model_path
+    results[f"{label}_train_csv"] = str(directory  / "logs" / label / "metrics.csv")
+    results[f"{label}_nepochs"] = pd.read_csv(results[f"{label}_train_csv"])["epoch_train_acc"].count()
+    results = results.to_frame().transpose().copy()
+
+    return results, model, checkpoint
+
+def base_results(dataset: str, fold_number: int, 
+        arch: type[LightningModule], pretrained: bool, 
+        random_state: int = 0) -> pd.DataFrame:
+    
+    """ Series template for the results. """
+
     df = pd.Series(dtype="object")
-    df["dataset"], df["arch"]  = dataset, arch.__str__()
+    df["dataset"], df["arch"], df["pretrained"]  = dataset, arch.__str__(), pretrained
     df["fold_number"], df["random_state"] = fold_number, random_state
     df["batch_size"], df["window_size"] = batch_size, window_size
-    
-    df["nframes_tra"], df["nframes_pre"], df["nframes_test"] = nframes_tra, nframes_pre, nframes_test
+    df = df.to_frame().transpose().copy()
 
-    pass
+    return df
 
 # =====================================================
 # =====================================================
@@ -79,50 +281,76 @@ def EXP_ratio(
     dataset: str, arch: type[LightningModule],
     X_train: np.ndarray,  X_test: np.ndarray, 
     Y_train: np.ndarray,  Y_test: np.ndarray,
-    fold_number: int = 0, random_state: int = 0,
+    total_folds: int, fold_number: int = 0, random_state: int = 0,
     ) -> pd.DataFrame:
 
     """ Experiment to check the effect of train/pretrain sample ratios."""
 
     # make sure folders exist
     create_folders() 
-    
+
+    # NOTE: this is chosen so that the final number of
+    # samples for just train and test is the same (50/50 split w/out pretrain)
+    pret_frac = 1 - (total_folds-1)/total_folds**2 
+
     # prepare the data
-    train_dm, pretrain_dm = prepare_data_modules(dataset=dataset,
+    train_dm, pretrain_dm = prepare_dms(dataset=dataset,
         X_train=X_train, X_test=X_test, Y_train=Y_train, Y_test=Y_test,
-        batch_size=batch_size, window_size=window_size, lab_shifts=lab_shifts,
-        rho_dfs=rho_dfs, pret_frac=pret_frac, fold_number=fold_number,
+        batch_size=batch_size, window_size=window_size, 
+        rho_dfs=rho_dfs, pret_frac=pret_frac, 
+        quant_shifts=quant_shifts, quant_intervals=quant_intervals,
         nframes_tra=nframes_tra, nframes_pre=nframes_pre, nframes_test=nframes_test,
-        seed_sts=seed_sts, seed_label=seed_label, pre_intervals=pre_intervals)
+        fold_number=fold_number, random_state=random_state)
+    train_dm: FramesDataModule
+    pretrain_dm: FramesDataModule
 
     # run the base model
-    model, checkpoint, data_aux = train_model(
-            directory=subdir_train, label="def", 
-            epoch_max=pre_maxepoch, epoch_patience=pre_patience)
+    date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    subdir_train = dir_train / f"EXP_ratio_f{fold_number}.base_{date_flag}"
+    data, model, checkpoint = train_model(
+            directory=subdir_train, label="target", 
+            epoch_max=pre_maxepoch, epoch_patience=pre_patience,
+            dm=train_dm, arch=arch)
+
+    results = pd.concat([base_results(dataset, fold_number, arch, False, random_state), 
+                         data], axis = 1)
+    results["nframes_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
+    results["nframes_pre"] = 0
+    results["nframes_test"] = len(train_dm.ds_test) 
 
     # run with different ratios
-    runs = list()
+    runs = [results]
     RATIOS = [1, 2, 4, 8]
     for i, ratio in enumerate(RATIOS):
 
         date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
         subdir_train = dir_train / f"EXP_ratio_f{fold_number}.{i}_{date_flag}"
 
-        # TODO write sth to manage this
-        train_dm.set_percent_whatever()
+        # set the pretrain data ratio
+        frac_av = ratio/(total_folds-2)
+        pretrain_dm.ds_train.frac_available = frac_av
+        pretrain_dm.ds_val.frac_available = frac_av
 
-        model, checkpoint, data_aux = train_model(
-            directory=subdir_train, label="aux", 
-            epoch_max=pre_maxepoch, epoch_patience=pre_patience)
+        results = base_results(dataset, fold_number, arch, False, random_state)
+        results["nframes_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
+        results["nframes_pre"] = len(pretrain_dm.ds_train) + len(pretrain_dm.ds_val)
+        results["nframes_test"] = len(train_dm.ds_test)
 
+        # pretrain the encoder
+        data, model, checkpoint = train_model(directory=subdir_train, label="pretrain", 
+            epoch_max=pre_maxepoch, epoch_patience=pre_patience,
+            dm=pretrain_dm, arch=arch)
+        results = pd.concat([results, data], axis=1)
 
-        model, checkpoint, data_aux = train_model(
-            directory=subdir_train, label="pre", 
-            epoch_max=pre_maxepoch, epoch_patience=pre_patience)
+        # train with the original task
+        data, model, checkpoint = train_model(directory=subdir_train, label="target", 
+            epoch_max=pre_maxepoch, epoch_patience=pre_patience,
+            dm=train_dm, arch=arch, encoder=model.encoder)
+        results = pd.concat([results, data], axis=1)
 
-        runs.append(data)
+        runs.append(results)
         runs_df = pd.concat(runs, ignore_index=True)
-        runs_df.to_csv("results/results.csv", index=False)
+        runs_df.to_csv(dir_results / "EXP_ratio.csv", index=False)
     
     return runs_df
 
@@ -180,152 +408,3 @@ def EXP_comparison():
 
 
 # =====================================================
-
-def compare_pretrain(
-    dataset: str,
-    X_train: np.ndarray, 
-    X_test: np.ndarray, 
-    Y_train: np.ndarray, 
-    Y_test: np.ndarray,
-    directory: Path,
-    arch: type[LightningModule],
-    # ~~~~~~~~~~~~~~~~
-    batch_size: int,
-    window_size: int,
-    pre_intervals: int,
-    lab_shifts: list[int],
-    # ~~~~~~~~~~~~~~~~
-    # they are needed for frame creation and imply recalcs
-    rho_dfs: float,
-    pret_frac: float,
-    # ~~~~~~~~~~~~~~~~
-    nframes_tra: int, 
-    nframes_pre: int,
-    nframes_test: int,
-    # ~~~~~~~~~~~~~~~~
-    pre_patience: int = 5,
-    pre_maxepoch: int = 100,
-    tra_patience: int = 40,
-    tra_maxepoch: int = 200,
-    # ~~~~~~~~~~~~~~~~
-    stop_metric: str = "val_f1",
-    # ~~~~~~~~~~~~~~~~
-    seed_sts: int = 0,
-    seed_label: int = 0,
-    seed_torch: int = 0,
-    fold_number: int = 0,
-    ) -> pd.Series:
-
-    seed_everything(seed_torch)
-
-    results = pd.Series(dtype="object")
-    results["dataset"], results["fold_number"], results["decoder"] = dataset, fold_number, arch.__str__()
-    results["seed_sts"], results["seed_label"], results["fold_number"] = seed_sts, seed_label, fold_number
-    results["batch_size"], results["window_size"], results["lab_shifts"] = batch_size, window_size, lab_shifts
-    results["nframes_tra"], results["nframes_pre"],results["nframes_test"] = nframes_tra, nframes_pre, nframes_test
-    
-    train_dm, pretrain_dm = prepare_data_modules(dataset=dataset,
-        X_train=X_train, X_test=X_test, Y_train=Y_train, Y_test=Y_test,
-        batch_size=batch_size, window_size=window_size, lab_shifts=lab_shifts,
-        rho_dfs=rho_dfs, pret_frac=pret_frac, fold_number=fold_number,
-        nframes_tra=nframes_tra, nframes_pre=nframes_pre, nframes_test=nframes_test,
-        seed_sts=seed_sts, seed_label=seed_label, pre_intervals=pre_intervals)
-
-    train_dm: FramesDataModule
-    pretrain_dm: FramesDataModule
-
-    # ~~~~~~~~~~~~~~~~~~~~~ train without pretrain
-
-    # create the model
-    train_model = PredModel(
-            n_labels=train_dm.n_labels, 
-            n_patterns=train_dm.n_patterns,
-            l_patterns=train_dm.l_patterns,
-            window_size=train_dm.window_size,
-            lab_shifts=[0],
-            arch=arch) 
-
-    # train the model
-    trainer, checkpoint = setup_trainer(directory=directory,  version="def",
-        epoch_max=tra_maxepoch, epoch_patience=tra_patience, stop_metric=stop_metric)
-    trainer.fit(train_model, datamodule=train_dm)
-    train_model = train_model.load_from_checkpoint(checkpoint.best_model_path)
-
-    valid_results = trainer.validate(train_model, datamodule=train_dm)
-    test_results = trainer.test(train_model, datamodule=train_dm)
-    
-    # log results
-    results["def_val_acc"] = valid_results[0]["val_acc"]
-    results["def_val_f1"] = valid_results[0]["val_f1"]
-    results["def_val_auroc"] = valid_results[0]["val_auroc"]
-
-    results["def_test_acc"] = test_results[0]["test_acc"]
-    results["def_test_f1"] = test_results[0]["test_f1"]
-    results["def_test_auroc"] = test_results[0]["test_auroc"]
-
-    results["def_best_model"] = checkpoint.best_model_path
-    results["def_train_csv"] = str(directory  / "logs" / "def" / "metrics.csv")
-    results["def_nepochs"] = pd.read_csv(results["def_train_csv"])["epoch_train_acc"].count()
-
-    # ~~~~~~~~~~~~~~~~~~~~~ do the pretrain
-
-    # create the model
-    pretrain_model = PredModel(
-            n_labels=pretrain_dm.n_labels, 
-            n_patterns=pretrain_dm.n_patterns,
-            l_patterns=pretrain_dm.l_patterns,
-            window_size=pretrain_dm.window_size,
-            lab_shifts=pretrain_dm.lab_shifts,
-            arch=arch)
-               
-    trainer, checkpoint = setup_trainer(directory=directory,  version="aux",
-        epoch_max=pre_maxepoch, epoch_patience=pre_patience, stop_metric=stop_metric)
-    trainer.fit(train_model, datamodule=train_dm)
-    pretrain_model = pretrain_model.load_from_checkpoint(checkpoint.best_model_path)
-    valid_results = trainer.validate(train_model, datamodule=train_dm)
-
-    # log results
-    results["aux_val_acc"] = valid_results[0]["val_acc"]
-    results["aux_val_f1"] = valid_results[0]["val_f1"]
-
-    results["aux_best_model"] = checkpoint.best_model_path
-    results["aux_train_csv"] = str(directory  / "logs" / "aux" / "metrics.csv")
-    results["aux_nepochs"] = pd.read_csv(results["aux_train_csv"])["epoch_train_acc"].count()
-
-    # grab the pretrained encoder
-    pretrained_encoder = pretrain_model.encoder
-
-    # ~~~~~~~~~~~~~~~~~~~~~ train with pretrain
-
-    train_model = PredModel(
-            n_labels=train_dm.n_labels, 
-            n_patterns=train_dm.n_patterns,
-            l_patterns=train_dm.l_patterns,
-            window_size=train_dm.window_size,
-            lab_shifts=[0],
-            arch=arch) 
-    train_model.encoder = pretrained_encoder
-    trainer, checkpoint = setup_trainer(directory=directory,  version="pre",
-        epoch_max=tra_maxepoch, epoch_patience=tra_patience, stop_metric=stop_metric)
-    trainer.fit(train_model, datamodule=train_dm)
-    train_model = train_model.load_from_checkpoint(checkpoint.best_model_path)
-    valid_results = trainer.validate(train_model, datamodule=train_dm)
-    test_results = trainer.test(train_model, datamodule=train_dm)
-
-    # log results
-    results["pre_val_acc"] = valid_results[0]["val_acc"]
-    results["pre_val_f1"] = valid_results[0]["val_f1"]
-    results["pre_val_auroc"] = valid_results[0]["val_auroc"]
-
-    results["pre_test_acc"] = test_results[0]["test_acc"]
-    results["pre_test_f1"] = test_results[0]["test_f1"]
-    results["pre_test_auroc"] = test_results[0]["test_auroc"]
-
-    results["pre_best_model"] = checkpoint.best_model_path
-    results["pre_train_csv"] = str(directory  / "logs" / "pre" / "metrics.csv")
-    results["pre_nepochs"] = pd.read_csv(results["pre_train_csv"])["epoch_train_acc"].count()
-    
-    print("\nTraining summary:")
-    print(results)
-
-    return results.to_frame().transpose().copy()
