@@ -36,7 +36,7 @@ class PredModel(LightningModule):
         window_size: int,
         lab_shifts: list[int],
         arch: type[LightningModule],
-        learning_rate: float = 1e-4
+        learning_rate: float = 1e-4,
         ):
 
         super().__init__()
@@ -57,9 +57,11 @@ class PredModel(LightningModule):
         
         # decoder
         self.decoder = nn.Sequential(
-            nn.Linear(in_features=self.encoder.get_output_shape(), 
+            nn.Linear(in_features=self.encoder.get_output_shape(),
+                      out_features=int(self.encoder.get_output_shape()/2)),
+            nn.Linear(in_features=int(self.encoder.get_output_shape()/2),
             out_features=n_labels*self.n_shifts), nn.Softmax())
-
+        
         # configure loggers
         if self.n_shifts == 1:
             for phase in ["train", "val", "test"]:

@@ -36,8 +36,6 @@ RANDOM_STATE = 0
 DATASETS = ["GunPoint"]
 ENCODERS = [CNN_Encoder]#, ResNet_Encoder]
 
-# BUG WITH THE SPLIT, MORE TRAIN SAMPLES THAN SHOULD
-
 # =================================
 
 for i, (dataset, arch) in enumerate(product(DATASETS, ENCODERS)):
@@ -50,7 +48,6 @@ for i, (dataset, arch) in enumerate(product(DATASETS, ENCODERS)):
     skf = StratifiedKFold(n_splits=NSPLITS, shuffle=True, random_state=RANDOM_STATE)
     for j, (train_index, test_index) in enumerate(skf.split(X, Y)):
 
-        log.info(f"Fold {j}:")
         X_train, Y_train = X[train_index,:], Y[train_index]
         X_test, Y_test = X[test_index,:], Y[test_index]
 

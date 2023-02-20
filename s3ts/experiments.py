@@ -288,7 +288,7 @@ def EXP_ratio(
 
     """ Experiment to check the effect of train/pretrain sample ratios."""
 
-    log.info(f"~~ BEGIN EXP EXPERIMENT (fold #{fold_number+1}/{total_folds}) ~~")
+    log.info(f"~~ BEGIN 'ratio' EXPERIMENT (fold #{fold_number+1}/{total_folds}) ~~")
 
     # make sure folders exist
     create_folders() 
@@ -298,7 +298,7 @@ def EXP_ratio(
     pret_frac = 1 - 1/(total_folds-1) 
 
     # prepare the data
-    log.info("Preparing datasets...")
+    log.info("Preparing data modules...")
     train_dm, pretrain_dm = prepare_dms(dataset=dataset,
         X_train=X_train, X_test=X_test, Y_train=Y_train, Y_test=Y_test,
         batch_size=batch_size, window_size=window_size, 
