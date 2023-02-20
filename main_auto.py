@@ -1,5 +1,5 @@
 """
-Automatic training under several conditions.
+Automatic experimentation script.
 
 @author Raúl Coterillo
 @version 2023-01
@@ -47,7 +47,7 @@ for i, (dataset, arch) in enumerate(product(DATASETS, ENCODERS)):
     X, Y, mapping = download_dataset(dataset_name=dataset)
 
     log.info(f"Train-test K-Fold validation: ({NSPLITS} splits)")
-    skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=RANDOM_STATE)
+    skf = StratifiedKFold(n_splits=NSPLITS, shuffle=True, random_state=RANDOM_STATE)
     for j, (train_index, test_index) in enumerate(skf.split(X, Y)):
 
         log.info(f"Fold {j}:")

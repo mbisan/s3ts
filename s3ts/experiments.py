@@ -74,9 +74,11 @@ dir_results: Path = Path("results/")
 
 def create_folders() -> None:
     """ Ensures all needed folders exist."""
+    log.info("Creating folders...")
     for path in [dir_cache, dir_train, dir_results]:
         path.mkdir(parents=True, exist_ok=True)
-
+        log.info("..." + str(path))
+    log.info("Done!")
 
 def prepare_dms(
         dataset: str, 
@@ -286,14 +288,17 @@ def EXP_ratio(
 
     """ Experiment to check the effect of train/pretrain sample ratios."""
 
+    log.info(f"~~ BEGIN EXP EXPERIMENT (fold #{fold_number+1}/{total_folds}) ~~")
+
     # make sure folders exist
     create_folders() 
 
     # NOTE: this is chosen so that the final number of
     # samples for just train and test is the same (50/50 split w/out pretrain)
-    pret_frac = 1 - (total_folds-1)/total_folds**2 
+    pret_frac = 1 - 1/(total_folds-1) 
 
     # prepare the data
+    log.info("Preparing datasets...")
     train_dm, pretrain_dm = prepare_dms(dataset=dataset,
         X_train=X_train, X_test=X_test, Y_train=Y_train, Y_test=Y_test,
         batch_size=batch_size, window_size=window_size, 
@@ -306,6 +311,7 @@ def EXP_ratio(
 
     # run the base model
     date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    log.info("Training baseline (no_pretrain) model...")
     subdir_train = dir_train / f"EXP_ratio_f{fold_number}.base_{date_flag}"
     data, model, checkpoint = train_model(
             directory=subdir_train, label="target", 
@@ -320,8 +326,10 @@ def EXP_ratio(
 
     # run with different ratios
     runs = [results]
-    RATIOS = [1, 2, 4, 8]
+    RATIOS = [1, 2, 3]
     for i, ratio in enumerate(RATIOS):
+
+        log.info(f"~ Checking pretrain ratio {ratio}:1")
 
         date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
         subdir_train = dir_train / f"EXP_ratio_f{fold_number}.{i}_{date_flag}"
@@ -337,21 +345,27 @@ def EXP_ratio(
         results["nframes_test"] = len(train_dm.ds_test)
 
         # pretrain the encoder
+        log.info("Training the encoder...")
         data, model, checkpoint = train_model(directory=subdir_train, label="pretrain", 
             epoch_max=pre_maxepoch, epoch_patience=pre_patience,
             dm=pretrain_dm, arch=arch)
         results = pd.concat([results, data], axis=1)
 
         # train with the original task
+        log.info("Training the complete model...")
         data, model, checkpoint = train_model(directory=subdir_train, label="target", 
-            epoch_max=pre_maxepoch, epoch_patience=pre_patience,
+            epoch_max=tra_maxepoch, epoch_patience=tra_patience,
             dm=train_dm, arch=arch, encoder=model.encoder)
         results = pd.concat([results, data], axis=1)
 
         runs.append(results)
+        fname = dir_results / f"EXP_ratio_f{fold_number}.csv"
+        log.info(f"Updating results file ({str(fname)})")
         runs_df = pd.concat(runs, ignore_index=True)
-        runs_df.to_csv(dir_results / "EXP_ratio.csv", index=False)
+        runs_df.to_csv(fname, index=False)
     
+    log.info(f"~~ EXPERIMENT COMPLETE! (fold #{fold_number+1}/{total_folds}) ~~")
+
     return runs_df
 
 # =====================================================
