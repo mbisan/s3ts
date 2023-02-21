@@ -2,16 +2,20 @@
 Automatic experimentation script.
 
 @author Raúl Coterillo
-@version 2023-01
+@version 2023-02
 """
 
 # data
-from s3ts.frames.tasks.download import download_dataset
+from s3ts.data.tasks.download import download_dataset
 from sklearn.model_selection import StratifiedKFold
 
 # architectures
-from s3ts.models.encoders.ResNet import ResNet_Encoder
-from s3ts.models.encoders.CNN import CNN_Encoder
+from s3ts.models.encoders.frames.ResNet import ResNet_DFS
+from s3ts.models.encoders.frames.CNN import CNN_DFS
+
+from s3ts.models.encoders.series.ResNet import ResNet_TS
+from s3ts.models.encoders.series.CNN import CNN_TS
+from s3ts.models.encoders.series.RNN import RNN_TS
 
 # experiments
 from s3ts.experiments import EXP_ratio
@@ -33,15 +37,15 @@ log.addHandler(LOGH_FILE), log.addHandler(LOGH_CLI)
 NSPLITS = 5
 RANDOM_STATE = 0
 
-DATASETS = ["GunPoint"]
-ENCODERS = [CNN_Encoder]#, ResNet_Encoder]
+DATASETS = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF"]
+ENCODERS = [CNN_DFS, ResNet_DFS]
 
 # =================================
 
-for i, (dataset, arch) in enumerate(product(DATASETS, ENCODERS)):
+for i, (arch, dataset) in enumerate(product(ENCODERS, DATASETS)):
 
     log.info(f"Current dataset: {dataset}")
-    log.info(f"Current dataset: {arch.__str__()}")
+    log.info(f"Current decoder: {arch.__str__()}")
     X, Y, mapping = download_dataset(dataset_name=dataset)
 
     log.info(f"Train-test K-Fold validation: ({NSPLITS} splits)")

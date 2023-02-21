@@ -5,15 +5,15 @@ Functions to perform the experiments presented in the article.
 """
 
 # data processing stuff
-from s3ts.frames.tasks.compute import compute_medoids, compute_STS
-from s3ts.frames.tasks.oesm import compute_OESM
+from s3ts.data.tasks.compute import compute_medoids, compute_STS
+from s3ts.data.tasks.oesm import compute_OESM
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import KBinsDiscretizer
 
 # models / modules
 from pytorch_lightning import LightningModule
-from s3ts.frames.modules import FramesDataModule
-from s3ts.models.wrapper import PredModel
+from s3ts.data.modules import DoubleDataModule
+from s3ts.models.wrapper import WrapperModel
 
 # training stuff
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
@@ -39,18 +39,14 @@ window_size: int = 5
 batch_size: int = 128
 rho_dfs: float = 0.1
 
-nframes_tra: int = None
-nframes_pre: int = None
-nframes_test: int = None
+nsamp_tra: int = None
+nsamp_pre: int = None
+nsamp_test: int = None
 
-# ptask 1 settings: quantile prediction
+# ptask settings: quantile prediction
 quant: bool = True
 quant_intervals: int = 5
 quant_shifts: list[int] = [0]
-
-# TODO ptask 2 settings: frame ordering
-order: bool = True
-order_nframes: int = 4
 
 # training procedure settings
 stop_metric: str = "val_auroc"
@@ -90,41 +86,42 @@ def prepare_dms(
         quant_shifts: list[int], quant_intervals: int,      # NOTE: can be changed without recalcs
         # multipliers for the number of frames generated
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        nframes_tra: float = None, nframes_pre: float = None, nframes_test: float = None,
+        nsamp_tra: float = None, nsamp_pre: float = None, nsamp_test: float = None,
         # cross validation stuff
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        fold_number: int = 0, random_state: int = 0,
-        ) -> tuple[FramesDataModule, FramesDataModule]:
+        fold_number: int = 0, random_state: int = 0, frames: bool = True
+        ) -> tuple[DoubleDataModule, DoubleDataModule]:
 
     """ Prepares the data modules for the training. """
 
     # print dataset info
-    log.info(f"Dataset: {dataset}")
-    log.info(f"Fold number: {fold_number}")
-    log.info(f"Total samples: {X_train.shape[0] + X_test.shape[0]}")
-    log.info("~~~~~~~~~~~~~~~~~~~~~~~")
+    log.info("~~~~~~~~~~~~~~~~~~~~~~~~~")
+    log.info(f"         Dataset: {dataset}")
+    log.info(f"     Fold number: {fold_number}")
+    log.info(f"   Total samples: {X_train.shape[0] + X_test.shape[0]}")
+    
 
     # prtrain/train set splitting
-    log.info(f"Splitting train and pretrain sets (seed: {random_state})")
+    log.debug(f"Splitting train and pretrain sets (seed: {random_state})")
     X_tra, X_pre, Y_tra, Y_pre = train_test_split(X_train, Y_train, 
         test_size=pret_frac, stratify=Y_train, random_state=random_state, shuffle=True)
 
     # print more dataset info
     log.info(f"Pretrain samples: {X_pre.shape[0]}")
-    log.info(f"Train samples: {X_tra.shape[0]}")
-    log.info(f"Test samples: {X_test.shape[0]}")
-    log.info("~~~~~~~~~~~~~~~~~~~~~~~")
+    log.info(f"   Train samples: {X_tra.shape[0]}")
+    log.info(f"    Test samples: {X_test.shape[0]}")
+    log.info("~~~~~~~~~~~~~~~~~~~~~~~~~")
 
     # pattern selection: shape = [n_patterns,  l_patterns]
     log.info(f"Selecting the DFS patterns from the train data")
     medoids, medoid_ids = compute_medoids(X_tra, Y_tra, distance_type="dtw")
 
     log.info("Generating 'train' STS...")       # train STS generation
-    STS_tra, labels_tra, frames_tra = compute_STS(X=X_tra,Y=Y_tra, target_nframes=nframes_tra, 
+    STS_tra, labels_tra, frames_tra = compute_STS(X=X_tra,Y=Y_tra, target_nframes=nsamp_tra, 
         frame_buffer=window_size*3,random_state=random_state)
 
     log.info("Generating 'pretrain' STS...")    # pretrain STS generation
-    STS_pre, _, frames_pre = compute_STS(X=X_pre, Y=Y_pre, target_nframes=nframes_pre, 
+    STS_pre, _, frames_pre = compute_STS(X=X_pre, Y=Y_pre, target_nframes=nsamp_pre, 
         frame_buffer=window_size*3,random_state=random_state)
     
     kbd = KBinsDiscretizer(n_bins=quant_intervals, encode="ordinal", strategy="quantile", random_state=random_state)
@@ -132,7 +129,7 @@ def prepare_dms(
     labels_pre = kbd.transform(STS_pre.reshape(-1,1)).squeeze().astype(int)
     
     log.info("Generating 'test' STS...")        # test STS generation
-    STS_test, labels_test, frames_test = compute_STS(X=X_test, Y=Y_test, target_nframes=nframes_test, 
+    STS_test, labels_test, frames_test = compute_STS(X=X_test, Y=Y_test, target_nframes=nsamp_test, 
         frame_buffer=window_size*3,random_state=random_state)
 
     # DFS generation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -154,9 +151,9 @@ def prepare_dms(
             DFS_tra, DFS_pre, DFS_test = data["DFS_tra"], data["DFS_pre"], data["DFS_test"]
 
     log.info("Creating 'train' dataset...")
-    dm_tra = FramesDataModule(
-        STS_train=STS_tra, DFS_train=DFS_tra, labels_train=labels_tra, nframes_train=frames_tra,
-        STS_test=STS_test, DFS_test=DFS_test, labels_test=labels_test, nframes_test=frames_test,
+    dm_tra = DoubleDataModule(
+        STS_train=STS_tra, DFS_train=DFS_tra, labels_train=labels_tra, nsamp_train=frames_tra,
+        STS_test=STS_test, DFS_test=DFS_test, labels_test=labels_test, nsamp_test=frames_test,
         window_size=window_size, batch_size=batch_size, quant_shifts=[0])
 
     log.info("Creating 'pretrain' dataset...")
@@ -165,9 +162,9 @@ def prepare_dms(
     log.info(f"Label shifts: {quant_shifts}")    
 
     # create data module (pretrain)
-    dm_pre = FramesDataModule(
-        STS_train=STS_pre, DFS_train=DFS_pre, labels_train=labels_pre, nframes_train=frames_pre,
-        window_size=window_size, batch_size=batch_size, quant_shifts=quant_shifts)   
+    dm_pre = DoubleDataModule(
+        STS_train=STS_pre, DFS_train=DFS_pre, labels_train=labels_pre, nsamp_train=frames_pre,
+        window_size=window_size, batch_size=batch_size, quant_shifts=quant_shifts, frames=frames)   
 
     return dm_tra, dm_pre
 
@@ -209,7 +206,7 @@ def train_model(
     label: str,
     epoch_max: int,
     epoch_patience: int,
-    dm: FramesDataModule,
+    dm: DoubleDataModule,
     arch: type[LightningModule],
     stop_metric: str = stop_metric,
     encoder: LightningModule = None,
@@ -218,7 +215,7 @@ def train_model(
     results = pd.Series(dtype="object")
 
     # create the model
-    model = PredModel(
+    model = WrapperModel(
             n_labels=dm.n_labels, 
             n_patterns=dm.n_patterns,
             l_patterns=dm.l_patterns,
@@ -292,6 +289,7 @@ def EXP_ratio(
 
     # make sure folders exist
     create_folders() 
+    res_file = dir_results / f"EXP_ratio_{arch.__str__()}_{dataset}_f{fold_number}.csv"
 
     # NOTE: this is chosen so that the final number of
     # samples for just train and test is the same (50/50 split w/out pretrain)
@@ -304,66 +302,87 @@ def EXP_ratio(
         batch_size=batch_size, window_size=window_size, 
         rho_dfs=rho_dfs, pret_frac=pret_frac, 
         quant_shifts=quant_shifts, quant_intervals=quant_intervals,
-        nframes_tra=nframes_tra, nframes_pre=nframes_pre, nframes_test=nframes_test,
-        fold_number=fold_number, random_state=random_state)
-    train_dm: FramesDataModule
-    pretrain_dm: FramesDataModule
+        nsamp_tra=nsamp_tra, nsamp_pre=nsamp_pre, nsamp_test=nsamp_test,
+        fold_number=fold_number, random_state=random_state, frames=arch.__frames__())
+    train_dm: DoubleDataModule
+    pretrain_dm: DoubleDataModule
 
-    # run the base model
-    date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
-    log.info("Training baseline (no_pretrain) model...")
-    subdir_train = dir_train / f"EXP_ratio_f{fold_number}.base_{date_flag}"
-    data, model, checkpoint = train_model(
-            directory=subdir_train, label="target", 
-            epoch_max=pre_maxepoch, epoch_patience=pre_patience,
-            dm=train_dm, arch=arch)
+    runs = []
+    PCTS = [0.25, 0.5, 0.75, 1]
+    trun, crun = len(PCTS)*(1+len(PCTS)), 0
+    for i, pct_av_train in enumerate(PCTS):
 
-    results = pd.concat([base_results(dataset, fold_number, arch, False, random_state), 
-                         data], axis = 1)
-    results["nframes_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
-    results["nframes_pre"] = 0
-    results["nframes_test"] = len(train_dm.ds_test) 
+        # set the train data ratio
+        train_dm.ds_train.frac_available = pct_av_train
+        train_dm.ds_val.frac_available = pct_av_train
+        tot_train_samps = len(train_dm.ds_train) + len(train_dm.ds_val)
 
-    # run with different ratios
-    runs = [results]
-    RATIOS = [1, 2, 3]
-    for i, ratio in enumerate(RATIOS):
+        crun += 1
+        log.info(f"~ [{crun}/{trun}] Training baseline model... ({pct_av_train*100}% data = {tot_train_samps} samples)")
 
-        log.info(f"~ Checking pretrain ratio {ratio}:1")
-
+        # define the training directory        
         date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        subdir_train = dir_train / f"EXP_ratio_f{fold_number}.{i}_{date_flag}"
+        subdir_train = dir_train / f"EXP_ratio_f{fold_number}.base_{date_flag}"
 
-        # set the pretrain data ratio
-        frac_av = ratio/(total_folds-2)
-        pretrain_dm.ds_train.frac_available = frac_av
-        pretrain_dm.ds_val.frac_available = frac_av
-
-        results = base_results(dataset, fold_number, arch, False, random_state)
-        results["nframes_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
-        results["nframes_pre"] = len(pretrain_dm.ds_train) + len(pretrain_dm.ds_val)
-        results["nframes_test"] = len(train_dm.ds_test)
-
-        # pretrain the encoder
-        log.info("Training the encoder...")
-        data, model, checkpoint = train_model(directory=subdir_train, label="pretrain", 
-            epoch_max=pre_maxepoch, epoch_patience=pre_patience,
-            dm=pretrain_dm, arch=arch)
-        results = pd.concat([results, data], axis=1)
-
-        # train with the original task
+        # run the base model
         log.info("Training the complete model...")
-        data, model, checkpoint = train_model(directory=subdir_train, label="target", 
+        data, model, checkpoint = train_model(
+            directory=subdir_train, label="target", 
             epoch_max=tra_maxepoch, epoch_patience=tra_patience,
-            dm=train_dm, arch=arch, encoder=model.encoder)
-        results = pd.concat([results, data], axis=1)
+            dm=train_dm, arch=arch)
+        
+        results = pd.concat([base_results(dataset, fold_number, arch, False, random_state), 
+                         data], axis = 1)
+        results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
+        results["nsamp_pre"] = 0
+        results["nsamp_test"] = len(train_dm.ds_test) 
 
+        # update results file
         runs.append(results)
-        fname = dir_results / f"EXP_ratio_f{fold_number}.csv"
-        log.info(f"Updating results file ({str(fname)})")
+        log.info(f"Updating results file ({str(res_file)})")
         runs_df = pd.concat(runs, ignore_index=True)
-        runs_df.to_csv(fname, index=False)
-    
+        runs_df.to_csv(res_file, index=False)
+
+        for j, pct_av_pre in enumerate(PCTS):
+
+            # set the pretrain data ratio
+            pretrain_dm.ds_train.frac_available = pct_av_pre
+            pretrain_dm.ds_val.frac_available = pct_av_pre
+            tot_pretrain_samps = len(pretrain_dm.ds_train) + len(pretrain_dm.ds_val)
+            crun += 1 
+
+            log.info(f"~ [{crun}/{trun}] Checking with {pct_av_pre*100}% pretrain data = {tot_pretrain_samps} ")
+
+            # define the training directory   
+            date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
+            subdir_train = dir_train / f"EXP_ratio_f{fold_number}.{i}_{date_flag}"
+
+                
+            results = base_results(dataset, fold_number, arch, True, random_state)
+            results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
+            results["nsamp_pre"] = len(pretrain_dm.ds_train) + len(pretrain_dm.ds_val)
+            results["nsamp_test"] = len(train_dm.ds_test)
+
+            # pretrain the encoder
+            log.info("Training the encoder...")
+            data, model, checkpoint = train_model(directory=subdir_train, label="pretrain", 
+                epoch_max=pre_maxepoch, epoch_patience=pre_patience,
+                dm=pretrain_dm, arch=arch)
+            results = pd.concat([results, data], axis=1)
+
+            # train with the original task
+            log.info("Training the complete model...")
+            data, model, checkpoint = train_model(directory=subdir_train, label="target", 
+                epoch_max=tra_maxepoch, epoch_patience=tra_patience,
+                dm=train_dm, arch=arch, encoder=model.encoder)
+            results = pd.concat([results, data], axis=1)
+
+            # update results file
+            runs.append(results)
+            log.info(f"Updating results file ({str(res_file)})")
+            runs_df = pd.concat(runs, ignore_index=True)
+            runs_df.to_csv(res_file, index=False)
+            
     log.info(f"~~ EXPERIMENT COMPLETE! (fold #{fold_number+1}/{total_folds}) ~~")
 
     return runs_df
@@ -377,9 +396,9 @@ def EXP_frames(
     fold_number: int = 0, random_state: int = 0,
     ):
 
-    nframes_tra: int = None 
-    nframes_pre: int = None
-    nframes_test: int = None
+    nsamp_tra: int = None 
+    nsamp_pre: int = None
+    nsamp_test: int = None
 
     pass
 

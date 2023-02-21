@@ -8,6 +8,7 @@ Base Convolutional Classification Model
 from __future__ import annotations
 
 # lightning
+from s3ts.models.decoders.linear import LinearDecoder
 from pytorch_lightning import LightningModule
 
 # base torch
@@ -27,7 +28,7 @@ log = logging.Logger(__name__)
 #                     MULTITASK MODEL                       #
 # ========================================================= #
 
-class PredModel(LightningModule):
+class WrapperModel(LightningModule):
 
     def __init__(self,      
         n_labels: int,
@@ -55,12 +56,15 @@ class PredModel(LightningModule):
             channels=n_patterns, 
             window_size=window_size)
         
+        embedding_size = self.encoder.get_output_shape()
+        self.embedding_size = embedding_size
+
         # decoder
-        self.decoder = nn.Sequential(
-            nn.Linear(in_features=self.encoder.get_output_shape(),
-                      out_features=int(self.encoder.get_output_shape()/2)),
-            nn.Linear(in_features=int(self.encoder.get_output_shape()/2),
-            out_features=n_labels*self.n_shifts), nn.Softmax())
+        self.decoder = LinearDecoder(in_features=embedding_size, hid_features=embedding_size//2, 
+            out_features=n_labels*self.n_shifts)
+        
+        # activation
+        self.activation = nn.Softmax(dim=0)
         
         # configure loggers
         if self.n_shifts == 1:
@@ -90,6 +94,7 @@ class PredModel(LightningModule):
         out = self.decoder(out)
         if self.n_shifts > 1:
             out = torch.stack(torch.split(out, self.n_labels, dim=1)).permute(1,0,2)
+        out = self.activation(out)
         return out
 
     # STEPS

@@ -44,7 +44,7 @@ class ResidualBlock(LightningModule):
         return nn.functional.relu(block)
 
 
-class ResNet_Encoder(LightningModule):
+class ResNet_DFS(LightningModule):
 
     def __init__(self, ref_size: int , channels: int, window_size: int):
         super().__init__()
@@ -63,7 +63,11 @@ class ResNet_Encoder(LightningModule):
 
     @staticmethod
     def __str__() -> str:
-        return "ResNet"
+        return "ResNet_DFS"
+
+    @staticmethod
+    def __frames__() -> bool:
+        return True
 
     def get_output_shape(self):
         return (len(self.model._modules) -1) * self.n_feature_maps

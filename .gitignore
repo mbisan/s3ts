@@ -130,7 +130,6 @@ dmypy.json
 .pyre/
 
 # Data folder
-data/
 training/
 cache/
 test/

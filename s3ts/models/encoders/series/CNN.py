@@ -1,40 +1,42 @@
-# lightning
-from pytorch_lightning import LightningModule
-
-import torch.nn as nn
 import torch
+from pytorch_lightning import LightningModule
+from torch import nn
 
-class CNN_Encoder(LightningModule):
+class CNN_TS(LightningModule):
 
-    def __init__(self, ref_size:int, channels:int, window_size:int):
+    def __init__(self, ref_size, channels, window_size):
         super().__init__()
 
         self.channels = channels
         self.n_feature_maps = 32
 
         self.model = nn.Sequential(
-            nn.Conv2d(in_channels=channels, out_channels=self.n_feature_maps // 2, kernel_size=3, padding='same'),
+            nn.Conv1d(in_channels=channels, out_channels=self.n_feature_maps // 2, kernel_size=3, padding='same'),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),
-            nn.Conv2d(in_channels=self.n_feature_maps // 2, out_channels=self.n_feature_maps,
+            nn.MaxPool1d(kernel_size=2),
+            nn.Conv1d(in_channels=self.n_feature_maps // 2, out_channels=self.n_feature_maps,
                       kernel_size=3, padding='same'),
             nn.ReLU(),
-            nn.AvgPool2d(2),
+            nn.AvgPool1d(2),
             nn.Dropout(0.35),
-            nn.Conv2d(in_channels=self.n_feature_maps, out_channels=self.n_feature_maps * 2,
+            nn.Conv1d(in_channels=self.n_feature_maps, out_channels=self.n_feature_maps * 2,
                       kernel_size=3, padding='same'),
-            nn.BatchNorm2d(num_features=self.n_feature_maps * 2),
+            nn.BatchNorm1d(num_features=self.n_feature_maps * 2),
             nn.ReLU(),
             nn.Dropout(0.4),
-            nn.Conv2d(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 4,
+            nn.Conv1d(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 4,
                       kernel_size=3, padding='same'),
         )
-        self.linear_1 = self.dynamic_linear((1, channels, ref_size, window_size))
+        self.linear_1 = self.dynamic_linear((2, channels, window_size))
         self.linear_2 = nn.Linear(in_features=self.n_feature_maps * 4, out_features=self.n_feature_maps * 8)
 
     @staticmethod
     def __str__() -> str:
-        return "CNN"
+        return "CNN_TS"
+
+    @staticmethod
+    def __frames__() -> bool:
+        return False
 
     def dynamic_linear(self, image_dim):
         x = torch.rand(*(image_dim))

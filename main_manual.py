@@ -10,8 +10,12 @@ from s3ts.frames.modules import FramesDataModule
 from s3ts.setup import prepare_data_modules
 
 # models
-from s3ts.models.encoders.ResNet import ResNet_Encoder
-from s3ts.models.encoders.CNN import CNN_Encoder
+from s3ts.models.encoders.frames.ResNet import ResNet_DFS
+from s3ts.models.encoders.frames.CNN import CNN_DFS
+
+from s3ts.models.encoders.series.ResNet import ResNet_TS
+from s
+
 from s3ts.models.wrapper import PredModel
 
 # training

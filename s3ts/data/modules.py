@@ -15,7 +15,7 @@ log.addHandler(LOGH_FILE), log.addHandler(LOGH_CLI)
 
 # ================================================================= #
 
-class FramesDataset(Dataset):
+class DoubleDataset(Dataset):
 
     def __init__(self,
             frames: np.ndarray,
@@ -25,7 +25,8 @@ class FramesDataset(Dataset):
             quant_shifts: list[int],
             window_size: int,
             transform = None, 
-            target_transform = None
+            target_transform = None,
+            return_frames: bool = True
             ) -> None:
 
         self.frames = frames
@@ -37,6 +38,7 @@ class FramesDataset(Dataset):
         self.n_samples = len(self.indexes)
         self.window_size = window_size
         self.quant_shifts = quant_shifts
+        self.return_frames = return_frames
 
         self.frac_available: float = 1.0
 
@@ -61,25 +63,32 @@ class FramesDataset(Dataset):
         else:
             label = self.labels[idx+self.quant_shifts[0],:]
 
-        frame = self.frames[:,:,idx - self.window_size:idx]
-        
-        if self.transform:
-            frame = self.transform(frame)
-        if self.target_transform:
-            label = self.target_transform(label)
-
-        return frame, label
+        # return either the frames or the time series
+        if self.return_frames:
+            frame = self.frames[:,:,idx - self.window_size:idx]
+            if self.transform:
+                frame = self.transform(frame)
+            if self.target_transform:
+                label = self.target_transform(label)
+            return frame, label
+        else: 
+            series = self.series[idx - self.window_size:idx]
+            if self.transform:
+                series = self.transform(series)
+            if self.target_transform:
+                label = self.target_transform(label)
+            return series, label
 
 # ================================================================= #
 
-class FramesDataModule(LightningDataModule):
+class DoubleDataModule(LightningDataModule):
 
     def __init__(self,
             # calculate this outside
             STS_train: np.ndarray,
             DFS_train: np.ndarray,
             labels_train: np.ndarray,
-            nframes_train: int, 
+            nsamp_train: int, 
             window_size: int, 
             batch_size: int,
             # ~~~~~~~~~~~~~~~~~~~~~~
@@ -89,7 +98,9 @@ class FramesDataModule(LightningDataModule):
             STS_test: np.ndarray = None,
             DFS_test: np.ndarray = None,
             labels_test: np.ndarray = None,
-            nframes_test: int = None,
+            nsamp_test: int = None,
+            # ~~~~~~~~~~~~~~~~~~~~~~
+            frames: bool = True
             ) -> None:
         
         super().__init__()
@@ -114,28 +125,33 @@ class FramesDataModule(LightningDataModule):
         self.random_state = random_state 
         self.num_workers = mp.cpu_count()//2        
 
-        train_stop = int(nframes_train*2./3.)
+        train_stop = int(nsamp_train*2./3.)
         self.train_idx = np.arange(self.frame_buffer, self.frame_buffer+train_stop)
         self.valid_idx = np.arange(self.frame_buffer+train_stop, self.l_DFS_train-np.max(quant_shifts))
-        log.info(f"Train frames: {len(self.train_idx)}")
-        log.info(f"Val frames: {len(self.valid_idx)}")
+        log.info(f"Train samples: {len(self.train_idx)}")
+        log.info(f"  Val samples: {len(self.valid_idx)}")
 
         # normalization_transform
-        transform = tv.transforms.Normalize(
-                self.DFS_train.mean(axis=[1,2]),
-                self.DFS_train.std(axis=[1,2]))
+        if frames:
+            transform = tv.transforms.Normalize(
+                    self.DFS_train.mean(axis=[1,2]),
+                    self.DFS_train.std(axis=[1,2]))
+        else:
+            transform = tv.transforms.Normalize(
+                    self.STS_train.mean(),
+                    self.STS_train.std())
 
         # training dataset
-        self.ds_train = FramesDataset(
+        self.ds_train = DoubleDataset(
             indexes=self.train_idx, quant_shifts=quant_shifts,
             frames=self.DFS_train, series=self.STS_train, labels=self.labels_train,
-            window_size=self.window_size, transform=transform)
+            window_size=self.window_size, transform=transform, return_frames=frames)
 
         # validation dataset
-        self.ds_val = FramesDataset(
+        self.ds_val = DoubleDataset(
             indexes=self.valid_idx, quant_shifts=quant_shifts,
             frames=self.DFS_train, series=self.STS_train, labels=self.labels_train, 
-            window_size=self.window_size, transform=transform)
+            window_size=self.window_size, transform=transform, return_frames=frames)
 
         # repeat for testing if needed
         self.test = STS_test is not None
@@ -145,13 +161,13 @@ class FramesDataModule(LightningDataModule):
             self.labels_test = torch.from_numpy(labels_test).to(torch.int64)
             self.labels_test = torch.nn.functional.one_hot(self.labels_test)
             self.l_DFS_test = DFS_test.shape[2]
-            self.test_idx = np.arange(self.frame_buffer, nframes_test-np.max(quant_shifts))
-            print(f"Test frames: {len(self.test_idx)}")
+            self.test_idx = np.arange(self.frame_buffer, nsamp_test-np.max(quant_shifts))
+            print(f" Test samples: {len(self.test_idx)}")
 
-            self.ds_test = FramesDataset(
+            self.ds_test = DoubleDataset(
                 indexes=self.test_idx, quant_shifts=quant_shifts,
                 frames=self.DFS_test, series=self.STS_test, labels=self.labels_test, 
-                window_size=self.window_size, transform=transform)
+                window_size=self.window_size, transform=transform, return_frames=frames)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 

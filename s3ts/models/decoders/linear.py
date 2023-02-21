@@ -3,7 +3,7 @@ from pytorch_lightning import LightningModule
 
 import torch.nn as nn
 
-class Linear_(LightningModule):
+class LinearDecoder(LightningModule):
 
     """ Basic linear sequence. """
 
