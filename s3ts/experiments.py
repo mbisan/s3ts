@@ -308,7 +308,7 @@ def EXP_ratio(
     pretrain_dm: DoubleDataModule
 
     runs = []
-    PCTS = [0.25, 0.5, 0.75, 1]
+    PCTS = [0.2, 0.4, 0.6, 0.8, 1]
     trun, crun = len(PCTS)*(1+len(PCTS)), 0
     for i, pct_av_train in enumerate(PCTS):
 
