@@ -1,0 +1,291 @@
+2023-02-20 11:01:48 [INFO] Current dataset: GunPoint
+2023-02-20 11:01:48 [INFO] Current dataset: CNN
+2023-02-20 11:01:48 [INFO] Train-test K-Fold validation: (5 splits)
+2023-02-20 11:01:48 [INFO] Fold 0:
+2023-02-20 11:01:48 [INFO] ~~ BEGIN EXP EXPERIMENT (fold #1/5) ~~
+2023-02-20 11:01:48 [INFO] Creating folders...
+2023-02-20 11:01:48 [INFO] ...cache
+2023-02-20 11:01:48 [INFO] ...training/exp
+2023-02-20 11:01:48 [INFO] ...results
+2023-02-20 11:01:48 [INFO] Done!
+2023-02-20 11:01:48 [INFO] Preparing datasets...
+2023-02-20 11:01:48 [INFO] Dataset: GunPoint
+2023-02-20 11:01:48 [INFO] Fold number: 0
+2023-02-20 11:01:48 [INFO] Total samples: 200
+2023-02-20 11:01:48 [INFO] ~~~~~~~~~~~~~~~~~~~~~~~
+2023-02-20 11:01:48 [INFO] Splitting train and pretrain sets (seed: 0)
+2023-02-20 11:01:48 [INFO] Pretrain samples: 120
+2023-02-20 11:01:48 [INFO] Train samples: 40
+2023-02-20 11:01:48 [INFO] Test samples: 40
+2023-02-20 11:01:48 [INFO] ~~~~~~~~~~~~~~~~~~~~~~~
+2023-02-20 11:01:48 [INFO] Selecting the DFS patterns from the train data
+2023-02-20 11:01:48 [INFO] Generating 'train' STS...
+2023-02-20 11:01:48 [INFO] Sample size: 6000
+2023-02-20 11:01:48 [INFO] Number of samples: 40
+2023-02-20 11:01:48 [INFO] Target number of frames: 6000
+2023-02-20 11:01:48 [INFO] Recom. number of frames: 6000
+2023-02-20 11:01:48 [INFO] Generating 'pretrain' STS...
+2023-02-20 11:01:48 [INFO] Sample size: 18000
+2023-02-20 11:01:48 [INFO] Number of samples: 120
+2023-02-20 11:01:48 [INFO] Target number of frames: 18000
+2023-02-20 11:01:48 [INFO] Recom. number of frames: 18000
+2023-02-20 11:01:48 [INFO] Generating 'test' STS...
+2023-02-20 11:01:48 [INFO] Sample size: 6000
+2023-02-20 11:01:48 [INFO] Number of samples: 40
+2023-02-20 11:01:48 [INFO] Target number of frames: 6000
+2023-02-20 11:01:48 [INFO] Recom. number of frames: 6000
+2023-02-20 11:01:48 [INFO] Loading DFS from cached file... (cache/DFS_GunPoint_pf0.75_f0-rs0_tr6000-pr18000-ts6000.npz)
+2023-02-20 11:01:49 [INFO] Creating 'train' dataset...
+2023-02-20 11:01:49 [INFO] Train frames: 4000
+2023-02-20 11:01:49 [INFO] Val frames: 2135
+2023-02-20 11:01:49 [INFO] Creating 'pretrain' dataset...
+2023-02-20 11:01:49 [INFO] Number of quantiles: 5
+2023-02-20 11:01:49 [INFO] Label shifts: [0]
+2023-02-20 11:01:49 [INFO] Train frames: 12000
+2023-02-20 11:01:49 [INFO] Val frames: 6135
+2023-02-20 11:01:49 [INFO] Training baseline (no_pretrain) model...
+2023-02-20 11:03:06 [INFO] ~ Checking pretrain ratio 1:1
+2023-02-20 11:03:06 [INFO] Training the encoder...
+2023-02-20 11:03:40 [INFO] Training the complete model...
+2023-02-20 11:08:05 [INFO] Updating results file (results/EXP_ratio_f0.csv)
+2023-02-20 11:08:05 [INFO] ~ Checking pretrain ratio 2:1
+2023-02-20 11:08:06 [INFO] Training the encoder...
+2023-02-20 11:09:20 [INFO] Training the complete model...
+2023-02-20 11:11:37 [INFO] Updating results file (results/EXP_ratio_f0.csv)
+2023-02-20 11:11:37 [INFO] ~ Checking pretrain ratio 3:1
+2023-02-20 11:11:37 [INFO] Training the encoder...
+2023-02-20 11:14:00 [INFO] Training the complete model...
+2023-02-20 11:16:17 [INFO] Updating results file (results/EXP_ratio_f0.csv)
+2023-02-20 11:16:17 [INFO] ~~ EXPERIMENT COMPLETE! (fold #1/5) ~~
+2023-02-20 11:16:17 [INFO] Fold 1:
+2023-02-20 11:16:17 [INFO] ~~ BEGIN EXP EXPERIMENT (fold #2/5) ~~
+2023-02-20 11:16:17 [INFO] Creating folders...
+2023-02-20 11:16:17 [INFO] ...cache
+2023-02-20 11:16:17 [INFO] ...training/exp
+2023-02-20 11:16:17 [INFO] ...results
+2023-02-20 11:16:17 [INFO] Done!
+2023-02-20 11:16:17 [INFO] Preparing datasets...
+2023-02-20 11:16:17 [INFO] Dataset: GunPoint
+2023-02-20 11:16:17 [INFO] Fold number: 1
+2023-02-20 11:16:17 [INFO] Total samples: 200
+2023-02-20 11:16:17 [INFO] ~~~~~~~~~~~~~~~~~~~~~~~
+2023-02-20 11:16:17 [INFO] Splitting train and pretrain sets (seed: 0)
+2023-02-20 11:16:17 [INFO] Pretrain samples: 120
+2023-02-20 11:16:17 [INFO] Train samples: 40
+2023-02-20 11:16:17 [INFO] Test samples: 40
+2023-02-20 11:16:17 [INFO] ~~~~~~~~~~~~~~~~~~~~~~~
+2023-02-20 11:16:17 [INFO] Selecting the DFS patterns from the train data
+2023-02-20 11:16:17 [INFO] Generating 'train' STS...
+2023-02-20 11:16:17 [INFO] Sample size: 6000
+2023-02-20 11:16:17 [INFO] Number of samples: 40
+2023-02-20 11:16:17 [INFO] Target number of frames: 6000
+2023-02-20 11:16:17 [INFO] Recom. number of frames: 6000
+2023-02-20 11:16:17 [INFO] Generating 'pretrain' STS...
+2023-02-20 11:16:17 [INFO] Sample size: 18000
+2023-02-20 11:16:17 [INFO] Number of samples: 120
+2023-02-20 11:16:17 [INFO] Target number of frames: 18000
+2023-02-20 11:16:17 [INFO] Recom. number of frames: 18000
+2023-02-20 11:16:17 [INFO] Generating 'test' STS...
+2023-02-20 11:16:17 [INFO] Sample size: 6000
+2023-02-20 11:16:17 [INFO] Number of samples: 40
+2023-02-20 11:16:17 [INFO] Target number of frames: 6000
+2023-02-20 11:16:17 [INFO] Recom. number of frames: 6000
+2023-02-20 11:16:17 [INFO] Generating 'train' DFS...
+2023-02-20 11:16:21 [INFO] Generating 'pretrain' DFS...
+2023-02-20 11:16:31 [INFO] Generating 'test' DFS...
+2023-02-20 11:16:37 [INFO] Creating 'train' dataset...
+2023-02-20 11:16:37 [INFO] Train frames: 4000
+2023-02-20 11:16:37 [INFO] Val frames: 2135
+2023-02-20 11:16:37 [INFO] Creating 'pretrain' dataset...
+2023-02-20 11:16:37 [INFO] Number of quantiles: 5
+2023-02-20 11:16:37 [INFO] Label shifts: [0]
+2023-02-20 11:16:37 [INFO] Train frames: 12000
+2023-02-20 11:16:37 [INFO] Val frames: 6135
+2023-02-20 11:16:37 [INFO] Training baseline (no_pretrain) model...
+2023-02-20 11:18:31 [INFO] ~ Checking pretrain ratio 1:1
+2023-02-20 11:18:31 [INFO] Training the encoder...
+2023-02-20 11:19:13 [INFO] Training the complete model...
+2023-02-20 11:24:39 [INFO] Updating results file (results/EXP_ratio_f1.csv)
+2023-02-20 11:24:39 [INFO] ~ Checking pretrain ratio 2:1
+2023-02-20 11:24:39 [INFO] Training the encoder...
+2023-02-20 11:26:16 [INFO] Training the complete model...
+2023-02-20 11:31:36 [INFO] Updating results file (results/EXP_ratio_f1.csv)
+2023-02-20 11:31:36 [INFO] ~ Checking pretrain ratio 3:1
+2023-02-20 11:31:36 [INFO] Training the encoder...
+2023-02-20 11:32:54 [INFO] Training the complete model...
+2023-02-20 11:38:08 [INFO] Updating results file (results/EXP_ratio_f1.csv)
+2023-02-20 11:38:08 [INFO] ~~ EXPERIMENT COMPLETE! (fold #2/5) ~~
+2023-02-20 11:38:08 [INFO] Fold 2:
+2023-02-20 11:38:08 [INFO] ~~ BEGIN EXP EXPERIMENT (fold #3/5) ~~
+2023-02-20 11:38:08 [INFO] Creating folders...
+2023-02-20 11:38:08 [INFO] ...cache
+2023-02-20 11:38:08 [INFO] ...training/exp
+2023-02-20 11:38:08 [INFO] ...results
+2023-02-20 11:38:08 [INFO] Done!
+2023-02-20 11:38:08 [INFO] Preparing datasets...
+2023-02-20 11:38:08 [INFO] Dataset: GunPoint
+2023-02-20 11:38:08 [INFO] Fold number: 2
+2023-02-20 11:38:08 [INFO] Total samples: 200
+2023-02-20 11:38:08 [INFO] ~~~~~~~~~~~~~~~~~~~~~~~
+2023-02-20 11:38:08 [INFO] Splitting train and pretrain sets (seed: 0)
+2023-02-20 11:38:08 [INFO] Pretrain samples: 120
+2023-02-20 11:38:08 [INFO] Train samples: 40
+2023-02-20 11:38:08 [INFO] Test samples: 40
+2023-02-20 11:38:08 [INFO] ~~~~~~~~~~~~~~~~~~~~~~~
+2023-02-20 11:38:08 [INFO] Selecting the DFS patterns from the train data
+2023-02-20 11:38:08 [INFO] Generating 'train' STS...
+2023-02-20 11:38:08 [INFO] Sample size: 6000
+2023-02-20 11:38:08 [INFO] Number of samples: 40
+2023-02-20 11:38:08 [INFO] Target number of frames: 6000
+2023-02-20 11:38:08 [INFO] Recom. number of frames: 6000
+2023-02-20 11:38:08 [INFO] Generating 'pretrain' STS...
+2023-02-20 11:38:08 [INFO] Sample size: 18000
+2023-02-20 11:38:08 [INFO] Number of samples: 120
+2023-02-20 11:38:08 [INFO] Target number of frames: 18000
+2023-02-20 11:38:08 [INFO] Recom. number of frames: 18000
+2023-02-20 11:38:08 [INFO] Generating 'test' STS...
+2023-02-20 11:38:08 [INFO] Sample size: 6000
+2023-02-20 11:38:08 [INFO] Number of samples: 40
+2023-02-20 11:38:08 [INFO] Target number of frames: 6000
+2023-02-20 11:38:08 [INFO] Recom. number of frames: 6000
+2023-02-20 11:38:08 [INFO] Generating 'train' DFS...
+2023-02-20 11:38:12 [INFO] Generating 'pretrain' DFS...
+2023-02-20 11:38:23 [INFO] Generating 'test' DFS...
+2023-02-20 11:38:28 [INFO] Creating 'train' dataset...
+2023-02-20 11:38:28 [INFO] Train frames: 4000
+2023-02-20 11:38:28 [INFO] Val frames: 2135
+2023-02-20 11:38:28 [INFO] Creating 'pretrain' dataset...
+2023-02-20 11:38:28 [INFO] Number of quantiles: 5
+2023-02-20 11:38:28 [INFO] Label shifts: [0]
+2023-02-20 11:38:28 [INFO] Train frames: 12000
+2023-02-20 11:38:28 [INFO] Val frames: 6135
+2023-02-20 11:38:28 [INFO] Training baseline (no_pretrain) model...
+2023-02-20 11:39:02 [INFO] ~ Checking pretrain ratio 1:1
+2023-02-20 11:39:02 [INFO] Training the encoder...
+2023-02-20 11:39:53 [INFO] Training the complete model...
+2023-02-20 11:44:48 [INFO] Updating results file (results/EXP_ratio_f2.csv)
+2023-02-20 11:44:48 [INFO] ~ Checking pretrain ratio 2:1
+2023-02-20 11:44:48 [INFO] Training the encoder...
+2023-02-20 11:45:44 [INFO] Training the complete model...
+2023-02-20 11:51:13 [INFO] Updating results file (results/EXP_ratio_f2.csv)
+2023-02-20 11:51:13 [INFO] ~ Checking pretrain ratio 3:1
+2023-02-20 11:51:13 [INFO] Training the encoder...
+2023-02-20 11:52:59 [INFO] Training the complete model...
+2023-02-20 11:55:26 [INFO] Updating results file (results/EXP_ratio_f2.csv)
+2023-02-20 11:55:26 [INFO] ~~ EXPERIMENT COMPLETE! (fold #3/5) ~~
+2023-02-20 11:55:26 [INFO] Fold 3:
+2023-02-20 11:55:26 [INFO] ~~ BEGIN EXP EXPERIMENT (fold #4/5) ~~
+2023-02-20 11:55:26 [INFO] Creating folders...
+2023-02-20 11:55:26 [INFO] ...cache
+2023-02-20 11:55:26 [INFO] ...training/exp
+2023-02-20 11:55:26 [INFO] ...results
+2023-02-20 11:55:26 [INFO] Done!
+2023-02-20 11:55:26 [INFO] Preparing datasets...
+2023-02-20 11:55:26 [INFO] Dataset: GunPoint
+2023-02-20 11:55:26 [INFO] Fold number: 3
+2023-02-20 11:55:26 [INFO] Total samples: 200
+2023-02-20 11:55:26 [INFO] ~~~~~~~~~~~~~~~~~~~~~~~
+2023-02-20 11:55:26 [INFO] Splitting train and pretrain sets (seed: 0)
+2023-02-20 11:55:26 [INFO] Pretrain samples: 120
+2023-02-20 11:55:26 [INFO] Train samples: 40
+2023-02-20 11:55:26 [INFO] Test samples: 40
+2023-02-20 11:55:26 [INFO] ~~~~~~~~~~~~~~~~~~~~~~~
+2023-02-20 11:55:26 [INFO] Selecting the DFS patterns from the train data
+2023-02-20 11:55:26 [INFO] Generating 'train' STS...
+2023-02-20 11:55:26 [INFO] Sample size: 6000
+2023-02-20 11:55:26 [INFO] Number of samples: 40
+2023-02-20 11:55:26 [INFO] Target number of frames: 6000
+2023-02-20 11:55:26 [INFO] Recom. number of frames: 6000
+2023-02-20 11:55:26 [INFO] Generating 'pretrain' STS...
+2023-02-20 11:55:26 [INFO] Sample size: 18000
+2023-02-20 11:55:26 [INFO] Number of samples: 120
+2023-02-20 11:55:26 [INFO] Target number of frames: 18000
+2023-02-20 11:55:26 [INFO] Recom. number of frames: 18000
+2023-02-20 11:55:26 [INFO] Generating 'test' STS...
+2023-02-20 11:55:26 [INFO] Sample size: 6000
+2023-02-20 11:55:26 [INFO] Number of samples: 40
+2023-02-20 11:55:26 [INFO] Target number of frames: 6000
+2023-02-20 11:55:26 [INFO] Recom. number of frames: 6000
+2023-02-20 11:55:26 [INFO] Generating 'train' DFS...
+2023-02-20 11:55:30 [INFO] Generating 'pretrain' DFS...
+2023-02-20 11:55:40 [INFO] Generating 'test' DFS...
+2023-02-20 11:55:46 [INFO] Creating 'train' dataset...
+2023-02-20 11:55:46 [INFO] Train frames: 4000
+2023-02-20 11:55:46 [INFO] Val frames: 2135
+2023-02-20 11:55:46 [INFO] Creating 'pretrain' dataset...
+2023-02-20 11:55:46 [INFO] Number of quantiles: 5
+2023-02-20 11:55:46 [INFO] Label shifts: [0]
+2023-02-20 11:55:46 [INFO] Train frames: 12000
+2023-02-20 11:55:46 [INFO] Val frames: 6135
+2023-02-20 11:55:46 [INFO] Training baseline (no_pretrain) model...
+2023-02-20 11:55:59 [INFO] ~ Checking pretrain ratio 1:1
+2023-02-20 11:55:59 [INFO] Training the encoder...
+2023-02-20 11:57:19 [INFO] Training the complete model...
+2023-02-20 12:02:41 [INFO] Updating results file (results/EXP_ratio_f3.csv)
+2023-02-20 12:02:41 [INFO] ~ Checking pretrain ratio 2:1
+2023-02-20 12:02:41 [INFO] Training the encoder...
+2023-02-20 12:04:30 [INFO] Training the complete model...
+2023-02-20 12:06:40 [INFO] Updating results file (results/EXP_ratio_f3.csv)
+2023-02-20 12:06:40 [INFO] ~ Checking pretrain ratio 3:1
+2023-02-20 12:06:40 [INFO] Training the encoder...
+2023-02-20 12:08:58 [INFO] Training the complete model...
+2023-02-20 12:12:45 [INFO] Updating results file (results/EXP_ratio_f3.csv)
+2023-02-20 12:12:45 [INFO] ~~ EXPERIMENT COMPLETE! (fold #4/5) ~~
+2023-02-20 12:12:45 [INFO] Fold 4:
+2023-02-20 12:12:45 [INFO] ~~ BEGIN EXP EXPERIMENT (fold #5/5) ~~
+2023-02-20 12:12:45 [INFO] Creating folders...
+2023-02-20 12:12:45 [INFO] ...cache
+2023-02-20 12:12:45 [INFO] ...training/exp
+2023-02-20 12:12:45 [INFO] ...results
+2023-02-20 12:12:45 [INFO] Done!
+2023-02-20 12:12:45 [INFO] Preparing datasets...
+2023-02-20 12:12:45 [INFO] Dataset: GunPoint
+2023-02-20 12:12:45 [INFO] Fold number: 4
+2023-02-20 12:12:45 [INFO] Total samples: 200
+2023-02-20 12:12:45 [INFO] ~~~~~~~~~~~~~~~~~~~~~~~
+2023-02-20 12:12:45 [INFO] Splitting train and pretrain sets (seed: 0)
+2023-02-20 12:12:45 [INFO] Pretrain samples: 120
+2023-02-20 12:12:45 [INFO] Train samples: 40
+2023-02-20 12:12:45 [INFO] Test samples: 40
+2023-02-20 12:12:45 [INFO] ~~~~~~~~~~~~~~~~~~~~~~~
+2023-02-20 12:12:45 [INFO] Selecting the DFS patterns from the train data
+2023-02-20 12:12:45 [INFO] Generating 'train' STS...
+2023-02-20 12:12:45 [INFO] Sample size: 6000
+2023-02-20 12:12:45 [INFO] Number of samples: 40
+2023-02-20 12:12:45 [INFO] Target number of frames: 6000
+2023-02-20 12:12:45 [INFO] Recom. number of frames: 6000
+2023-02-20 12:12:45 [INFO] Generating 'pretrain' STS...
+2023-02-20 12:12:45 [INFO] Sample size: 18000
+2023-02-20 12:12:45 [INFO] Number of samples: 120
+2023-02-20 12:12:45 [INFO] Target number of frames: 18000
+2023-02-20 12:12:45 [INFO] Recom. number of frames: 18000
+2023-02-20 12:12:45 [INFO] Generating 'test' STS...
+2023-02-20 12:12:45 [INFO] Sample size: 6000
+2023-02-20 12:12:45 [INFO] Number of samples: 40
+2023-02-20 12:12:45 [INFO] Target number of frames: 6000
+2023-02-20 12:12:45 [INFO] Recom. number of frames: 6000
+2023-02-20 12:12:45 [INFO] Generating 'train' DFS...
+2023-02-20 12:12:48 [INFO] Generating 'pretrain' DFS...
+2023-02-20 12:12:59 [INFO] Generating 'test' DFS...
+2023-02-20 12:13:04 [INFO] Creating 'train' dataset...
+2023-02-20 12:13:04 [INFO] Train frames: 4000
+2023-02-20 12:13:04 [INFO] Val frames: 2135
+2023-02-20 12:13:04 [INFO] Creating 'pretrain' dataset...
+2023-02-20 12:13:04 [INFO] Number of quantiles: 5
+2023-02-20 12:13:04 [INFO] Label shifts: [0]
+2023-02-20 12:13:04 [INFO] Train frames: 12000
+2023-02-20 12:13:04 [INFO] Val frames: 6135
+2023-02-20 12:13:04 [INFO] Training baseline (no_pretrain) model...
+2023-02-20 12:13:12 [INFO] ~ Checking pretrain ratio 1:1
+2023-02-20 12:13:12 [INFO] Training the encoder...
+2023-02-20 12:14:18 [INFO] Training the complete model...
+2023-02-20 12:19:42 [INFO] Updating results file (results/EXP_ratio_f4.csv)
+2023-02-20 12:19:42 [INFO] ~ Checking pretrain ratio 2:1
+2023-02-20 12:19:42 [INFO] Training the encoder...
+2023-02-20 12:20:48 [INFO] Training the complete model...
+2023-02-20 12:24:55 [INFO] Updating results file (results/EXP_ratio_f4.csv)
+2023-02-20 12:24:56 [INFO] ~ Checking pretrain ratio 3:1
+2023-02-20 12:24:56 [INFO] Training the encoder...
+2023-02-20 12:26:58 [INFO] Training the complete model...
+2023-02-20 12:28:42 [INFO] Updating results file (results/EXP_ratio_f4.csv)
+2023-02-20 12:28:42 [INFO] ~~ EXPERIMENT COMPLETE! (fold #5/5) ~~
