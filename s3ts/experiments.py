@@ -71,7 +71,7 @@ dir_results: Path = Path("results/")
 def create_folders() -> None:
     """ Ensures all needed folders exist."""
     log.info("Creating folders...")
-    for path in [dir_cache, dir_train, dir_results]:
+    for path in [Path("cache/")]:
         path.mkdir(parents=True, exist_ok=True)
         log.info("..." + str(path))
     log.info("Done!")
