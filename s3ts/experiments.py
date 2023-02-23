@@ -210,7 +210,7 @@ def train_model(
     arch: type[LightningModule],
     stop_metric: str = stop_metric,
     encoder: LightningModule = None,
-    ) -> tuple[Trainer, ModelCheckpoint]:
+    ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
 
     results = pd.Series(dtype="object")
 
@@ -357,7 +357,6 @@ def EXP_ratio(
             date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
             subdir_train = dir_train / f"EXP_ratio_f{fold_number}.{i}_{date_flag}"
 
-                
             results = base_results(dataset, fold_number, arch, True, random_state)
             results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
             results["nsamp_pre"] = len(pretrain_dm.ds_train) + len(pretrain_dm.ds_val)
@@ -369,12 +368,13 @@ def EXP_ratio(
                 epoch_max=pre_maxepoch, epoch_patience=pre_patience,
                 dm=pretrain_dm, arch=arch)
             results = pd.concat([results, data], axis=1)
+            encoder = model.encoder
 
             # train with the original task
             log.info("Training the complete model...")
             data, model, checkpoint = train_model(directory=subdir_train, label="target", 
                 epoch_max=tra_maxepoch, epoch_patience=tra_patience,
-                dm=train_dm, arch=arch, encoder=model.encoder)
+                dm=train_dm, arch=arch, encoder=encoder)
             results = pd.concat([results, data], axis=1)
 
             # update results file
