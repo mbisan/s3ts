@@ -64,7 +64,7 @@ class WrapperModel(LightningModule):
             out_features=n_labels*self.n_shifts)
         
         # activation
-        self.activation = nn.Softmax(dim=0)
+        self.activation = nn.Softmax()
         
         # configure loggers
         if self.n_shifts == 1:
