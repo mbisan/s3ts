@@ -324,7 +324,7 @@ def EXP_ratio(
         log.info("Training the complete model...")
         data, model, checkpoint = train_model(
             directory=subdir_train, label="target", 
-            epoch_max=tra_maxepoch, epoch_patience=tra_patience,
+            epoch_max=tra_maxepoch,
             dm=train_dm, arch=arch)
         
         results = pd.concat([base_results(dataset, fold_number, arch, False, random_state), 
@@ -361,7 +361,7 @@ def EXP_ratio(
             # pretrain the encoder
             log.info("Training the encoder...")
             data, model, checkpoint = train_model(directory=subdir_train, label="pretrain", 
-                epoch_max=pre_maxepoch, epoch_patience=pre_patience,
+                epoch_max=pre_maxepoch,
                 dm=pretrain_dm, arch=arch)
             results = pd.concat([results, data], axis=1)
             encoder = model.encoder
@@ -369,7 +369,7 @@ def EXP_ratio(
             # train with the original task
             log.info("Training the complete model...")
             data, model, checkpoint = train_model(directory=subdir_train, label="target", 
-                epoch_max=tra_maxepoch, epoch_patience=tra_patience,
+                epoch_max=tra_maxepoch,
                 dm=train_dm, arch=arch, encoder=encoder)
             results = pd.concat([results, data], axis=1)
 
