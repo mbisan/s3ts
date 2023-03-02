@@ -48,7 +48,7 @@ def EXP_ratio_preprocessing(df: pd.DataFrame):
 
     """ Preprocess the data for the "ratio" experiment """
 
-    cols = [c for c in df.columns if (("target_test" in c) or (("pretrain_val" in c)) and "nepoch" not in c)]
+    cols = [c for c in df.columns if (("target_val" in c) or("target_test" in c) or (("pretrain_val" in c)) and "nepoch" not in c)]
 
     dfs = []
     for (dataset, arch), dfg in df.groupby(["dataset", "arch"]):
@@ -72,4 +72,23 @@ def EXP_ratio_preprocessing(df: pd.DataFrame):
 
 
     return df
+
+def EXP_ratio_set_baselines(df: pd.DataFrame):
+
+    df = df.copy()
+
+    dfs = []
+    df.drop(columns=[c for c in df.columns if ("pretrain" in c)], inplace=True)
+    mcols = [c for c in df.columns if ("target_" in c) and ("_mean" in c)]
+    ecols = [c for c in df.columns if ("target_" in c) and ("_std" in c)]
+    for xd, dfg in df.groupby(["arch", "dataset", "nsamp_tra"]):
+        if (dfg["nsamp_pre"] > 0).sum() > 0:
+            dfg.loc[dfg["nsamp_pre"] > 0, mcols] = dfg.loc[dfg["nsamp_pre"] > 0, mcols] - dfg.iloc[0][mcols]
+            dfg.loc[dfg["nsamp_pre"] > 0, ecols] = dfg.loc[dfg["nsamp_pre"] > 0, ecols] + dfg.iloc[0][ecols]
+            dfs.append(dfg.iloc[1:].copy())
+        else:
+            continue
+
+    return pd.concat(dfs, ignore_index=True)
+    
 
