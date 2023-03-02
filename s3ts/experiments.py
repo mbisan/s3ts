@@ -49,11 +49,9 @@ quant_intervals: int = 5
 quant_shifts: list[int] = [0]
 
 # training procedure settings
-stop_metric: str = "val_auroc"
-pre_patience: int = 5
-pre_maxepoch: int = 100
-tra_patience: int = 40
-tra_maxepoch: int = 200
+stop_metric: str = "val_acc"
+pre_maxepoch: int = 60
+tra_maxepoch: int = 240
 
 # folders 
 dir_cache: Path = Path("cache/")
@@ -174,7 +172,6 @@ def setup_trainer(
     directory: Path,
     version: str,
     epoch_max: int,
-    epoch_patience: int,
     stop_metric: str = stop_metric,
     ) -> tuple[Trainer, ModelCheckpoint]:
 
@@ -189,7 +186,7 @@ def setup_trainer(
         ],
         callbacks=[
             # early stop the model
-            EarlyStopping(monitor=stop_metric, mode="max", patience=epoch_patience),         
+            # EarlyStopping(monitor=stop_metric, mode="max", patience=epoch_patience),         
             LearningRateMonitor(logging_interval='step'),  # learning rate logger
             checkpoint  # save best model version
             ],
@@ -205,7 +202,6 @@ def train_model(
     directory: Path,
     label: str,
     epoch_max: int,
-    epoch_patience: int,
     dm: DoubleDataModule,
     arch: type[LightningModule],
     stop_metric: str = stop_metric,
@@ -229,7 +225,7 @@ def train_model(
 
     # train the model
     trainer, checkpoint = setup_trainer(directory=directory,  version=label,
-        epoch_max=epoch_max, epoch_patience=epoch_patience, stop_metric=stop_metric)
+        epoch_max=epoch_max, stop_metric=stop_metric)
     trainer.fit(model, datamodule=dm)
 
     # load best checkpoint
