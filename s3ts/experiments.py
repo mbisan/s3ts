@@ -308,6 +308,9 @@ def EXP_ratio(
     trun, crun = len(PCTS)*(1+len(PCTS)), 0
     for i, pct_av_train in enumerate(PCTS):
 
+        # reset the seed
+        seed_everything(random_state)
+
         # set the train data ratio
         train_dm.ds_train.frac_available = pct_av_train
         train_dm.ds_val.frac_available = pct_av_train
@@ -357,6 +360,9 @@ def EXP_ratio(
             results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
             results["nsamp_pre"] = len(pretrain_dm.ds_train) + len(pretrain_dm.ds_val)
             results["nsamp_test"] = len(train_dm.ds_test)
+
+            # reset the seed
+            seed_everything(random_state)
 
             # pretrain the encoder
             log.info("Training the encoder...")
