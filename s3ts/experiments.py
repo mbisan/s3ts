@@ -51,7 +51,7 @@ quant_shifts: list[int] = [0]
 # training procedure settings
 stop_metric: str = "val_acc"
 pre_maxepoch: int = 60
-tra_maxepoch: int = 240
+tra_maxepoch: int = 120
 
 # folders 
 dir_cache: Path = Path("cache/")
