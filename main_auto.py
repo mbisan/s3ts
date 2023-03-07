@@ -24,6 +24,7 @@ from itertools import product
 import logging
 
 import torch
+torch.set_float32_matmul_precision("medium")
 
 # set up logging
 from s3ts import LOGH_FILE, LOGH_CLI
