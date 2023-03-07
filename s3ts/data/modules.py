@@ -177,14 +177,14 @@ class DoubleDataModule(LightningDataModule):
     def train_dataloader(self):
         """ Returns the training DataLoader. """
         return DataLoader(self.ds_train, batch_size=self.batch_size, 
-            num_workers=self.num_workers, shuffle=False)
+            num_workers=self.num_workers, shuffle=False, drop_last=True)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
     def val_dataloader(self):
         """ Returns the validation DataLoader. """
         return DataLoader(self.ds_val, batch_size=self.batch_size, 
-            num_workers=self.num_workers, shuffle=False)
+            num_workers=self.num_workers, shuffle=False, drop_last=True)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
@@ -192,7 +192,7 @@ class DoubleDataModule(LightningDataModule):
         """ Returns the test DataLoader. """
         if self.test:
             return DataLoader(self.ds_test, batch_size=self.batch_size, 
-                num_workers=self.num_workers, shuffle=False)
+                num_workers=self.num_workers, shuffle=False, drop_last=True)
         return None
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -201,5 +201,5 @@ class DoubleDataModule(LightningDataModule):
         """ Returns the pred DataLoader. (test) """
         if self.test:
             return DataLoader(self.ds_test, batch_size=self.batch_size, 
-                num_workers=self.num_workers, shuffle=False)
+                num_workers=self.num_workers, shuffle=False, drop_last=True)
         return None
