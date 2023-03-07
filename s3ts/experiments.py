@@ -50,8 +50,8 @@ quant_shifts: list[int] = [0]
 
 # training procedure settings
 stop_metric: str = "val_acc"
-pre_maxepoch: int = 30
-tra_maxepoch: int = 30
+pre_maxepoch: int = 60
+tra_maxepoch: int = 240
 
 # folders 
 dir_cache: Path = Path("cache/")
@@ -314,7 +314,7 @@ def EXP_ratio(
     pretrain_dm: DoubleDataModule
 
     runs = []
-    PCTS = [0.8, 1]
+    PCTS = [0.2, 0.4, 0.6, 0.8, 1]
     trun, crun = len(PCTS)*(1+len(PCTS)), 0
     for i, pct_av_train in enumerate(PCTS):
 
