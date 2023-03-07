@@ -32,6 +32,7 @@ class RNN_TS(LightningModule):
         return self.n_feature_maps * 4 * self.window_size
 
     def forward(self, x):
+        x = x.squeeze().unsqueeze(1).float()
         x = torch.permute(x, (0, 2, 1))
 
         output, _ = self.lstm_1(x)

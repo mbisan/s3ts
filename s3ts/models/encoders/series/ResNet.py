@@ -38,7 +38,6 @@ class ResidualBlock_1d(LightningModule):
     def forward(self, x):
         block = self.block(x.float())
         shortcut = self.shortcut(x.float())
-
         block = torch.add(block, shortcut)
         return F.relu(block)
 
@@ -71,4 +70,5 @@ class ResNet_TS(LightningModule):
         return (len(self.model._modules) - 1) * self.n_feature_maps
 
     def forward(self, x):
-        return self.model(x.float())
+        x = x.squeeze().unsqueeze(1).float()
+        return self.model(x).squeeze()

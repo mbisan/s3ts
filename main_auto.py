@@ -38,7 +38,7 @@ NSPLITS = 5
 RANDOM_STATE = 0
 
 DATASETS = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF"]
-ENCODERS = [CNN_DFS, ResNet_DFS]
+ENCODERS = [RNN_TS, CNN_TS, ResNet_TS]
 
 # =================================
 

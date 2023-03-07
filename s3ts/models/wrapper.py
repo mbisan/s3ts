@@ -100,9 +100,6 @@ class WrapperModel(LightningModule):
     # STEPS
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-    def predict_step(self, batch, batch_idx):
-        return self(batch)
-
     def _inner_step(self, batch, stage: str = None):
 
         """ Common actions for training, test and val steps. """

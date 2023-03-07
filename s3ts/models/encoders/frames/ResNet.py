@@ -50,7 +50,7 @@ class ResNet_DFS(LightningModule):
         super().__init__()
 
         self.channels = channels
-        self.n_feature_maps = 24
+        self.n_feature_maps = 32
 
         self.model = nn.Sequential(
             ResidualBlock(in_channels=channels, out_channels=self.n_feature_maps),

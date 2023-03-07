@@ -50,8 +50,8 @@ quant_shifts: list[int] = [0]
 
 # training procedure settings
 stop_metric: str = "val_acc"
-pre_maxepoch: int = 60
-tra_maxepoch: int = 240
+pre_maxepoch: int = 30
+tra_maxepoch: int = 30
 
 # folders 
 dir_cache: Path = Path("cache/")
@@ -131,10 +131,10 @@ def prepare_dms(
         frame_buffer=window_size*3,random_state=random_state)
 
     # DFS generation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    fracs = f"pf{pret_frac}"
-    seeds = f"f{fold_number}-rs{random_state}"
-    frames = f"tr{frames_tra}-pr{frames_pre}-ts{frames_test}"
-    cache_file = dir_cache / f"DFS_{dataset}_{fracs}_{seeds}_{frames}.npz"
+    fracs_str = f"pf{pret_frac}"
+    seeds_str = f"f{fold_number}-rs{random_state}"
+    frames_str = f"tr{frames_tra}-pr{frames_pre}-ts{frames_test}"
+    cache_file = dir_cache / f"DFS_{dataset}_{fracs_str}_{seeds_str}_{frames_str}.npz"
     if not Path(cache_file).exists():
         log.info("Generating 'train' DFS...")
         DFS_tra = compute_OESM(STS_tra, medoids, rho=rho_dfs)
@@ -152,7 +152,7 @@ def prepare_dms(
     dm_tra = DoubleDataModule(
         STS_train=STS_tra, DFS_train=DFS_tra, labels_train=labels_tra, nsamp_train=frames_tra,
         STS_test=STS_test, DFS_test=DFS_test, labels_test=labels_test, nsamp_test=frames_test,
-        window_size=window_size, batch_size=batch_size, quant_shifts=[0])
+        window_size=window_size, batch_size=batch_size, quant_shifts=[0], frames=frames)
 
     log.info("Creating 'pretrain' dataset...")
     quant_shifts = np.round(np.array(quant_shifts)*X_train.shape[1]).astype(int)
@@ -209,15 +209,25 @@ def train_model(
     ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
 
     results = pd.Series(dtype="object")
+    frames: bool = arch.__frames__()
 
     # create the model
-    model = WrapperModel(
-            n_labels=dm.n_labels, 
-            n_patterns=dm.n_patterns,
-            l_patterns=dm.l_patterns,
-            window_size=dm.window_size,
-            lab_shifts=[0],
-            arch=arch)
+    if frames:
+        model = WrapperModel(
+                n_labels=dm.n_labels, 
+                n_patterns=dm.n_patterns,
+                l_patterns=dm.l_patterns,
+                window_size=dm.window_size,
+                lab_shifts=[0],
+                arch=arch)
+    else:
+        model = WrapperModel(
+                n_labels=dm.n_labels, 
+                n_patterns=1,
+                l_patterns=1,
+                window_size=dm.window_size,
+                lab_shifts=[0],
+                arch=arch)
     
     # set encoder if one was passed
     if encoder is not None:
@@ -304,7 +314,7 @@ def EXP_ratio(
     pretrain_dm: DoubleDataModule
 
     runs = []
-    PCTS = [0.2, 0.4, 0.6, 0.8, 1]
+    PCTS = [0.8, 1]
     trun, crun = len(PCTS)*(1+len(PCTS)), 0
     for i, pct_av_train in enumerate(PCTS):
 

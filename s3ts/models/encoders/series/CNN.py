@@ -48,7 +48,8 @@ class CNN_TS(LightningModule):
         return self.n_feature_maps * 8
 
     def forward(self, x):
-        features = self.model(x.float())
+        x = x.squeeze().unsqueeze(1).float()
+        features = self.model(x)
         flat = features.view(features.size(0), -1)
         lin_1 = self.linear_1(flat)
         return self.linear_2(lin_1)

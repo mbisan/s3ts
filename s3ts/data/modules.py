@@ -34,6 +34,8 @@ class DoubleDataset(Dataset):
         self.labels = labels
         self.indexes = indexes
 
+        self.series_tensor = self.series.unsqueeze(0).unsqueeze(1)
+
         self.n_shifts = len(quant_shifts)
         self.n_samples = len(self.indexes)
         self.window_size = window_size
@@ -72,7 +74,7 @@ class DoubleDataset(Dataset):
                 label = self.target_transform(label)
             return frame, label
         else: 
-            series = self.series[idx - self.window_size:idx]
+            series = self.series_tensor[:,:,idx - self.window_size:idx]
             if self.transform:
                 series = self.transform(series)
             if self.target_transform:
@@ -132,6 +134,7 @@ class DoubleDataModule(LightningDataModule):
         log.info(f"  Val samples: {len(self.valid_idx)}")
 
         # normalization_transform
+        self.frames = frames
         if frames:
             transform = tv.transforms.Normalize(
                     self.DFS_train.mean(axis=[1,2]),
