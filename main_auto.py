@@ -18,7 +18,7 @@ from s3ts.models.encoders.series.CNN import CNN_TS
 from s3ts.models.encoders.series.RNN import RNN_TS
 
 # experiments
-from s3ts.experiments import EXP_ratio
+from s3ts.experiments import EXP_ratio, EXP_quantiles
 
 from itertools import product
 import logging
@@ -38,7 +38,9 @@ NSPLITS = 5
 RANDOM_STATE = 0
 
 DATASETS = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF"]
-ENCODERS = [RNN_TS, CNN_TS, ResNet_TS]
+ENCODERS = [CNN_DFS, ResNet_DFS, RNN_TS, CNN_TS, ResNet_TS]
+
+EXPERIMENT = "quantiles"
 
 # =================================
 
@@ -55,8 +57,20 @@ for i, (arch, dataset) in enumerate(product(ENCODERS, DATASETS)):
         X_train, Y_train = X[train_index,:], Y[train_index]
         X_test, Y_test = X[test_index,:], Y[test_index]
 
-        data = EXP_ratio(dataset=dataset, arch=arch, 
-            X_train=X_train, Y_train=Y_train, 
-            X_test=X_test, Y_test=Y_test,
-            fold_number=j, total_folds=NSPLITS, 
-            random_state=RANDOM_STATE)
+        if EXPERIMENT == "ratio":
+            EXP_ratio(dataset=dataset, arch=arch, 
+                X_train=X_train, Y_train=Y_train, 
+                X_test=X_test, Y_test=Y_test,
+                fold_number=j, total_folds=NSPLITS, 
+                random_state=RANDOM_STATE)
+            
+        elif EXPERIMENT == "quantiles":
+            EXP_quantiles(dataset=dataset, arch=arch, 
+                X_train=X_train, Y_train=Y_train, 
+                X_test=X_test, Y_test=Y_test,
+                fold_number=j, total_folds=NSPLITS, 
+                random_state=RANDOM_STATE)
+            
+        else:
+            print("wtf man")
+            quit()

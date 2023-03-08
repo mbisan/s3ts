@@ -17,7 +17,7 @@ from s3ts.models.wrapper import WrapperModel
 
 # training stuff
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+# from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
 from pytorch_lightning import Trainer, seed_everything
 
@@ -400,32 +400,127 @@ def EXP_ratio(
     return runs_df
 
 # =====================================================
-
-def EXP_frames(
-    dataset: str, arch: type[LightningModule],
-    X_train: np.ndarray,  X_test: np.ndarray, 
-    Y_train: np.ndarray,  Y_test: np.ndarray,
-    fold_number: int = 0, random_state: int = 0,
-    ):
-
-    nsamp_tra: int = None 
-    nsamp_pre: int = None
-    nsamp_test: int = None
-
-    pass
-
+# =====================================================
 # =====================================================
 
 def EXP_quantiles(
-    dataset: str, directory: Path, arch: type[LightningModule],
+    dataset: str, arch: type[LightningModule],
     X_train: np.ndarray,  X_test: np.ndarray, 
     Y_train: np.ndarray,  Y_test: np.ndarray,
-    fold_number: int = 0, random_state: int = 0,
-    ):
+    total_folds: int, fold_number: int = 0, random_state: int = 0,
+    ) -> pd.DataFrame:
 
-    INTERVALS = [3,5,7]
+    """ Experiment to check the effect of the number of intervals in the labels."""
 
-    pass
+    exp_name = "quant"
+    log.info(f"~~ BEGIN '{exp_name}' EXPERIMENT (fold #{fold_number+1}/{total_folds}) ~~")
+
+    # make sure folders exist
+    create_folders() 
+    res_file = dir_results / f"EXP_{exp_name}_{arch.__str__()}_{dataset}_f{fold_number}.csv"
+
+    # NOTE: this is chosen so that the final number of
+    # samples for just train and test is the same (50/50 split w/out pretrain)
+    pret_frac = 1 - 1/(total_folds-1) 
+
+    # prepare the data
+    log.info("Preparing data modules...")
+    train_dm, _ = prepare_dms(dataset=dataset,
+        X_train=X_train, X_test=X_test, Y_train=Y_train, Y_test=Y_test,
+        batch_size=batch_size, window_size=window_size, 
+        rho_dfs=rho_dfs, pret_frac=pret_frac, 
+        quant_shifts=quant_shifts, quant_intervals=quant_intervals,
+        nsamp_tra=nsamp_tra, nsamp_pre=nsamp_pre, nsamp_test=nsamp_test,
+        fold_number=fold_number, random_state=random_state, frames=arch.__frames__())
+    train_dm: DoubleDataModule
+
+    runs = []
+    PCTS = [0.2, 0.4, 0.6, 0.8, 1]
+    trun, crun = len(PCTS)*(1+len(PCTS)), 0
+
+    # reset the seed
+    seed_everything(random_state)
+
+    crun += 1
+    log.info(f"~ [{crun}/{trun}] Training baseline model...")
+
+    # define the training directory        
+    date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    subdir_train = dir_train / f"EXP_{exp_name}_f{fold_number}.base_{date_flag}"
+
+    # run the base model
+    log.info("Training the complete model...")
+    data, model, checkpoint = train_model(
+        directory=subdir_train, label="target", 
+        epoch_max=tra_maxepoch,
+        dm=train_dm, arch=arch)
+    
+    results = pd.concat([base_results(dataset, fold_number, arch, False, random_state), 
+                        data], axis = 1)
+    results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
+    results["nsamp_pre"] = 0
+    results["nsamp_test"] = len(train_dm.ds_test) 
+
+    # update results file
+    runs.append(results)
+    log.info(f"Updating results file ({str(res_file)})")
+    runs_df = pd.concat(runs, ignore_index=True)
+    runs_df.to_csv(res_file, index=False)
+
+    QUANTS = [3,5,7,9]
+    for i, n_quant in enumerate(QUANTS):
+        
+        # set the pretrain data ratio
+        crun += 1 
+        log.info(f"~ [{crun}/{trun}] Checking with {n_quant} quantiles...")
+
+        # define the training directory   
+        date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        subdir_train = dir_train / f"EXP_{exp_name}_f{fold_number}.{i}_{date_flag}"
+
+        # generate the dm with the correct number of quantiles
+        _, pretrain_dm = prepare_dms(dataset=dataset,
+            X_train=X_train, X_test=X_test, Y_train=Y_train, Y_test=Y_test,
+            batch_size=batch_size, window_size=window_size, 
+            rho_dfs=rho_dfs, pret_frac=pret_frac, 
+            quant_shifts=quant_shifts, quant_intervals=n_quant,
+            nsamp_tra=nsamp_tra, nsamp_pre=nsamp_pre, nsamp_test=nsamp_test,
+            fold_number=fold_number, random_state=random_state, frames=arch.__frames__())
+        train_dm: DoubleDataModule
+
+        results = base_results(dataset, fold_number, arch, True, random_state)
+        results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
+        results["nsamp_pre"] = len(pretrain_dm.ds_train) + len(pretrain_dm.ds_val)
+        results["nsamp_test"] = len(train_dm.ds_test)
+        results["pretrain_nquant"] = n_quant
+
+        # reset the seed
+        seed_everything(random_state)
+
+        # pretrain the encoder
+        log.info("Training the encoder...")
+        data, model, checkpoint = train_model(directory=subdir_train, label="pretrain", 
+            epoch_max=pre_maxepoch,
+            dm=pretrain_dm, arch=arch)
+        results = pd.concat([results, data], axis=1)
+        encoder = model.encoder
+
+        # train with the original task
+        log.info("Training the complete model...")
+        data, model, checkpoint = train_model(directory=subdir_train, label="target", 
+            epoch_max=tra_maxepoch,
+            dm=train_dm, arch=arch, encoder=encoder)
+        results = pd.concat([results, data], axis=1)
+
+        # update results file
+        runs.append(results)
+        log.info(f"Updating results file ({str(res_file)})")
+        runs_df = pd.concat(runs, ignore_index=True)
+        runs_df.to_csv(res_file, index=False)
+            
+    log.info(f"~~ EXPERIMENT COMPLETE! (fold #{fold_number+1}/{total_folds}) ~~")
+
+    return runs_df
 
 def EXP_shifts(
     dataset: str, directory: Path, arch: type[LightningModule],
