@@ -72,7 +72,7 @@ if __name__ == '__main__':
     parser.add_argument('--dir_cache', type=str, default="cache/",
                         help='Directory for the cached data')
     
-    parser.add_argument('--dir_train', type=str, default="training/exp",
+    parser.add_argument('--dir_train', type=str, default="training/",
                         help='Directory for the training files')
     
     parser.add_argument('--dir_results', type=str, default="results/",

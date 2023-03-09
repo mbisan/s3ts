@@ -277,7 +277,7 @@ def EXP_ratio(
     nsamp_test: float = None,
     learning_rate: float = 1e-4,
     dir_cache: Path = Path("cache/"),
-    dir_train: Path = Path("training/exp/"),
+    dir_train: Path = Path("training/"),
     dir_results: Path = Path("results/"),
     ) -> pd.DataFrame:
 
@@ -324,7 +324,7 @@ def EXP_ratio(
 
         # define the training directory        
         date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        subdir_train = dir_train / f"{date_flag}_EXP_ratio_{arch.__str__()}_{dataset}_f{fold_number}.base"
+        subdir_train = dir_train / f"{date_flag}_EXP_ratio_{arch.__str__()}_{dataset}_f{fold_number}-base"
 
         # run the base model
         log.info("Training the complete model...")
@@ -357,7 +357,7 @@ def EXP_ratio(
 
             log.info(f"~ [{crun}/{trun}] Checking with {pct_av_pre*100}% pretrain data = {tot_pretrain_samps} ")
 
-            # define the training directory   
+            # define the training directory
             date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
             subdir_train = dir_train / f"{date_flag}_EXP_ratio_{arch.__str__()}_{dataset}_f{fold_number}-{i}"
             
