@@ -22,15 +22,14 @@ from s3ts.experiments import EXP_ratio, EXP_quant
 
 from itertools import product
 from pathlib import Path
-import logging
+import logging as log
+
+log.basicConfig(filename="debug.log", level=log.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt='%Y-%m-%d %H:%M:%S')
 
 import torch
 torch.set_float32_matmul_precision("medium")
-
-# set up logging
-from s3ts import LOGH_FILE, LOGH_CLI
-log = logging.getLogger(__name__)
-log.addHandler(LOGH_FILE), log.addHandler(LOGH_CLI) 
 
 # SETTINGS
 # =================================

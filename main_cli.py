@@ -15,18 +15,12 @@ from s3ts.experiments import EXP_ratio, EXP_quant
 
 # standard library
 from pathlib import Path
+import logging as log
 import argparse
-import logging
 
 # torch configuration
 import torch
 torch.set_float32_matmul_precision("medium")
-
-# set up logging
-from s3ts import LOGH_FILE, LOGH_CLI
-log = logging.getLogger(__name__)
-log.addHandler(LOGH_FILE), log.addHandler(LOGH_CLI) 
-
 
 if __name__ == '__main__':
     
@@ -83,6 +77,9 @@ if __name__ == '__main__':
     
     parser.add_argument('--dir_results', type=str, default="results/",
                         help='Directory for the results (CSVs)')
+    
+    parser.add_argument('--log_file', type=str, default="debug.log",
+                        help='Directory for the results (CSVs)')
 
     args = parser.parse_args()
 
@@ -112,11 +109,17 @@ if __name__ == '__main__':
     dir_cache: Path = Path(args.dir_cache)
     dir_train: Path = Path(args.dir_train)
     dir_results: Path = Path(args.dir_results)
+    log_file: Path = Path(args.log_file)
     # ~~~~~~~~~~~~~~~~~~~~~~~
     n_splits: int = args.n_splits
     random_state: int = args.random_state
     
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # logging setup
+    log.basicConfig(filename=log_file, level=log.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt='%Y-%m-%d %H:%M:%S')
 
     # load dataset
     dataset: str = args.dataset
@@ -140,7 +143,7 @@ if __name__ == '__main__':
             quant_shifts=quant_shifts,
             # ~~~~~~~~~~~~~~~~~~~~~~~
             dir_cache=dir_cache,
-            dir_train=dir_results,
+            dir_train=dir_train,
             dir_results=dir_results,
             # ~~~~~~~~~~~~~~~~~~~~~~~
             pre_maxepoch=pre_maxepoch, 

@@ -23,14 +23,9 @@ from pytorch_lightning import Trainer, seed_everything
 
 from datetime import datetime
 from pathlib import Path
+import logging as log
 import pandas as pd
 import numpy as np
-import logging
-
-# set up logging
-from s3ts import LOGH_FILE, LOGH_CLI
-log = logging.getLogger(__name__)
-log.addHandler(LOGH_FILE), log.addHandler(LOGH_CLI) 
 
 # =====================================================
 # =====================================================

@@ -22,8 +22,12 @@ partition = "bcam-exclusive"
 email = "rcoterillo@bcamath.org"
 env = Path("/scratch/rcoterillo/s3ts/s3ts_env/bin/activate")
 script = Path("/scratch/rcoterillo/s3ts/main_cli.py")
+
 outputs = Path("outputs/").absolute()
 outputs.mkdir(exist_ok=True)
+
+logs = Path("logs/").absolute()
+logs.mkdir(exist_ok=True)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -34,6 +38,7 @@ for mode in ARCHS:
             job_name = f"{arch}_{mode}_{EXP}_{dataset}"
             out_file = outputs / (job_name + ".out")
             err_file = outputs / (job_name + ".err")
+            log_file = logs / (job_name + ".log")
             gpu = (mode == "DF")
 
             with job_file.open(mode="w") as f:
@@ -47,7 +52,7 @@ for mode in ARCHS:
                 f.write(f"#SBATCH --ntasks-per-node=1\n")
                 f.write(f"#SBATCH --cpus-per-task=12\n")
                 f.write(f"#SBATCH --mem=12G\n")
-                f.write(f"#SBATCH --mail-type=ALL\n")
+                f.write(f"#SBATCH --mail-type=END\n")
                 f.write(f"#SBATCH --mail-user={email}\n")
                 f.write(f"#SBATCH -o {out_file}\n")
                 f.write(f"#SBATCH -e {err_file}\n")
