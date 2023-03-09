@@ -148,4 +148,4 @@ if __name__ == '__main__':
             learning_rate=learning_rate,
             # ~~~~~~~~~~~~~~~~~~~~~~~
             fold_number=j, total_folds=n_splits,
-            random_state=args.random_state)
+            random_state=random_state)

@@ -18,9 +18,10 @@ from s3ts.models.encoders.series.CNN import CNN_TS
 from s3ts.models.encoders.series.RNN import RNN_TS
 
 # experiments
-from s3ts.experiments import EXP_ratio, EXP_quantiles
+from s3ts.experiments import EXP_ratio, EXP_quant
 
 from itertools import product
+from pathlib import Path
 import logging
 
 import torch
@@ -34,16 +35,31 @@ log.addHandler(LOGH_FILE), log.addHandler(LOGH_CLI)
 # SETTINGS
 # =================================
 
+EXP = "ratio"
+DATASETS = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF"]
+ENCODERS = [CNN_DFS, ResNet_DFS, RNN_TS, CNN_TS, ResNet_TS]
+# ~~~~~~~~~~~~~~~~~~~~~~~
+RHO_DFS: float = 0.1
+BATCH_SIZE: bool = 128
+WINDOW_SIZE: int = 5
+# ~~~~~~~~~~~~~~~~~~~~~~~
+QUANT_INTERVALS: int = 5 
+QUANT_SHIFTS: list[float] = [0.0] 
+# ~~~~~~~~~~~~~~~~~~~~~~~
+PRE_MAXEPOCH: int = 60
+TRA_MAXEPOCH: int = 120
+LEARNING_RATE: float = 1E-4
+# ~~~~~~~~~~~~~~~~~~~~~~~
+DIR_CACHE = Path("cache/")
+DIR_TRAIN = Path("training/exp")
+DIR_RESULTS = Path("results/")
+# ~~~~~~~~~~~~~~~~~~~~~~~
 NSPLITS = 5
 RANDOM_STATE = 0
 
-DATASETS = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF"]
-ENCODERS = [CNN_DFS, ResNet_DFS, RNN_TS, CNN_TS, ResNet_TS]
-
-EXPERIMENT = "quantiles"
-
 # =================================
 
+exp_dict = {"ratio": EXP_ratio, "quant": EXP_quant}
 for i, (arch, dataset) in enumerate(product(ENCODERS, DATASETS)):
 
     log.info(f"Current dataset: {dataset}")
@@ -57,20 +73,24 @@ for i, (arch, dataset) in enumerate(product(ENCODERS, DATASETS)):
         X_train, Y_train = X[train_index,:], Y[train_index]
         X_test, Y_test = X[test_index,:], Y[test_index]
 
-        if EXPERIMENT == "ratio":
-            EXP_ratio(dataset=dataset, arch=arch, 
-                X_train=X_train, Y_train=Y_train, 
-                X_test=X_test, Y_test=Y_test,
-                fold_number=j, total_folds=NSPLITS, 
-                random_state=RANDOM_STATE)
-            
-        elif EXPERIMENT == "quantiles":
-            EXP_quantiles(dataset=dataset, arch=arch, 
-                X_train=X_train, Y_train=Y_train, 
-                X_test=X_test, Y_test=Y_test,
-                fold_number=j, total_folds=NSPLITS, 
-                random_state=RANDOM_STATE)
-            
-        else:
-            print("wtf man")
-            quit()
+        EXP(dataset=dataset, arch=arch, 
+            X_train=X_train, Y_train=Y_train, 
+            X_test=X_test, Y_test=Y_test,
+            # ~~~~~~~~~~~~~~~~~~~~~~~
+            rho_dfs=RHO_DFS,
+            batch_size=BATCH_SIZE,
+            window_size=WINDOW_SIZE,
+            quant_intervals=QUANT_INTERVALS,
+            quant_shifts=QUANT_SHIFTS,
+            # ~~~~~~~~~~~~~~~~~~~~~~~
+            dir_cache=DIR_CACHE,
+            dir_train=DIR_TRAIN,
+            dir_results=DIR_RESULTS,
+            # ~~~~~~~~~~~~~~~~~~~~~~~
+            pre_maxepoch=PRE_MAXEPOCH, 
+            tra_maxepoch=TRA_MAXEPOCH,
+            learning_rate=LEARNING_RATE,
+            # ~~~~~~~~~~~~~~~~~~~~~~~
+            fold_number=j, total_folds=NSPLITS,
+            random_state=RANDOM_STATE)
+        
