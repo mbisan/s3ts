@@ -51,7 +51,7 @@ for mode in ARCHS:
                 f.write(f"#SBATCH --nodes=1\n")
                 f.write(f"#SBATCH --ntasks-per-node=1\n")
                 f.write(f"#SBATCH --cpus-per-task=12\n")
-                f.write(f"#SBATCH --mem=12G\n")
+                f.write(f"#SBATCH --mem=24G\n")
                 f.write(f"#SBATCH --mail-type=END\n")
                 f.write(f"#SBATCH --mail-user={email}\n")
                 f.write(f"#SBATCH -o {out_file}\n")
