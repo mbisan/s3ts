@@ -9,11 +9,12 @@ from s3ts import LOGH_FILE, LOGH_CLI
 log = logging.getLogger(__name__)
 log.addHandler(LOGH_FILE), log.addHandler(LOGH_CLI) 
 
-def download_dataset(dataset_name: str) -> None:
+def download_dataset(dataset_name: str, dir_cache: Path) -> None:
+
+    """ Load dataset from UCR/UEA time series archive. """
 
     log.info(f"Dataset name: {dataset_name}")
     log.info("Creating folders...")
-    dir_cache: Path = Path("cache/")
     for path in [dir_cache]:
         path.mkdir(parents=True, exist_ok=True)
         log.info("..." + str(path))

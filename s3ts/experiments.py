@@ -35,28 +35,28 @@ log.addHandler(LOGH_FILE), log.addHandler(LOGH_CLI)
 # default values
 # ~~~~~~~~~~~~~~~~~~~~~~ #
 
-window_size: int = 5
-batch_size: int = 128
-rho_dfs: float = 0.1
+# window_size: int = 5
+# batch_size: int = 128
+# rho_dfs: float = 0.1
 
-nsamp_tra: int = None
-nsamp_pre: int = None
-nsamp_test: int = None
+# nsamp_tra: int = None
+# nsamp_pre: int = None
+# nsamp_test: int = None
 
 # ptask settings: quantile prediction
-quant: bool = True
-quant_intervals: int = 5
-quant_shifts: list[int] = [0]
+# quant: bool = True
+# quant_intervals: int = 5
+# quant_shifts: list[int] = [0]
 
 # training procedure settings
-stop_metric: str = "val_acc"
-pre_maxepoch: int = 60
-tra_maxepoch: int = 120
+# stop_metric: str = "val_acc"
+# pre_maxepoch: int = 60
+# tra_maxepoch: int = 120
 
 # folders 
-dir_cache: Path = Path("cache/")
-dir_train: Path = Path("training/exp/")
-dir_results: Path = Path("results/")
+# dir_cache: Path = Path("cache/")
+# dir_train: Path = Path("training/exp/")
+# dir_results: Path = Path("results/")
 
 # ~~~~~~~~~~~~~~~~~~~~~~ #
 
@@ -66,7 +66,12 @@ dir_results: Path = Path("results/")
 # =====================================================
 # =====================================================
 
-def create_folders() -> None:
+def create_folders(
+        dir_cache: Path = Path("cache/"),
+        dir_train: Path = Path("training/exp/"),
+        dir_results: Path = Path("results/")
+        ) -> None:
+
     """ Ensures all needed folders exist."""
     log.info("Creating folders...")
     for path in [dir_cache, dir_train, dir_results]:
@@ -87,7 +92,8 @@ def prepare_dms(
         nsamp_tra: float = None, nsamp_pre: float = None, nsamp_test: float = None,
         # cross validation stuff
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        fold_number: int = 0, random_state: int = 0, frames: bool = True
+        fold_number: int = 0, random_state: int = 0, frames: bool = True,
+        dir_cache: Path = Path("cache/"),
         ) -> tuple[DoubleDataModule, DoubleDataModule]:
 
     """ Prepares the data modules for the training. """
@@ -172,7 +178,7 @@ def setup_trainer(
     directory: Path,
     version: str,
     epoch_max: int,
-    stop_metric: str = stop_metric,
+    stop_metric: str = "val_acc",
     ) -> tuple[Trainer, ModelCheckpoint]:
 
     """ Shared setup for the Trainer objects. """
@@ -204,8 +210,9 @@ def train_model(
     epoch_max: int,
     dm: DoubleDataModule,
     arch: type[LightningModule],
-    stop_metric: str = stop_metric,
+    stop_metric: str = "val_acc",
     encoder: LightningModule = None,
+    learning_rate: float = 1e-4,
     ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
 
     results = pd.Series(dtype="object")
@@ -219,7 +226,8 @@ def train_model(
                 l_patterns=dm.l_patterns,
                 window_size=dm.window_size,
                 lab_shifts=[0],
-                arch=arch)
+                arch=arch, 
+                learning_rate=learning_rate)
     else:
         model = WrapperModel(
                 n_labels=dm.n_labels, 
@@ -227,7 +235,8 @@ def train_model(
                 l_patterns=1,
                 window_size=dm.window_size,
                 lab_shifts=[0],
-                arch=arch)
+                arch=arch, 
+                learning_rate=learning_rate)
     
     # set encoder if one was passed
     if encoder is not None:
@@ -264,6 +273,7 @@ def train_model(
 
 def base_results(dataset: str, fold_number: int, 
         arch: type[LightningModule], pretrained: bool, 
+        batch_size: int, window_size: int,
         random_state: int = 0) -> pd.DataFrame:
     
     """ Series template for the results. """
@@ -286,7 +296,23 @@ def EXP_ratio(
     dataset: str, arch: type[LightningModule],
     X_train: np.ndarray,  X_test: np.ndarray, 
     Y_train: np.ndarray,  Y_test: np.ndarray,
-    total_folds: int, fold_number: int = 0, random_state: int = 0,
+    fold_number: int,
+    total_folds: int, 
+    rho_dfs: float = 0.1,
+    quant_intervals: int = 5, 
+    quant_shifts: list[int] = [0],
+    batch_size: int = 128, 
+    window_size: int = 5,
+    random_state: int = 0,
+    pre_maxepoch: int = 60,
+    tra_maxepoch: int = 120,
+    nsamp_tra: float = None, 
+    nsamp_pre: float = None, 
+    nsamp_test: float = None,
+    learning_rate: float = 1e-4,
+    dir_cache: Path = Path("cache/"),
+    dir_train: Path = Path("training/exp/"),
+    dir_results: Path = Path("results/"),
     ) -> pd.DataFrame:
 
     """ Experiment to check the effect of train/pretrain sample ratios."""
@@ -309,7 +335,8 @@ def EXP_ratio(
         rho_dfs=rho_dfs, pret_frac=pret_frac, 
         quant_shifts=quant_shifts, quant_intervals=quant_intervals,
         nsamp_tra=nsamp_tra, nsamp_pre=nsamp_pre, nsamp_test=nsamp_test,
-        fold_number=fold_number, random_state=random_state, frames=arch.__frames__())
+        fold_number=fold_number, random_state=random_state, 
+        frames=arch.__frames__(), dir_cache=dir_cache)
     train_dm: DoubleDataModule
     pretrain_dm: DoubleDataModule
 
@@ -338,9 +365,11 @@ def EXP_ratio(
         data, model, checkpoint = train_model(
             directory=subdir_train, label="target", 
             epoch_max=tra_maxepoch,
-            dm=train_dm, arch=arch)
+            dm=train_dm, arch=arch,
+            learning_rate=learning_rate)
         
-        results = pd.concat([base_results(dataset, fold_number, arch, False, random_state), 
+        results = pd.concat([base_results(dataset=dataset, fold_number=fold_number, arch=arch, pretrained=False, 
+                                          batch_size=batch_size, window_size=window_size, random_state=random_state), 
                          data], axis = 1)
         results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
         results["nsamp_pre"] = 0
@@ -366,7 +395,8 @@ def EXP_ratio(
             date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
             subdir_train = dir_train / f"EXP_ratio_f{fold_number}.{i}_{date_flag}"
 
-            results = base_results(dataset, fold_number, arch, True, random_state)
+            results = base_results(dataset=dataset, fold_number=fold_number, arch=arch, pretrained=True, 
+                        batch_size=batch_size, window_size=window_size, random_state=random_state)
             results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
             results["nsamp_pre"] = len(pretrain_dm.ds_train) + len(pretrain_dm.ds_val)
             results["nsamp_test"] = len(train_dm.ds_test)
@@ -376,17 +406,22 @@ def EXP_ratio(
 
             # pretrain the encoder
             log.info("Training the encoder...")
-            data, model, checkpoint = train_model(directory=subdir_train, label="pretrain", 
+            data, model, checkpoint = train_model(
+                directory=subdir_train, label="pretrain", 
                 epoch_max=pre_maxepoch,
-                dm=pretrain_dm, arch=arch)
+                dm=pretrain_dm, arch=arch,
+                learning_rate=learning_rate)
             results = pd.concat([results, data], axis=1)
             encoder = model.encoder
 
             # train with the original task
             log.info("Training the complete model...")
-            data, model, checkpoint = train_model(directory=subdir_train, label="target", 
+            data, model, checkpoint = train_model(
+                directory=subdir_train, label="target", 
                 epoch_max=tra_maxepoch,
-                dm=train_dm, arch=arch, encoder=encoder)
+                dm=train_dm, arch=arch, 
+                learning_rate=learning_rate,
+                encoder=encoder)
             results = pd.concat([results, data], axis=1)
 
             # update results file
@@ -403,11 +438,27 @@ def EXP_ratio(
 # =====================================================
 # =====================================================
 
-def EXP_quantiles(
+def EXP_quant(
     dataset: str, arch: type[LightningModule],
     X_train: np.ndarray,  X_test: np.ndarray, 
     Y_train: np.ndarray,  Y_test: np.ndarray,
-    total_folds: int, fold_number: int = 0, random_state: int = 0,
+    fold_number: int,
+    total_folds: int, 
+    rho_dfs: float = 0.1,
+    quant_intervals: int = 5, 
+    quant_shifts: list[int] = [0],
+    batch_size: int = 128, 
+    window_size: int = 5,
+    random_state: int = 0,
+    pre_maxepoch: int = 60,
+    tra_maxepoch: int = 120,
+    nsamp_tra: float = None, 
+    nsamp_pre: float = None, 
+    nsamp_test: float = None,
+    learning_rate: float = 1e-4,
+    dir_cache: Path = Path("cache/"),
+    dir_train: Path = Path("training/exp/"),
+    dir_results: Path = Path("results/"),
     ) -> pd.DataFrame:
 
     """ Experiment to check the effect of the number of intervals in the labels."""
@@ -431,7 +482,8 @@ def EXP_quantiles(
         rho_dfs=rho_dfs, pret_frac=pret_frac, 
         quant_shifts=quant_shifts, quant_intervals=quant_intervals,
         nsamp_tra=nsamp_tra, nsamp_pre=nsamp_pre, nsamp_test=nsamp_test,
-        fold_number=fold_number, random_state=random_state, frames=arch.__frames__())
+        fold_number=fold_number, random_state=random_state, 
+        frames=arch.__frames__(), dir_cache=dir_cache)
     train_dm: DoubleDataModule
 
     runs = []
@@ -453,9 +505,11 @@ def EXP_quantiles(
     data, model, checkpoint = train_model(
         directory=subdir_train, label="target", 
         epoch_max=tra_maxepoch,
-        dm=train_dm, arch=arch)
+        dm=train_dm, arch=arch,
+        learning_rate=learning_rate)
     
-    results = pd.concat([base_results(dataset, fold_number, arch, False, random_state), 
+    results = pd.concat([base_results(dataset=dataset, fold_number=fold_number, arch=arch, pretrained=False, 
+                        batch_size=batch_size, window_size=window_size, random_state=random_state), 
                         data], axis = 1)
     results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
     results["nsamp_pre"] = 0
@@ -467,7 +521,7 @@ def EXP_quantiles(
     runs_df = pd.concat(runs, ignore_index=True)
     runs_df.to_csv(res_file, index=False)
 
-    QUANTS = [3,5,7,9]
+    QUANTS = [2,3,4,5,6,7,8,9]
     for i, n_quant in enumerate(QUANTS):
         
         # set the pretrain data ratio
@@ -485,10 +539,12 @@ def EXP_quantiles(
             rho_dfs=rho_dfs, pret_frac=pret_frac, 
             quant_shifts=quant_shifts, quant_intervals=n_quant,
             nsamp_tra=nsamp_tra, nsamp_pre=nsamp_pre, nsamp_test=nsamp_test,
-            fold_number=fold_number, random_state=random_state, frames=arch.__frames__())
+            fold_number=fold_number, random_state=random_state, 
+            frames=arch.__frames__(), dir_cache=dir_cache)
         train_dm: DoubleDataModule
 
-        results = base_results(dataset, fold_number, arch, True, random_state)
+        results = base_results(dataset=dataset, fold_number=fold_number, arch=arch, pretrained=True, 
+            batch_size=batch_size, window_size=window_size, random_state=random_state)
         results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
         results["nsamp_pre"] = len(pretrain_dm.ds_train) + len(pretrain_dm.ds_val)
         results["nsamp_test"] = len(train_dm.ds_test)
@@ -499,9 +555,11 @@ def EXP_quantiles(
 
         # pretrain the encoder
         log.info("Training the encoder...")
-        data, model, checkpoint = train_model(directory=subdir_train, label="pretrain", 
+        data, model, checkpoint = train_model(
+            directory=subdir_train, label="pretrain", 
             epoch_max=pre_maxepoch,
-            dm=pretrain_dm, arch=arch)
+            dm=pretrain_dm, arch=arch,
+            learning_rate=learning_rate)
         results = pd.concat([results, data], axis=1)
         encoder = model.encoder
 
@@ -522,29 +580,8 @@ def EXP_quantiles(
 
     return runs_df
 
-def EXP_shifts(
-    dataset: str, directory: Path, arch: type[LightningModule],
-    X_train: np.ndarray,  X_test: np.ndarray, 
-    Y_train: np.ndarray,  Y_test: np.ndarray,
-    fold_number: int = 0, random_state: int = 0,
-    ):
 
-    SHIFTS = [3,5,7]
 
-    pass
-
-def EXP_sorting(
-    dataset: str, directory: Path, arch: type[LightningModule],
-    X_train: np.ndarray,  X_test: np.ndarray, 
-    Y_train: np.ndarray,  Y_test: np.ndarray,
-    fold_number: int = 0, random_state: int = 0,
-    ):
-
-    pass
-
-def EXP_comparison():
-
-    pass
 
 
 # =====================================================
