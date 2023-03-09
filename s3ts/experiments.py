@@ -324,7 +324,7 @@ def EXP_ratio(
 
         # define the training directory        
         date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        subdir_train = dir_train / f"EXP_ratio_f{fold_number}.base_{date_flag}"
+        subdir_train = dir_train / f"{date_flag}_EXP_ratio_{arch.__str__()}_{dataset}_f{fold_number}.base"
 
         # run the base model
         log.info("Training the complete model...")
@@ -359,8 +359,8 @@ def EXP_ratio(
 
             # define the training directory   
             date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
-            subdir_train = dir_train / f"EXP_ratio_f{fold_number}.{i}_{date_flag}"
-
+            subdir_train = dir_train / f"{date_flag}_EXP_ratio_{arch.__str__()}_{dataset}_f{fold_number}-{i}"
+            
             results = base_results(dataset=dataset, fold_number=fold_number, arch=arch, pretrained=True, 
                         batch_size=batch_size, window_size=window_size, random_state=random_state)
             results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
