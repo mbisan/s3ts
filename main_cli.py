@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
     # load dataset
     dataset: str = args.dataset
-    X, Y, mapping = download_dataset(dataset_name=dataset)
+    X, Y, mapping = download_dataset(dataset_name=dataset, dir_cache=dir_cache)
     
     log.info(f"Train-test K-Fold validation: ({n_splits} splits)")
     skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=args.random_state)
