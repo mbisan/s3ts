@@ -5,13 +5,8 @@ import torchvision as tv
 import torch
 
 import multiprocessing as mp
+import logging as log
 import numpy as np
-import logging
-
-# set up logging
-from s3ts import LOGH_FILE, LOGH_CLI
-log = logging.getLogger(__name__)
-log.addHandler(LOGH_FILE), log.addHandler(LOGH_CLI) 
 
 # ================================================================= #
 

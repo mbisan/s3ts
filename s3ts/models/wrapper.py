@@ -19,10 +19,8 @@ import torch.nn as nn
 import torch
 
 # numpy
+import logging as log
 import numpy as np
-import logging
-
-log = logging.Logger(__name__)
 
 # ========================================================= #
 #                     MULTITASK MODEL                       #

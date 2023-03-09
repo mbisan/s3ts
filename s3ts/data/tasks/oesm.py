@@ -1,10 +1,8 @@
 from functools import partial
 import multiprocessing as mp
-import logging
+import logging as log
 
 import numpy as np
-
-log = logging.Logger(__name__)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 

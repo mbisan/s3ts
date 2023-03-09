@@ -2,12 +2,7 @@ from sktime.datasets import load_UCR_UEA_dataset
 import numpy as np 
 
 from pathlib import Path
-import logging
-
-# set up logging
-from s3ts import LOGH_FILE, LOGH_CLI
-log = logging.getLogger(__name__)
-log.addHandler(LOGH_FILE), log.addHandler(LOGH_CLI) 
+import logging as log
 
 def download_dataset(dataset_name: str, dir_cache: Path) -> None:
 
