@@ -32,34 +32,6 @@ from s3ts import LOGH_FILE, LOGH_CLI
 log = logging.getLogger(__name__)
 log.addHandler(LOGH_FILE), log.addHandler(LOGH_CLI) 
 
-# default values
-# ~~~~~~~~~~~~~~~~~~~~~~ #
-
-# window_size: int = 5
-# batch_size: int = 128
-# rho_dfs: float = 0.1
-
-# nsamp_tra: int = None
-# nsamp_pre: int = None
-# nsamp_test: int = None
-
-# ptask settings: quantile prediction
-# quant: bool = True
-# quant_intervals: int = 5
-# quant_shifts: list[int] = [0]
-
-# training procedure settings
-# stop_metric: str = "val_acc"
-# pre_maxepoch: int = 60
-# tra_maxepoch: int = 120
-
-# folders 
-# dir_cache: Path = Path("cache/")
-# dir_train: Path = Path("training/exp/")
-# dir_results: Path = Path("results/")
-
-# ~~~~~~~~~~~~~~~~~~~~~~ #
-
 # =====================================================
 # =====================================================
 # AUXILIARY FUNCTIONS
@@ -104,7 +76,6 @@ def prepare_dms(
     log.info(f"     Fold number: {fold_number}")
     log.info(f"   Total samples: {X_train.shape[0] + X_test.shape[0]}")
     
-
     # prtrain/train set splitting
     log.debug(f"Splitting train and pretrain sets (seed: {random_state})")
     X_tra, X_pre, Y_tra, Y_pre = train_test_split(X_train, Y_train, 

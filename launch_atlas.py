@@ -10,7 +10,7 @@ import subprocess
 EXP = "quant"
 ARCHS = {
     "TS": ("RNN", "CNN", "ResNet"),
-    "DF": {"CNN", "ResNet"}
+#    "DF": {"CNN", "ResNet"}
 }
 DATASETS = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF"]
 
@@ -23,6 +23,9 @@ email = "rcoterillo@bcamath.org"
 env = Path("/scratch/rcoterillo/s3ts/s3ts_env/bin/activate")
 script = Path("/scratch/rcoterillo/s3ts/main_cli.py")
 outputs = Path("outputs/").absolute()
+outputs.mkdir(exist_ok=True)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 for mode in ARCHS:
     for arch in ARCHS[mode]:
@@ -54,5 +57,5 @@ for mode in ARCHS:
                 f.write(f"source {str(env)}\n")
                 f.write(f"python {str(script)} --dataset {dataset} " + \
                         f"--mode {mode} --arch {arch} --exp {EXP}")
-                subprocess.run(["sbatch", str(job_file)], capture_output=True)
-                
+            subprocess.run(["sbatch", str(job_file)], capture_output=True)
+            job_file.unlink()
