@@ -61,6 +61,7 @@ for mode in ARCHS:
                 f.write(f"module load Python/3.10.4-GCCcore-11.3.0\n")
                 f.write(f"source {str(env)}\n")
                 f.write(f"python {str(script)} --dataset {dataset} " + \
-                        f"--mode {mode} --arch {arch} --exp {EXP}")
+                        f"--mode {mode} --arch {arch} --exp {EXP} " + \
+                        f"--log_file {str(log_file)}")
             subprocess.run(["sbatch", str(job_file)], capture_output=True)
             job_file.unlink()
