@@ -1,0 +1,2 @@
+dataset,arch,pretrained,fold_number,random_state,batch_size,window_size,target_val_acc,target_val_f1,target_val_auroc,target_test_acc,target_test_f1,target_test_auroc,target_best_model,target_train_csv,target_nepochs,nsamp_tra,nsamp_pre,nsamp_test
+GunPoint,CNN_DFS,False,2,0,128,5,0.7265625,0.7265625,0.7687755823135376,0.6192255616188049,0.6192255616188049,0.6721822619438171,training/exp/EXP_quant_f2.base_2023-03-10_12-32/logs/target/checkpoints/epoch=26-step=837.ckpt,training/exp/EXP_quant_f2.base_2023-03-10_12-32/logs/target/metrics.csv,120,6135,0,5985

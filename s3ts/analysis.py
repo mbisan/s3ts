@@ -3,6 +3,8 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
+# ================================================= #
+
 def load_data(folder: Path) -> pd.DataFrame:
 
     """ Loads data form CSVs in a given folder. """
@@ -17,8 +19,10 @@ def load_data(folder: Path) -> pd.DataFrame:
 
     return df
 
+# ================================================= #
+# ================================================= #
 
-def fix_close_values(df: pd.DataFrame, col: str)-> pd.DataFrame:
+def __fix_close_values(df: pd.DataFrame, col: str)-> pd.DataFrame:
 
     """ Fix for the slight difference in the number of samples 
         that may appear due to rounding data splits. """
@@ -44,7 +48,8 @@ def fix_close_values(df: pd.DataFrame, col: str)-> pd.DataFrame:
     
     return df
 
-def EXP_ratio_preprocessing(df: pd.DataFrame):
+
+def EXP_ratio_preprocessing(df: pd.DataFrame) -> pd.DataFrame:
 
     """ Preprocess the data for the "ratio" experiment """
 
@@ -54,7 +59,7 @@ def EXP_ratio_preprocessing(df: pd.DataFrame):
     for (dataset, arch), dfg in df.groupby(["dataset", "arch"]):
 
         if dataset in ["Coffee"]:
-            dfg = fix_close_values(dfg, "nsamp_pre")
+            dfg = __fix_close_values(dfg, "nsamp_pre")
 
         df1 = dfg.groupby(["nsamp_tra", "nsamp_pre"])[cols].mean()
         df1.columns = [c + "_mean" for c in df1.columns]
@@ -68,12 +73,9 @@ def EXP_ratio_preprocessing(df: pd.DataFrame):
         pdf.insert(0, column="arch", value=arch)
         dfs.append(pdf)
 
-    df = pd.concat(dfs, ignore_index=True)
+    return pd.concat(dfs, ignore_index=True)
 
-
-    return df
-
-def EXP_ratio_set_baselines(df: pd.DataFrame):
+def EXP_ratio_set_baselines(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df.copy()
 
@@ -90,5 +92,38 @@ def EXP_ratio_set_baselines(df: pd.DataFrame):
             continue
 
     return pd.concat(dfs, ignore_index=True)
-    
 
+# ================================================= #
+# ================================================= #
+    
+def EXP_quant_preprocessing(df: pd.DataFrame) -> pd.DataFrame:
+
+    """ Preprocess the data for the "quant" experiment """
+
+    cols = [c for c in df.columns if (("target_val" in c) or("target_test" in c) or (("pretrain_val" in c)) and "nepoch" not in c)]
+
+    df = df.replace(np.NaN, 0).copy()
+    means = df.groupby(["arch", "dataset", "pretrain_nquant"])[cols].mean()
+    means.columns = [c + "_mean" for c in means.columns]
+    stds = df.groupby(["arch", "dataset", "pretrain_nquant"])[cols].std()
+    stds.columns = [c + "_std" for c in stds.columns]
+
+    return pd.concat([means, stds], axis=1).reset_index()
+
+def EXP_quant_set_baselines(df: pd.DataFrame) -> pd.DataFrame:
+
+    df = df.copy()
+
+    dfs = []
+    df.drop(columns=[c for c in df.columns if ("pretrain" in c) and ("nquant" not in c)], inplace=True)
+    mcols = [c for c in df.columns if ("target_" in c) and ("_mean" in c)]
+    ecols = [c for c in df.columns if ("target_" in c) and ("_std" in c)]
+    for xd, dfg in df.groupby(["arch", "dataset"]):
+        if (dfg["pretrain_nquant"] == 0).count() > 0:
+            dfg.loc[dfg["pretrain_nquant"] > 0, mcols] = dfg.loc[dfg["pretrain_nquant"] > 0, mcols] - dfg.iloc[0][mcols]
+            #dfg.loc[dfg["pretrain_nquant"] > 0, ecols] = dfg.loc[dfg["pretrain_nquant"] > 0, ecols] + dfg.iloc[0][ecols]
+            dfs.append(dfg.iloc[1:].copy())
+        else:
+            continue
+
+    return pd.concat(dfs, ignore_index=True)

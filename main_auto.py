@@ -34,9 +34,10 @@ torch.set_float32_matmul_precision("medium")
 # SETTINGS
 # =================================
 
-EXP = "ratio"
+EXP = "quant"
 DATASETS = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF"]
 ENCODERS = [CNN_DFS, ResNet_DFS, RNN_TS, CNN_TS, ResNet_TS]
+ENCODERS = [CNN_DFS]
 # ~~~~~~~~~~~~~~~~~~~~~~~
 RHO_DFS: float = 0.1
 BATCH_SIZE: bool = 128
@@ -59,11 +60,13 @@ RANDOM_STATE = 0
 # =================================
 
 exp_dict = {"ratio": EXP_ratio, "quant": EXP_quant}
+EXP = exp_dict[EXP]
+
 for i, (arch, dataset) in enumerate(product(ENCODERS, DATASETS)):
 
     log.info(f"Current dataset: {dataset}")
     log.info(f"Current decoder: {arch.__str__()}")
-    X, Y, mapping = download_dataset(dataset_name=dataset)
+    X, Y, mapping = download_dataset(dataset_name=dataset, dir_cache=DIR_CACHE)
 
     log.info(f"Train-test K-Fold validation: ({NSPLITS} splits)")
     skf = StratifiedKFold(n_splits=NSPLITS, shuffle=True, random_state=RANDOM_STATE)
