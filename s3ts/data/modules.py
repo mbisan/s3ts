@@ -18,7 +18,8 @@ class DoubleDataset(Dataset):
             labels: np.ndarray,
             indexes: np.ndarray,
             quant_shifts: list[int],
-            window_size: int,
+            window_length: int,
+            window_stride: int,
             transform = None, 
             target_transform = None,
             return_frames: bool = True
@@ -33,7 +34,8 @@ class DoubleDataset(Dataset):
 
         self.n_shifts = len(quant_shifts)
         self.n_samples = len(self.indexes)
-        self.window_size = window_size
+        self.window_length = window_length
+        self.window_stride = window_stride
         self.quant_shifts = quant_shifts
         self.return_frames = return_frames
 
@@ -62,14 +64,14 @@ class DoubleDataset(Dataset):
 
         # return either the frames or the time series
         if self.return_frames:
-            frame = self.frames[:,:,idx - self.window_size:idx]
+            frame = self.frames[:,:,idx - self.window_length:idx]
             if self.transform:
                 frame = self.transform(frame)
             if self.target_transform:
                 label = self.target_transform(label)
             return frame, label
         else: 
-            series = self.series_tensor[:,:,idx - self.window_size:idx]
+            series = self.series_tensor[:,:,idx - self.window_length:idx]
             if self.transform:
                 series = self.transform(series)
             if self.target_transform:
