@@ -9,8 +9,8 @@ import subprocess
 
 EXP = "quant"
 ARCHS = {
-    "TS": ("RNN", "CNN", "ResNet"),
-#    "DF": {"CNN", "ResNet"}
+    "DF": {"CNN", "ResNet"},
+    "TS": ("RNN", "CNN", "ResNet")
 }
 DATASETS = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF"]
 
