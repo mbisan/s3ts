@@ -11,7 +11,7 @@ from s3ts.models.encoders.series.CNN import CNN_TS
 from s3ts.models.encoders.series.RNN import RNN_TS
 
 # experiments
-from s3ts.experiments import EXP_ratio, EXP_quant
+from s3ts.experiments import EXP_ratio, EXP_quant, EXP_stride
 
 # standard library
 from pathlib import Path
@@ -45,7 +45,10 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=128,
                         help='Batch size used during training')
 
-    parser.add_argument('--window_size', type=int, default=5,
+    parser.add_argument('--window_length', type=int, default=5,
+                        help='Window size used for training')
+    
+    parser.add_argument('--window_stride', type=int, default=1,
                         help='Window size used for training')
     
     parser.add_argument('--quant_intervals', type=int, default=5,
@@ -89,7 +92,7 @@ if __name__ == '__main__':
     arch_dict = {"TS": {"RNN": RNN_TS, "CNN": CNN_TS, "ResNet": ResNet_TS}, "DF": {"CNN": CNN_DFS, "ResNet": ResNet_DFS}}
     if args.arch not in arch_dict[args.mode]:
         raise NotImplementedError("Invalid mode and architecture combination!")
-    exp_dict = {"ratio": EXP_ratio, "quant": EXP_quant}
+    exp_dict = {"ratio": EXP_ratio, "quant": EXP_quant, "stride": EXP_stride}
     
     # get rest of variables
     dataset: str = args.dataset
@@ -98,7 +101,8 @@ if __name__ == '__main__':
     # ~~~~~~~~~~~~~~~~~~~~~~~
     rho_dfs: float = args.rho_dfs
     batch_size: int = args.batch_size
-    window_size: int = args.window_size
+    window_length: int = args.window_length
+    window_stride: int = args.window_stride
     quant_shifts: list[float] = [args.quant_shift]
     quant_intervals: int = args.quant_intervals
     # ~~~~~~~~~~~~~~~~~~~~~~~
@@ -138,7 +142,8 @@ if __name__ == '__main__':
             # ~~~~~~~~~~~~~~~~~~~~~~~
             rho_dfs=rho_dfs,
             batch_size=batch_size,
-            window_size=window_size,
+            window_length=window_length,
+            window_stride=window_stride,
             quant_intervals=args.quant_intervals,
             quant_shifts=quant_shifts,
             # ~~~~~~~~~~~~~~~~~~~~~~~

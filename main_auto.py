@@ -18,7 +18,7 @@ from s3ts.models.encoders.series.CNN import CNN_TS
 from s3ts.models.encoders.series.RNN import RNN_TS
 
 # experiments
-from s3ts.experiments import EXP_ratio, EXP_quant
+from s3ts.experiments import EXP_ratio, EXP_quant, EXP_stride
 
 from itertools import product
 from pathlib import Path
@@ -41,7 +41,8 @@ ENCODERS = [CNN_DFS]
 # ~~~~~~~~~~~~~~~~~~~~~~~
 RHO_DFS: float = 0.1
 BATCH_SIZE: bool = 128
-WINDOW_SIZE: int = 5
+WINDOW_LENGTH: int = 5
+WINDOW_STRIDE: int = 1
 # ~~~~~~~~~~~~~~~~~~~~~~~
 QUANT_INTERVALS: int = 5 
 QUANT_SHIFTS: list[float] = [0.0] 
@@ -59,7 +60,7 @@ RANDOM_STATE = 0
 
 # =================================
 
-exp_dict = {"ratio": EXP_ratio, "quant": EXP_quant}
+exp_dict = {"ratio": EXP_ratio, "quant": EXP_quant, "stride": EXP_stride}
 EXP = exp_dict[EXP]
 
 for i, (arch, dataset) in enumerate(product(ENCODERS, DATASETS)):
@@ -81,7 +82,8 @@ for i, (arch, dataset) in enumerate(product(ENCODERS, DATASETS)):
             # ~~~~~~~~~~~~~~~~~~~~~~~
             rho_dfs=RHO_DFS,
             batch_size=BATCH_SIZE,
-            window_size=WINDOW_SIZE,
+            window_length=WINDOW_LENGTH,
+            window_stride=WINDOW_STRIDE,
             quant_intervals=QUANT_INTERVALS,
             quant_shifts=QUANT_SHIFTS,
             # ~~~~~~~~~~~~~~~~~~~~~~~

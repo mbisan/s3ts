@@ -18,7 +18,8 @@ class DoubleDataset(Dataset):
             labels: np.ndarray,
             indexes: np.ndarray,
             quant_shifts: list[int],
-            window_size: int,
+            window_length: int,
+            window_stride: int,
             transform = None, 
             target_transform = None,
             return_frames: bool = True
@@ -30,10 +31,12 @@ class DoubleDataset(Dataset):
         self.indexes = indexes
 
         self.series_tensor = self.series.unsqueeze(0).unsqueeze(1)
+        # self.testing = torch.range(0, self.series.shape[0])
 
         self.n_shifts = len(quant_shifts)
         self.n_samples = len(self.indexes)
-        self.window_size = window_size
+        self.window_length = window_length
+        self.window_stride = window_stride
         self.quant_shifts = quant_shifts
         self.return_frames = return_frames
 
@@ -51,6 +54,7 @@ class DoubleDataset(Dataset):
         """ Return an entry (x, y) from the dataset. """
 
         idx = self.indexes[idx]
+        # print(idx)
         
         if self.n_shifts > 1:
             label = []
@@ -62,14 +66,15 @@ class DoubleDataset(Dataset):
 
         # return either the frames or the time series
         if self.return_frames:
-            frame = self.frames[:,:,idx - self.window_size:idx]
+            frame = self.frames[:,:,idx - self.window_length*self.window_stride:idx+1:self.window_stride]
+            # print(self.testing[idx - self.window_length*self.window_stride:idx+1:self.window_stride])
             if self.transform:
                 frame = self.transform(frame)
             if self.target_transform:
                 label = self.target_transform(label)
             return frame, label
         else: 
-            series = self.series_tensor[:,:,idx - self.window_size:idx]
+            series = self.series_tensor[:,:,idx - self.window_length:idx]
             if self.transform:
                 series = self.transform(series)
             if self.target_transform:
@@ -87,8 +92,9 @@ class DoubleDataModule(LightningDataModule):
             labels_train: np.ndarray,
             patterns: np.array,
             nsamp_train: int, 
-            window_size: int, 
             batch_size: int,
+            window_length: int,
+            window_stride: int, 
             # ~~~~~~~~~~~~~~~~~~~~~~
             quant_shifts: list[int],
             random_state: int = 0,
@@ -118,8 +124,8 @@ class DoubleDataModule(LightningDataModule):
 
         # datamodule settings
         self.batch_size = batch_size
-        self.window_size = window_size
-        self.frame_buffer = 3*window_size
+        self.window_size = window_length
+        self.frame_buffer = 3*window_length*window_stride
         self.quant_shifts = np.array(quant_shifts, dtype=int)
         self.random_state = random_state 
         self.num_workers = mp.cpu_count()//2        
@@ -145,13 +151,15 @@ class DoubleDataModule(LightningDataModule):
         self.ds_train = DoubleDataset(
             indexes=self.train_idx, quant_shifts=quant_shifts,
             frames=self.DFS_train, series=self.STS_train, labels=self.labels_train,
-            window_size=self.window_size, transform=transform, return_frames=frames)
+            window_length=window_length, window_stride=window_stride, 
+            transform=transform, return_frames=frames)
 
         # validation dataset
         self.ds_val = DoubleDataset(
             indexes=self.valid_idx, quant_shifts=quant_shifts,
             frames=self.DFS_train, series=self.STS_train, labels=self.labels_train, 
-            window_size=self.window_size, transform=transform, return_frames=frames)
+            window_length=window_length, window_stride=window_stride, 
+            transform=transform, return_frames=frames)
 
         # repeat for testing if needed
         self.test = STS_test is not None
@@ -167,7 +175,8 @@ class DoubleDataModule(LightningDataModule):
             self.ds_test = DoubleDataset(
                 indexes=self.test_idx, quant_shifts=quant_shifts,
                 frames=self.DFS_test, series=self.STS_test, labels=self.labels_test, 
-                window_size=self.window_size, transform=transform, return_frames=frames)
+                window_length=window_length, window_stride=window_stride, 
+                transform=transform, return_frames=frames)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
