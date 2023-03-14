@@ -32,7 +32,7 @@ class WrapperModel(LightningModule):
         n_labels: int,
         n_patterns: int, 
         l_patterns: int,
-        window_size: int,
+        window_length: int,
         lab_shifts: list[int],
         arch: type[LightningModule],
         learning_rate: float = 1e-4,
@@ -45,14 +45,14 @@ class WrapperModel(LightningModule):
         self.n_shifts = len(lab_shifts)
         self.n_patterns = n_patterns
         self.l_patterns = l_patterns
-        self.window_size = window_size
+        self.window_length = window_length
         self.learning_rate = learning_rate
 
         # encoder
         self.encoder: LightningModule = arch(
             ref_size=l_patterns, 
             channels=n_patterns, 
-            window_size=window_size)
+            window_size=window_length)
         
         embedding_size = self.encoder.get_output_shape()
         self.embedding_size = embedding_size

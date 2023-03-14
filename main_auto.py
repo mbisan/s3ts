@@ -34,8 +34,9 @@ torch.set_float32_matmul_precision("medium")
 # SETTINGS
 # =================================
 
-EXP = "quant"
+EXP = "stride"
 DATASETS = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF"]
+DATASETS = ["GunPoint"]
 ENCODERS = [CNN_DFS, ResNet_DFS, RNN_TS, CNN_TS, ResNet_TS]
 ENCODERS = [CNN_DFS]
 # ~~~~~~~~~~~~~~~~~~~~~~~

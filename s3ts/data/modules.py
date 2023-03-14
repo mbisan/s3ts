@@ -124,7 +124,8 @@ class DoubleDataModule(LightningDataModule):
 
         # datamodule settings
         self.batch_size = batch_size
-        self.window_size = window_length
+        self.window_length = window_length
+        self.window_stride = window_stride
         self.frame_buffer = 3*window_length*window_stride
         self.quant_shifts = np.array(quant_shifts, dtype=int)
         self.random_state = random_state 
