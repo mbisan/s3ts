@@ -87,6 +87,7 @@ class DoubleDataModule(LightningDataModule):
             STS_train: np.ndarray,
             DFS_train: np.ndarray,
             labels_train: np.ndarray,
+            patterns: np.array,
             nsamp_train: int, 
             window_size: int, 
             batch_size: int,
@@ -109,6 +110,7 @@ class DoubleDataModule(LightningDataModule):
         self.DFS_train = torch.from_numpy(DFS_train).to(torch.float32)
         self.labels_train = torch.from_numpy(labels_train).to(torch.int64)
         self.labels_train = torch.nn.functional.one_hot(self.labels_train)
+        self.patterns = torch.from_numpy(patterns).to(torch.float32)
 
         # get dataset info
         self.n_labels = len(np.unique(labels_train))
@@ -162,7 +164,7 @@ class DoubleDataModule(LightningDataModule):
             self.labels_test = torch.nn.functional.one_hot(self.labels_test)
             self.l_DFS_test = DFS_test.shape[2]
             self.test_idx = np.arange(self.frame_buffer, nsamp_test-np.max(quant_shifts))
-            print(f" Test samples: {len(self.test_idx)}")
+            log.info(f" Test samples: {len(self.test_idx)}")
 
             self.ds_test = DoubleDataset(
                 indexes=self.test_idx, quant_shifts=quant_shifts,

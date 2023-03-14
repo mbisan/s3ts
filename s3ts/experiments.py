@@ -52,7 +52,6 @@ def prepare_dms(
         Y_train: np.ndarray, Y_test: np.ndarray,
         rho_dfs: float, pret_frac: float,
         batch_size: int, window_size: int,                  # NOTE: can be changed without recalcs
-        # ptask 1 settings: quantile prediction
         quant_shifts: list[int], quant_intervals: int,      # NOTE: can be changed without recalcs
         # multipliers for the number of frames generated
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -88,11 +87,11 @@ def prepare_dms(
 
     log.info("Generating 'train' STS...")       # train STS generation
     STS_tra, labels_tra, frames_tra = compute_STS(X=X_tra,Y=Y_tra, target_nframes=nsamp_tra, 
-        frame_buffer=window_size*3,random_state=random_state)
+        frame_buffer=window_size*3, random_state=random_state)
 
     log.info("Generating 'pretrain' STS...")    # pretrain STS generation
     STS_pre, _, frames_pre = compute_STS(X=X_pre, Y=Y_pre, target_nframes=nsamp_pre, 
-        frame_buffer=window_size*3,random_state=random_state)
+        frame_buffer=window_size*3, random_state=random_state)
     
     kbd = KBinsDiscretizer(n_bins=quant_intervals, encode="ordinal", strategy="quantile", random_state=random_state)
     kbd.fit(STS_pre.reshape(-1,1))
@@ -124,7 +123,8 @@ def prepare_dms(
     dm_tra = DoubleDataModule(
         STS_train=STS_tra, DFS_train=DFS_tra, labels_train=labels_tra, nsamp_train=frames_tra,
         STS_test=STS_test, DFS_test=DFS_test, labels_test=labels_test, nsamp_test=frames_test,
-        window_size=window_size, batch_size=batch_size, quant_shifts=[0], frames=frames)
+        window_size=window_size, batch_size=batch_size, quant_shifts=[0], 
+        frames=frames, patterns=medoids)
 
     log.info("Creating 'pretrain' dataset...")
     quant_shifts = np.round(np.array(quant_shifts)*X_train.shape[1]).astype(int)
@@ -134,7 +134,8 @@ def prepare_dms(
     # create data module (pretrain)
     dm_pre = DoubleDataModule(
         STS_train=STS_pre, DFS_train=DFS_pre, labels_train=labels_pre, nsamp_train=frames_pre,
-        window_size=window_size, batch_size=batch_size, quant_shifts=quant_shifts, frames=frames)   
+        window_size=window_size, batch_size=batch_size, quant_shifts=quant_shifts, 
+        frames=frames, patterns=medoids)   
 
     return dm_tra, dm_pre
 
