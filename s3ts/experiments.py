@@ -595,25 +595,21 @@ def EXP_stride(
     # samples for just train and test is the same (50/50 split w/out pretrain)
     pret_frac = 1 - 1/(total_folds-1) 
 
-    # prepare the data
-    log.info("Preparing data modules...")
-    train_dm, _ = prepare_dms(dataset=dataset,
-        X_train=X_train, X_test=X_test, Y_train=Y_train, Y_test=Y_test,
-        batch_size=batch_size, window_length=window_length, window_stride=window_stride,
-        rho_dfs=rho_dfs, pret_frac=pret_frac, 
-        quant_shifts=quant_shifts, quant_intervals=quant_intervals,
-        nsamp_tra=nsamp_tra, nsamp_pre=nsamp_pre, nsamp_test=nsamp_test,
-        fold_number=fold_number, random_state=random_state, 
-        frames=arch.__frames__(), dir_cache=dir_cache)
-    train_dm: DoubleDataModule
-
     runs = []
     STRIDES = [1,2,3,4,5]
     trun, crun = 2*len(STRIDES), 0
     
     for i, stride in enumerate(STRIDES):
 
-        # generate the dm with the correct number of quantiles
+        
+        # reset the seed
+        seed_everything(random_state)
+        
+        crun += 1
+        log.info(f"~ [{crun}/{trun}] Checking with stride {stride}...")
+
+        log.info("Preparing data modules...")
+        # generate the dm with the correct stride
         train_dm, pretrain_dm = prepare_dms(dataset=dataset,
             X_train=X_train, X_test=X_test, Y_train=Y_train, Y_test=Y_test,
             batch_size=batch_size, window_length=window_length, window_stride=stride, 
@@ -622,12 +618,6 @@ def EXP_stride(
             nsamp_tra=nsamp_tra, nsamp_pre=nsamp_pre, nsamp_test=nsamp_test,
             fold_number=fold_number, random_state=random_state, 
             frames=arch.__frames__(), dir_cache=dir_cache)
-
-        # reset the seed
-        seed_everything(random_state)
-        
-        crun += 1
-        log.info(f"~ [{crun}/{trun}] Checking with stride {stride}...")
 
         # define the training directory        
         date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
@@ -642,7 +632,7 @@ def EXP_stride(
             learning_rate=learning_rate)
         
         results = pd.concat([base_results(dataset=dataset, fold_number=fold_number, arch=arch, pretrained=False, 
-                            batch_size=batch_size, window_length=window_length, window_stride=window_stride, 
+                            batch_size=batch_size, window_length=window_length, window_stride=stride, 
                             random_state=random_state), 
                             data], axis = 1)
         results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
@@ -666,7 +656,7 @@ def EXP_stride(
         subdir_train = dir_train / f"EXP_{exp_name}_f{fold_number}.{i}_{date_flag}"
 
         results = base_results(dataset=dataset, fold_number=fold_number, arch=arch, pretrained=True, 
-            batch_size=batch_size, window_length=window_length, window_stride=window_stride,
+            batch_size=batch_size, window_length=window_length, window_stride=stride,
             random_state=random_state)
         results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
         results["nsamp_pre"] = len(pretrain_dm.ds_train) + len(pretrain_dm.ds_val)
