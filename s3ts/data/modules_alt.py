@@ -10,7 +10,7 @@ import numpy as np
 
 # ================================================================= #
 
-class DoubleDataset(Dataset):
+class ModDataset(Dataset):
 
     def __init__(self,
             frames: np.ndarray,
@@ -20,10 +20,9 @@ class DoubleDataset(Dataset):
             quant_shifts: list[int],
             window_length: int,
             window_stride: int,
-            transform = None, 
-            target_transform = None,
-            return_series: bool = False,
-            return_frames: bool = True,
+            label_transform = None,
+            series_transform = None, 
+            frames_transform = None,
             ) -> None:
 
         self.frames = frames
@@ -39,12 +38,12 @@ class DoubleDataset(Dataset):
         self.window_length = window_length
         self.window_stride = window_stride
         self.quant_shifts = quant_shifts
-        self.return_frames = return_frames
 
         self.frac_available: float = 1.0
 
-        self.transform = transform
-        self.target_transform = target_transform
+        self.label_transform  = label_transform
+        self.series_transform = series_transform
+        self.frames_transform = frames_transform
 
     def __len__(self) -> int:
         """ Return the number of samples in the dataset. """
@@ -65,26 +64,22 @@ class DoubleDataset(Dataset):
         else:
             label = self.labels[idx+self.quant_shifts[0],:]
 
-        # return either the frames or the time series
-        if self.return_frames:
-            frame = self.frames[:,:,idx - self.window_length*self.window_stride:idx+1:self.window_stride]
-            # print(self.testing[idx - self.window_length*self.window_stride:idx+1:self.window_stride])
-            if self.transform:
-                frame = self.transform(frame)
-            if self.target_transform:
-                label = self.target_transform(label)
-            return frame, label
-        else: 
-            series = self.series_tensor[:,:,idx - self.window_length:idx]
-            if self.transform:
-                series = self.transform(series)
-            if self.target_transform:
-                label = self.target_transform(label)
-            return series, label
+        if self.label_transform:
+            label = self.label_transform(label)
+
+        frame = self.frames[:,:,idx - self.window_length*self.window_stride:idx+1:self.window_stride]
+        if self.frames_transform:
+            frame = self.frames_transform(frame)
+
+        series = self.frames[:,:,idx - self.window_length*self.window_stride:idx+1:1]
+        if self.series_transform:
+            series = self.series_transform(series)
+
+        return frame, series, label
 
 # ================================================================= #
 
-class DoubleDataModule(LightningDataModule):
+class ModDataModule(LightningDataModule):
 
     def __init__(self,
             # calculate this outside
@@ -139,29 +134,27 @@ class DoubleDataModule(LightningDataModule):
         log.info(f"  Val samples: {len(self.valid_idx)}")
 
         # normalization_transform
-        self.frames = frames
-        if frames:
-            transform = tv.transforms.Normalize(
-                    self.DFS_train.mean(axis=[1,2]),
-                    self.DFS_train.std(axis=[1,2]))
-        else:
-            transform = tv.transforms.Normalize(
-                    self.STS_train.mean(),
-                    self.STS_train.std())
+        frames_transform = tv.transforms.Normalize(
+            self.DFS_train.mean(axis=[1,2]),
+            self.DFS_train.std(axis=[1,2]))
+        
+        series_transform = tv.transforms.Normalize(
+            self.STS_train.mean(),
+            self.STS_train.std())
 
         # training dataset
-        self.ds_train = DoubleDataset(
+        self.ds_train = ModDataset(
             indexes=self.train_idx, quant_shifts=quant_shifts,
             frames=self.DFS_train, series=self.STS_train, labels=self.labels_train,
             window_length=window_length, window_stride=window_stride, 
-            transform=transform, return_frames=frames)
-
+            frames_transform=frames_transform, series_transform=series_transform)
+        
         # validation dataset
-        self.ds_val = DoubleDataset(
+        self.ds_val = ModDataset(
             indexes=self.valid_idx, quant_shifts=quant_shifts,
             frames=self.DFS_train, series=self.STS_train, labels=self.labels_train, 
             window_length=window_length, window_stride=window_stride, 
-            transform=transform, return_frames=frames)
+            frames_transform=frames_transform, series_transform=series_transform)
 
         # repeat for testing if needed
         self.test = STS_test is not None
@@ -174,11 +167,11 @@ class DoubleDataModule(LightningDataModule):
             self.test_idx = np.arange(self.frame_buffer, nsamp_test-np.max(quant_shifts))
             log.info(f" Test samples: {len(self.test_idx)}")
 
-            self.ds_test = DoubleDataset(
+            self.ds_test = ModDataset(
                 indexes=self.test_idx, quant_shifts=quant_shifts,
                 frames=self.DFS_test, series=self.STS_test, labels=self.labels_test, 
                 window_length=window_length, window_stride=window_stride, 
-                transform=transform, return_frames=frames)
+                frames_transform=frames_transform, series_transform=series_transform)
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 

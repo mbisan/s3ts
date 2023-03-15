@@ -18,7 +18,9 @@ from s3ts.models.encoders.series.CNN import CNN_TS
 from s3ts.models.encoders.series.RNN import RNN_TS
 
 # experiments
-from s3ts.experiments import EXP_ratio, EXP_quant, EXP_stride
+from s3ts.experiments.ratio  import EXP_ratio
+from s3ts.experiments.quant  import EXP_quant
+from s3ts.experiments.stride import EXP_stride
 
 from itertools import product
 from pathlib import Path
@@ -34,9 +36,9 @@ torch.set_float32_matmul_precision("medium")
 # SETTINGS
 # =================================
 
-EXP = "stride"
+EXP = "ratio"
 DATASETS = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF"]
-DATASETS = ["Coffee"]
+DATASETS = ["GunPoint"]
 ENCODERS = [CNN_DFS, ResNet_DFS, RNN_TS, CNN_TS, ResNet_TS]
 ENCODERS = [CNN_DFS]
 # ~~~~~~~~~~~~~~~~~~~~~~~

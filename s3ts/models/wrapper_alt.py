@@ -7,15 +7,19 @@ Base Convolutional Classification Model
 
 from __future__ import annotations
 
+# lightning
 from s3ts.models.decoders.linear import LinearDecoder
+from s3ts.models.decoders.lstm import LSTMDecoder
 from pytorch_lightning import LightningModule
 
+# base torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn import functional as F
 import torchmetrics as tm
 import torch.nn as nn
 import torch
 
+# numpy
 import logging as log
 import numpy as np
 
@@ -23,7 +27,7 @@ import numpy as np
 #                     MULTITASK MODEL                       #
 # ========================================================= #
 
-class WrapperModel(LightningModule):
+class ModWrapperModel(LightningModule):
 
     def __init__(self,      
         n_labels: int,
@@ -55,7 +59,12 @@ class WrapperModel(LightningModule):
         self.embedding_size = embedding_size
 
         # decoder
-        self.decoder = LinearDecoder(in_features=embedding_size, hid_features=embedding_size//2, 
+        # self.decoder = LinearDecoder(in_features=embedding_size, hid_features=embedding_size//2, 
+        #     out_features=n_labels*self.n_shifts)
+        
+        self.decoder = LSTMDecoder(
+            in_features=embedding_size,
+            hid_features=embedding_size//2,
             out_features=n_labels*self.n_shifts)
         
         # activation

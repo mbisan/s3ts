@@ -11,7 +11,9 @@ from s3ts.models.encoders.series.CNN import CNN_TS
 from s3ts.models.encoders.series.RNN import RNN_TS
 
 # experiments
-from s3ts.experiments import EXP_ratio, EXP_quant, EXP_stride
+from s3ts.experiments.ratio  import EXP_ratio
+from s3ts.experiments.quant  import EXP_quant
+from s3ts.experiments.stride import EXP_stride
 
 # standard library
 from pathlib import Path
@@ -36,7 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('--arch', type=str, required=True, choices=['RNN', 'CNN', 'ResNet'],
                         help='Name of the architecture from which create the model')
     
-    parser.add_argument('--exp', type=str, required=True, choices=['ratio', 'quant'],
+    parser.add_argument('--exp', type=str, required=True, choices=['ratio', 'quant', 'stride'],
                         help='Name of the architecture from which create the model')
 
     parser.add_argument('--rho_dfs', type=float, default=0.1,
