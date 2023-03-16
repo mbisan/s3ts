@@ -29,7 +29,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='''Perform the experiments showcased in the article.''')
 
     parser.add_argument('--dataset', type=str, required=True,
-                        choices = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF", "EG200", "Trace"],
+                        choices = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF", "ECG200", "Trace"],
                         help='Name of the dataset from which create the DTWs')
 
     parser.add_argument('--mode', type=str, required=True, choices=['DF', 'TS'],
