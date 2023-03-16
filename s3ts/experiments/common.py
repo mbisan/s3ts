@@ -17,13 +17,9 @@ from s3ts.models.wrapper import WrapperModel
 
 # training stuff
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-from pytorch_lightning.callbacks import LearningRateFinder, BatchSizeFinder
 from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
-from pytorch_lightning.tuner.tuning import Tuner
 from pytorch_lightning import Trainer
 
-from datetime import datetime
 from pathlib import Path
 import logging as log
 import pandas as pd
@@ -162,8 +158,7 @@ def setup_trainer(
             CSVLogger(save_dir=directory, name="logs", version=version)
         ],
         callbacks=[
-            # early stop the model
-            # EarlyStopping(monitor=stop_metric, mode=mode, patience=40),         
+            # early stop the model         
             LearningRateMonitor(logging_interval='epoch'),  # learning rate logger
             checkpoint  # save best model version
             ],
