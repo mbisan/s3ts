@@ -12,7 +12,7 @@ ARCHS = {
     "DF": {"CNN", "ResNet"},
     #"TS": ("RNN", "CNN", "ResNet")
 }
-DATASETS = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF"]
+DATASETS = ["GunPoint", "ECG200", "Coffee", "Plane", "Trace", "PowerCons"]
 N_SPLITS = 5
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -22,6 +22,7 @@ partition = "bcam-exclusive"
 email = "rcoterillo@bcamath.org"
 env = Path("/scratch/rcoterillo/s3ts/s3ts_env/bin/activate")
 script = Path("/scratch/rcoterillo/s3ts/main_cli.py")
+dir_cache = Path("/scratch/rcoterillo/s3ts/cache")
 
 outputs = Path("outputs/").absolute()
 outputs.mkdir(exist_ok=True)
@@ -69,5 +70,6 @@ for mode in ARCHS:
                     f.write(f"source {str(env)}\n")
                     f.write(f"python {str(script)} --dataset {dataset} " + \
                             f"--mode {mode} --arch {arch} --exp {EXP} " + \
-                            f"--log_file {str(log_file)} --fold {fold}")
+                            f"--log_file {str(log_file)} --fold {fold}" + \
+                            f"--dir_cache {str(dir_cache)}")
                 subprocess.run(["sbatch", str(job_file)], capture_output=True)
