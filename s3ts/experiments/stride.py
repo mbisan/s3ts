@@ -3,7 +3,7 @@
 """ Experiment to check the effect of frame stride."""
 
 from s3ts.experiments.common import create_folders, train_model, prepare_dms, base_results
-from s3ts.data.modules import DoubleDataModule
+from s3ts.data.modules import FullDataModule
 
 from pytorch_lightning import LightningModule, seed_everything
 
@@ -73,6 +73,8 @@ def EXP_stride(
             nsamp_tra=nsamp_tra, nsamp_pre=nsamp_pre, nsamp_test=nsamp_test,
             fold_number=fold_number, random_state=random_state, 
             frames=arch.__frames__(), dir_cache=dir_cache)
+        train_dm: FullDataModule
+        pretrain_dm: FullDataModule
 
         # define the training directory        
         date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
@@ -83,7 +85,7 @@ def EXP_stride(
         data, model, checkpoint = train_model(
             directory=subdir_train, label="target", 
             epoch_max=tra_maxepoch,
-            dm=train_dm, arch=arch,
+            dm=train_dm, arch=arch, target="cls",
             learning_rate=learning_rate)
         
         results = pd.concat([base_results(dataset=dataset, fold_number=fold_number, arch=arch, pretrained=False, 
@@ -122,16 +124,18 @@ def EXP_stride(
         data, model, checkpoint = train_model(
             directory=subdir_train, label="pretrain", 
             epoch_max=pre_maxepoch,
-            dm=pretrain_dm, arch=arch,
+            dm=pretrain_dm, arch=arch, target="reg",
             learning_rate=learning_rate)
         results = pd.concat([results, data], axis=1)
         encoder = model.encoder
 
         # train with the original task
         log.info("Training target model with pretrained encoder...")
-        data, model, checkpoint = train_model(directory=subdir_train, label="target", 
-            epoch_max=tra_maxepoch,
-            dm=train_dm, arch=arch, encoder=encoder)
+        data, model, checkpoint = train_model(
+            directory=subdir_train, label="target", 
+            epoch_max=tra_maxepoch,  target="cls",
+            dm=train_dm, arch=arch, encoder=encoder,
+            learning_rate=learning_rate)
         results = pd.concat([results, data], axis=1)
 
         # update results file

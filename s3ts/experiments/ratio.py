@@ -3,7 +3,7 @@
 """ Experiment to check the effect of train/pretrain sample ratios."""
 
 from s3ts.experiments.common import create_folders, train_model, prepare_dms, base_results
-from s3ts.data.modules import DoubleDataModule
+from s3ts.data.modules import FullDataModule
 
 from pytorch_lightning import LightningModule, seed_everything
 
@@ -59,11 +59,12 @@ def EXP_ratio(
         nsamp_tra=nsamp_tra, nsamp_pre=nsamp_pre, nsamp_test=nsamp_test,
         fold_number=fold_number, random_state=random_state, 
         frames=arch.__frames__(), dir_cache=dir_cache)
-    train_dm: DoubleDataModule
-    pretrain_dm: DoubleDataModule
+    train_dm: FullDataModule
+    pretrain_dm: FullDataModule
 
     runs = []
     PCTS = [0.2, 0.4, 0.6, 0.8, 1]
+    PCTS = [1]
     trun, crun = len(PCTS)*(1+len(PCTS)), 0
     for i, pct_av_train in enumerate(PCTS):
 
@@ -86,7 +87,7 @@ def EXP_ratio(
         log.info("Training the complete model...")
         data, model, checkpoint = train_model(
             directory=subdir_train, label="target", 
-            epoch_max=tra_maxepoch,
+            epoch_max=tra_maxepoch, target="cls",
             dm=train_dm, arch=arch,
             learning_rate=learning_rate)
         
@@ -132,7 +133,7 @@ def EXP_ratio(
             log.info("Training the encoder...")
             data, model, checkpoint = train_model(
                 directory=subdir_train, label="pretrain", 
-                epoch_max=pre_maxepoch,
+                epoch_max=pre_maxepoch, target="reg",
                 dm=pretrain_dm, arch=arch,
                 learning_rate=learning_rate)
             results = pd.concat([results, data], axis=1)
@@ -142,7 +143,7 @@ def EXP_ratio(
             log.info("Training the complete model...")
             data, model, checkpoint = train_model(
                 directory=subdir_train, label="target", 
-                epoch_max=tra_maxepoch,
+                epoch_max=tra_maxepoch, target="cls",
                 dm=train_dm, arch=arch, 
                 learning_rate=learning_rate,
                 encoder=encoder)

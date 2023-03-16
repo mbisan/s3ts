@@ -1,6 +1,7 @@
 # lightning
 from pytorch_lightning import LightningModule
 import torch.nn as nn
+import torch
 
 class LSTMDecoder(LightningModule):
 
@@ -21,10 +22,15 @@ class LSTMDecoder(LightningModule):
         self.hid_features = hid_features
         self.out_features = out_features
 
+        self.conv = nn.LazyConv2d(out_channels=1, kernel_size=1)
         self.lstm = nn.LSTM(input_size = in_features, hidden_size = hid_features,
                             num_layers = hid_layers, dropout= 0.2, batch_first = True)
-        self.linear = nn.Linear(in_features=hid_layers, out_features=out_features)
+        self.linear = nn.Linear(in_features=hid_features, out_features=out_features)
 
     def forward(self, x):
-        _, (hn, _) = self.lstm(x)
-        return self.linear(hn[0]).flatten() 
+
+        out: torch.Tensor = self.conv(x)
+        out = out.squeeze()
+        out, (hn, cn) = self.lstm(out)
+
+        return self.linear(hn[0])

@@ -17,13 +17,13 @@ class CNN_DFS(LightningModule):
             nn.Conv2d(in_channels=channels, out_channels=self.n_feature_maps // 2, kernel_size=3, padding='same'),
             nn.ReLU(),
 
-            nn.MaxPool2d(kernel_size=2),
+            nn.MaxPool2d(kernel_size=(2,1)),
 
             nn.Conv2d(in_channels=self.n_feature_maps // 2, out_channels=self.n_feature_maps,
                       kernel_size=3, padding='same'),
             nn.ReLU(),
 
-            nn.AvgPool2d(2),
+            nn.AvgPool2d(kernel_size=(2,1)),
 
             nn.Dropout(0.35),
 
@@ -37,7 +37,9 @@ class CNN_DFS(LightningModule):
                       kernel_size=3, padding='same'),
         )
         self.linear_1 = self.dynamic_linear((1, channels, ref_size, window_size))
+        self.linear_1 = nn.LazyLinear(out_features=self.n_feature_maps * 4)
         self.linear_2 = nn.Linear(in_features=self.n_feature_maps * 4, out_features=self.n_feature_maps * 8)
+        
 
     @staticmethod
     def __str__() -> str:
@@ -57,7 +59,8 @@ class CNN_DFS(LightningModule):
         return self.n_feature_maps * 8
 
     def forward(self, x):
-        features = self.model(x.float())
-        flat = features.view(features.size(0), -1)
-        lin_1 = self.linear_1(flat)
-        return self.linear_2(lin_1)
+        features: torch.Tensor = self.model(x.float())        
+        #flat = features.view(features.size(0), -1)
+        #lin_1 = self.linear_1(flat)
+        #return self.linear_2(lin_1)
+        return features

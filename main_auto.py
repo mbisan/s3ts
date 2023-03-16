@@ -36,7 +36,7 @@ torch.set_float32_matmul_precision("medium")
 # SETTINGS
 # =================================
 
-EXP = "ratio"
+EXP = "stride"
 DATASETS = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF"]
 DATASETS = ["GunPoint"]
 ENCODERS = [CNN_DFS, ResNet_DFS, RNN_TS, CNN_TS, ResNet_TS]
@@ -55,7 +55,7 @@ TRA_MAXEPOCH: int = 120
 LEARNING_RATE: float = 1E-4
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DIR_CACHE = Path("cache/")
-DIR_TRAIN = Path("training/exp")
+DIR_TRAIN = Path("training/")
 DIR_RESULTS = Path("results/")
 # ~~~~~~~~~~~~~~~~~~~~~~~
 NSPLITS = 5

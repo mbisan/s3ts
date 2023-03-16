@@ -12,7 +12,7 @@ from sklearn.preprocessing import KBinsDiscretizer
 
 # models / modules
 from pytorch_lightning import LightningModule
-from s3ts.data.modules import DoubleDataModule
+from s3ts.data.modules import FullDataModule
 from s3ts.models.wrapper import WrapperModel
 
 # training stuff
@@ -35,7 +35,7 @@ import numpy as np
 
 def create_folders(
         dir_cache: Path = Path("cache/"),
-        dir_train: Path = Path("training/exp/"),
+        dir_train: Path = Path("training/"),
         dir_results: Path = Path("results/")
         ) -> None:
 
@@ -61,7 +61,7 @@ def prepare_dms(
         # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         fold_number: int = 0, random_state: int = 0, frames: bool = True,
         dir_cache: Path = Path("cache/"),
-        ) -> tuple[DoubleDataModule, DoubleDataModule]:
+        ) -> tuple[FullDataModule, FullDataModule]:
 
     """ Prepares the data modules for the training. """
 
@@ -121,7 +121,7 @@ def prepare_dms(
             DFS_tra, DFS_pre, DFS_test = data["DFS_tra"], data["DFS_pre"], data["DFS_test"]
 
     log.info("Creating 'train' dataset...")
-    dm_tra = DoubleDataModule(
+    dm_tra = FullDataModule(
         STS_train=STS_tra, DFS_train=DFS_tra, labels_train=labels_tra, nsamp_train=frames_tra,
         STS_test=STS_test, DFS_test=DFS_test, labels_test=labels_test, nsamp_test=frames_test,
         window_length=window_length, window_stride=window_stride, batch_size=batch_size, 
@@ -133,7 +133,7 @@ def prepare_dms(
     log.info(f"Label shifts: {quant_shifts}")    
 
     # create data module (pretrain)
-    dm_pre = DoubleDataModule(
+    dm_pre = FullDataModule(
         STS_train=STS_pre, DFS_train=DFS_pre, labels_train=labels_pre, nsamp_train=frames_pre,
         window_length=window_length, window_stride=window_stride, batch_size=batch_size, 
         quant_shifts=quant_shifts, frames=frames, patterns=medoids)   
@@ -147,11 +147,12 @@ def setup_trainer(
     version: str,
     epoch_max: int,
     stop_metric: str = "val_acc",
+    mode: str = "max",
     ) -> tuple[Trainer, ModelCheckpoint]:
 
     """ Shared setup for the Trainer objects. """
 
-    checkpoint = ModelCheckpoint(monitor=stop_metric, mode="max")    
+    checkpoint = ModelCheckpoint(monitor=stop_metric, mode=mode)    
     trainer = Trainer(default_root_dir=directory,  accelerator="auto",
         # progress logs
         logger = [
@@ -176,12 +177,17 @@ def train_model(
     directory: Path,
     label: str,
     epoch_max: int,
-    dm: DoubleDataModule,
+    dm: FullDataModule,
+    target: str,
     arch: type[LightningModule],
-    stop_metric: str = "val_acc",
     encoder: LightningModule = None,
     learning_rate: float = 1e-4,
     ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
+
+    if target == "cls":
+        stop_metric, mode, metrics = "val_acc", "max", ["acc", "f1", "auroc"]
+    elif target == "reg":
+        stop_metric, mode, metrics = "val_mse", "min", ["mse", "r2"]
 
     results = pd.Series(dtype="object")
     frames: bool = arch.__frames__()
@@ -195,6 +201,7 @@ def train_model(
                 window_length=dm.window_length,
                 lab_shifts=[0],
                 arch=arch, 
+                target=target,
                 learning_rate=learning_rate)
     else:
         model = WrapperModel(
@@ -203,7 +210,8 @@ def train_model(
                 l_patterns=1,
                 window_length=dm.window_length,
                 lab_shifts=[0],
-                arch=arch, 
+                arch=arch,
+                target=target, 
                 learning_rate=learning_rate)
     
     # set encoder if one was passed
@@ -212,7 +220,7 @@ def train_model(
 
     # train the model
     trainer, checkpoint = setup_trainer(directory=directory,  version=label,
-        epoch_max=epoch_max, stop_metric=stop_metric)
+        epoch_max=epoch_max, stop_metric=stop_metric, mode=mode)
     trainer.fit(model, datamodule=dm)
 
     # load best checkpoint
@@ -220,21 +228,19 @@ def train_model(
 
     # log val results
     val_results = trainer.validate(model, datamodule=dm)
-    results[f"{label}_val_acc"] = val_results[0]["val_acc"]
-    results[f"{label}_val_f1"] = val_results[0]["val_f1"]
-    results[f"{label}_val_auroc"] = val_results[0]["val_auroc"]
+    for m in metrics:
+        results[f"{label}_val_{m}"] = val_results[0][f"val_{m}"]
 
     # log test results
     if dm.test:
         test_results = trainer.test(model, datamodule=dm)
-        results[f"{label}_test_acc"] = test_results[0]["test_acc"]
-        results[f"{label}_test_f1"] = test_results[0]["test_f1"]
-        results[f"{label}_test_auroc"] = test_results[0]["test_auroc"]
+        for m in metrics:
+            results[f"{label}_test_{m}"] = test_results[0][f"test_{m}"]
 
     # load model info
     results[f"{label}_best_model"] = checkpoint.best_model_path
     results[f"{label}_train_csv"] = str(directory  / "logs" / label / "metrics.csv")
-    results[f"{label}_nepochs"] = pd.read_csv(results[f"{label}_train_csv"])["epoch_train_acc"].count()
+    #results[f"{label}_nepochs"] = pd.read_csv(results[f"{label}_train_csv"])["epoch_train_acc"].count()
     results = results.to_frame().transpose().copy()
 
     return results, model, checkpoint

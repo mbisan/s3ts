@@ -7,15 +7,19 @@ Base Convolutional Classification Model
 
 from __future__ import annotations
 
+# lightning
 from s3ts.models.decoders.linear import LinearDecoder
+from s3ts.models.decoders.lstm import LSTMDecoder
 from pytorch_lightning import LightningModule
 
+# base torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn import functional as F
 import torchmetrics as tm
 import torch.nn as nn
 import torch
 
+# numpy
 import logging as log
 import numpy as np
 
@@ -32,6 +36,7 @@ class WrapperModel(LightningModule):
         window_length: int,
         lab_shifts: list[int],
         arch: type[LightningModule],
+        target: str = "cls",
         learning_rate: float = 1e-4,
         ):
 
@@ -44,6 +49,7 @@ class WrapperModel(LightningModule):
         self.l_patterns = l_patterns
         self.window_length = window_length
         self.learning_rate = learning_rate
+        self.target = target
 
         # encoder
         self.encoder: LightningModule = arch(
@@ -51,32 +57,45 @@ class WrapperModel(LightningModule):
             channels=n_patterns, 
             window_size=window_length)
         
-        embedding_size = self.encoder.get_output_shape()
-        self.embedding_size = embedding_size
+        
+        self.lstm_features = 64
 
         # decoder
-        self.decoder = LinearDecoder(in_features=embedding_size, hid_features=embedding_size//2, 
-            out_features=n_labels*self.n_shifts)
+        # self.decoder = LinearDecoder(in_features=embedding_size, hid_features=embedding_size//2, 
+        #     out_features=n_labels*self.n_shifts)
         
-        # activation
-        self.activation = nn.Softmax()
-        
-        # configure loggers
-        if self.n_shifts == 1:
+        if self.target == "cls":
+
+            # decoder
+            self.decoder = nn.Sequential(LSTMDecoder(
+                in_features = window_length,
+                hid_features = self.lstm_features,
+                out_features = n_labels
+                ), nn.Softmax()  
+            )    
+
+            # metrics
             for phase in ["train", "val", "test"]:
                 self.__setattr__(f"{phase}_acc", tm.Accuracy(num_classes=n_labels, task="multiclass"))
                 self.__setattr__(f"{phase}_f1",  tm.F1Score(num_classes=n_labels, task="multiclass"))
                 if phase != "train":
                     self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=n_labels, task="multiclass"))
 
-        elif self.n_shifts >= 2:
+        elif self.target == "reg":
+
+            # decoder
+            self.decoder = LSTMDecoder(
+                in_features = window_length,
+                hid_features = self.lstm_features,
+                out_features = window_length)
+            
+            # metricss
             for phase in ["train", "val", "test"]:
-                self.__setattr__(f"{phase}_acc", tm.Accuracy(num_classes=n_labels, num_labels=self.n_shifts, task="multilabel"))
-                self.__setattr__(f"{phase}_f1",  tm.F1Score(num_classes=n_labels, num_labels=self.n_shifts, task="multilabel"))
-                if phase != "train":
-                    self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=n_labels, num_labels=self.n_shifts, task="multilabel"))
+                self.__setattr__(f"{phase}_mse", tm.MeanSquaredError(squared=False))
+                self.__setattr__(f"{phase}_r2",  tm.R2Score(num_outputs=window_length))
+
         else:
-            raise RuntimeError("Need at least one value in label_shifts.")
+            raise NotImplementedError()
 
     # FORWARD
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -87,44 +106,42 @@ class WrapperModel(LightningModule):
 
         out = self.encoder(frame)
         out = self.decoder(out)
-        if self.n_shifts > 1:
-            out = torch.stack(torch.split(out, self.n_labels, dim=1)).permute(1,0,2)
-        out = self.activation(out)
         return out
 
     # STEPS
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-    def _inner_step(self, batch, stage: str = None):
+    def _inner_step(self, batch: tuple[torch.Tensor, torch.Tensor, torch.Tensor], stage: str = None):
 
         """ Common actions for training, test and val steps. """
 
         # x[0] is the time series
         # x[1] are the sim frames
         
-        x, y = batch
-        x: torch.tensor
-        y: torch.tensor
+        frames, series, label = batch
 
-        output = self(x)
-        loss = F.cross_entropy(output, y.to(torch.float32))
+        output = self(frames)
 
         # accumulate and return metrics for logging
-        if self.n_shifts > 1:
-            acc = self.__getattr__(f"{stage}_acc")(output, y.to(torch.float32))
-            f1  = self.__getattr__(f"{stage}_f1")(output, y.to(torch.float32))
+        if self.target == "cls":
+            loss = F.cross_entropy(output, label.to(torch.float32))
+            acc = self.__getattr__(f"{stage}_acc")(output, torch.argmax(label, dim=1))
+            f1  = self.__getattr__(f"{stage}_f1")(output, torch.argmax(label, dim=1))
             if stage != "train":
-                auroc = self.__getattr__(f"{stage}_auroc")(output, y.to(torch.float32))
-        else:
-            acc = self.__getattr__(f"{stage}_acc")(output, torch.argmax(y, dim=1))
-            f1  = self.__getattr__(f"{stage}_f1")(output, torch.argmax(y, dim=1))
-            if stage != "train":
-                auroc = self.__getattr__(f"{stage}_auroc")(output, torch.argmax(y, dim=1))
-        
+                auroc = self.__getattr__(f"{stage}_auroc")(output, torch.argmax(label, dim=1))  
+        elif self.target == "reg":
+            loss = F.mse_loss(output, series)
+            mse = self.__getattr__(f"{stage}_mse")(output, series)
+            r2 = self.__getattr__(f"{stage}_r2")(output, series)
+
         if stage == "train":
             self.log(f"{stage}_loss", loss, sync_dist=True)
-            self.log(f"{stage}_acc", acc, prog_bar=True, sync_dist=True)
-            self.log(f"{stage}_f1", f1, prog_bar=True, sync_dist=True)
+            if self.target == "cls":
+                self.log(f"{stage}_acc", acc, prog_bar=True, sync_dist=True)
+                self.log(f"{stage}_f1", f1, prog_bar=True, sync_dist=True)
+            elif self.target == "reg":
+                self.log(f"{stage}_mse", mse, prog_bar=True, sync_dist=True)
+                self.log(f"{stage}_r2", r2, prog_bar=True, sync_dist=True)
 
         return loss.to(torch.float32)
 
@@ -148,10 +165,14 @@ class WrapperModel(LightningModule):
         """ Common actions for validation and test epoch ends. """
 
         # metrics to analyze
-        metrics = ["acc", "f1"]
-        if stage != "train":
-            metrics.append("auroc")
 
+        if self.target == "cls":
+            metrics = ["acc", "f1"]
+            if stage != "train":
+                metrics.append("auroc")
+        elif self.target == "reg":
+            metrics = ["mse", "r2"]
+        
         # task flags
         if stage == "val":
             print("")
@@ -186,13 +207,18 @@ class WrapperModel(LightningModule):
 
         """ Define optimizers and LR schedulers. """
 
+        if self.target == "cls":
+            mode, monitor = "max", "val_acc"
+        elif self.target == "reg":
+            mode, monitor = "min", "val_mse"
+
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
-                "scheduler": ReduceLROnPlateau(optimizer, mode="min", factor=np.sqrt(0.1), patience=5, min_lr=0.5e-7),
+                "scheduler": ReduceLROnPlateau(optimizer, mode=mode, factor=np.sqrt(0.1), patience=5, min_lr=0.5e-7),
                 "interval": "epoch",
-                "monitor": "val_acc",
+                "monitor": monitor,
                 "frequency": 10
                 # If "monitor" references validation metrics, then "frequency" should be set to a
                 # multiple of "trainer.check_val_every_n_epoch".

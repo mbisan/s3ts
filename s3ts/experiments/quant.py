@@ -3,7 +3,7 @@
 """ Experiment to check the effect of the number of intervals in the labels. """
 
 from s3ts.experiments.common import create_folders, train_model, prepare_dms, base_results
-from s3ts.data.modules import DoubleDataModule
+from s3ts.data.modules import FullDataModule
 
 from pytorch_lightning import LightningModule, seed_everything
 
@@ -59,7 +59,7 @@ def EXP_quant(
         nsamp_tra=nsamp_tra, nsamp_pre=nsamp_pre, nsamp_test=nsamp_test,
         fold_number=fold_number, random_state=random_state, 
         frames=arch.__frames__(), dir_cache=dir_cache)
-    train_dm: DoubleDataModule
+    train_dm: FullDataModule
 
     runs = []
     QUANTS = [2,3,4,5,6,7,8,9]
@@ -117,7 +117,7 @@ def EXP_quant(
             nsamp_tra=nsamp_tra, nsamp_pre=nsamp_pre, nsamp_test=nsamp_test,
             fold_number=fold_number, random_state=random_state, 
             frames=arch.__frames__(), dir_cache=dir_cache)
-        pretrain_dm: DoubleDataModule
+        pretrain_dm: FullDataModule
 
         results = base_results(dataset=dataset, fold_number=fold_number, arch=arch, pretrained=True, 
             batch_size=batch_size, window_length=window_length, window_stride=window_stride, 
