@@ -40,7 +40,7 @@ EXP = "stride"
 DATASETS = ["GunPoint", "Coffee", "PowerCons", "Plane", "CBF"]
 DATASETS = ["GunPoint"]
 ENCODERS = [CNN_DFS, ResNet_DFS, RNN_TS, CNN_TS, ResNet_TS]
-ENCODERS = [CNN_DFS]
+ENCODERS = [ResNet_DFS]
 # ~~~~~~~~~~~~~~~~~~~~~~~
 RHO_DFS: float = 0.1
 BATCH_SIZE: bool = 128

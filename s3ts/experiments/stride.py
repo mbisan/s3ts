@@ -58,7 +58,7 @@ def EXP_stride(
 
         
         # reset the seed
-        seed_everything(random_state)
+        seed_everything(random_state, workers=True)
         
         crun += 1
         log.info(f"~ [{crun}/{trun}] Checking with stride {stride}...")
@@ -106,7 +106,7 @@ def EXP_stride(
         crun += 1 
 
         # reset the seed
-        seed_everything(random_state)
+        seed_everything(random_state, workers=True)
 
         # define the training directory   
         date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")

@@ -17,8 +17,10 @@ from s3ts.models.wrapper import WrapperModel
 
 # training stuff
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-# from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.callbacks import LearningRateFinder, BatchSizeFinder
 from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
+from pytorch_lightning.tuner.tuning import Tuner
 from pytorch_lightning import Trainer
 
 from datetime import datetime
@@ -153,7 +155,7 @@ def setup_trainer(
     """ Shared setup for the Trainer objects. """
 
     checkpoint = ModelCheckpoint(monitor=stop_metric, mode=mode)    
-    trainer = Trainer(default_root_dir=directory,  accelerator="auto",
+    trainer = Trainer(default_root_dir=directory,  accelerator="auto", devices="auto",
         # progress logs
         logger = [
             TensorBoardLogger(save_dir=directory, name="logs", version=version),
@@ -161,11 +163,11 @@ def setup_trainer(
         ],
         callbacks=[
             # early stop the model
-            # EarlyStopping(monitor=stop_metric, mode="max", patience=epoch_patience),         
-            LearningRateMonitor(logging_interval='step'),  # learning rate logger
+            EarlyStopping(monitor=stop_metric, mode=mode, patience=40),         
+            LearningRateMonitor(logging_interval='epoch'),  # learning rate logger
             checkpoint  # save best model version
             ],
-        max_epochs=epoch_max,  deterministic = False,
+        max_epochs=epoch_max,  deterministic = True, benchmark=True,
         log_every_n_steps=1, check_val_every_n_epoch=1
     )
 

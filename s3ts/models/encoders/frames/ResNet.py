@@ -50,16 +50,17 @@ class ResNet_DFS(LightningModule):
         super().__init__()
 
         self.channels = channels
-        self.n_feature_maps = 32
+        self.n_feature_maps = 16
 
         self.model = nn.Sequential(
             ResidualBlock(in_channels=channels, out_channels=self.n_feature_maps),
             ResidualBlock(in_channels=self.n_feature_maps, out_channels=self.n_feature_maps * 2),
             ResidualBlock(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 2),
             ResidualBlock(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 4),
-            nn.AvgPool2d((ref_size, window_size))
+            #nn.AvgPool2d((ref_size, window_size))
+            nn.AvgPool2d((5, 1))
         )
-        self.flatten = nn.Flatten()
+        #self.flatten = nn.Flatten()
 
     @staticmethod
     def __str__() -> str:
@@ -74,7 +75,6 @@ class ResNet_DFS(LightningModule):
 
     def forward(self, x):
         out = self.model(x.float())
-        out = self.flatten(out)
         return out
 
     

@@ -71,6 +71,9 @@ if __name__ == '__main__':
     parser.add_argument('--n_splits', type=int, default=5,
                         help='Number of splits for K-fold validation')
     
+    parser.add_argument('--fold', type=int, default=None,
+                        help='Specific fold from the K-fold.')
+
     parser.add_argument('--random_state', type=int, default=0,
                         help='Global seed for the random number generators')
 
@@ -117,6 +120,7 @@ if __name__ == '__main__':
     dir_results: Path = Path(args.dir_results)
     log_file: Path = Path(args.log_file)
     # ~~~~~~~~~~~~~~~~~~~~~~~
+    fold: int = args.fold
     n_splits: int = args.n_splits
     random_state: int = args.random_state
     
@@ -134,6 +138,10 @@ if __name__ == '__main__':
     log.info(f"Train-test K-Fold validation: ({n_splits} splits)")
     skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=args.random_state)
     for j, (train_index, test_index) in enumerate(skf.split(X, Y)):
+
+        if fold is not None:
+            if j != fold:
+                continue
 
         X_train, Y_train = X[train_index,:], Y[train_index]
         X_test, Y_test = X[test_index,:], Y[test_index]

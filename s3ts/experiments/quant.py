@@ -66,7 +66,7 @@ def EXP_quant(
     trun, crun = 1+len(QUANTS), 0
 
     # reset the seed
-    seed_everything(random_state)
+    seed_everything(random_state, workers=True)
 
     crun += 1
     log.info(f"~ [{crun}/{trun}] Training baseline model...")
@@ -128,7 +128,7 @@ def EXP_quant(
         results["pretrain_nquant"] = n_quant
 
         # reset the seed
-        seed_everything(random_state)
+        seed_everything(random_state, workers=True)
 
         # pretrain the encoder
         log.info("Training the encoder...")
