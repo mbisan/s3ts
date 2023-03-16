@@ -1,0 +1,2 @@
+dataset,arch,pretrained,fold_number,random_state,batch_size,window_length,window_stride,target_val_acc,target_val_f1,target_val_auroc,target_test_acc,target_test_f1,target_test_auroc,target_best_model,target_train_csv,nsamp_tra,nsamp_pre,nsamp_test
+Trace,ResNet_DFS,False,4,0,128,5,1,0.38593751192092896,0.38593751192092896,0.6433321833610535,0.4098345637321472,0.4098345637321472,0.6439589262008667,training/EXP_stride_f4.0_base_2023-03-16_13-39/logs/target/checkpoints/epoch=72-step=4161.ckpt,training/EXP_stride_f4.0_base_2023-03-16_13-39/logs/target/metrics.csv,11260,0,10985
