@@ -163,7 +163,7 @@ def setup_trainer(
         ],
         callbacks=[
             # early stop the model
-            EarlyStopping(monitor=stop_metric, mode=mode, patience=40),         
+            # EarlyStopping(monitor=stop_metric, mode=mode, patience=40),         
             LearningRateMonitor(logging_interval='epoch'),  # learning rate logger
             checkpoint  # save best model version
             ],
