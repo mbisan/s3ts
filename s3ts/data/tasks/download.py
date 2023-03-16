@@ -51,7 +51,14 @@ def download_dataset(dataset_name: str, dir_cache: Path) -> None:
         try:
             Y = Y.astype(int)
             Y = Y - Y.min()
+
+            # weird bugfix for ECG200
+            Yn = np.zeros_like(Y)
+            for i, y in enumerate(np.unique(Y)):
+                Yn[Y == y] = i
+            Y = Yn
             mapping = None
+
         except ValueError:
             mapping = {k: v for v, k in enumerate(np.unique(Y))}
 
