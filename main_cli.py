@@ -14,6 +14,7 @@ from s3ts.models.encoders.series.RNN import RNN_TS
 from s3ts.experiments.ratio  import EXP_ratio
 from s3ts.experiments.quant  import EXP_quant
 from s3ts.experiments.stride import EXP_stride
+from s3ts.experiments.length import EXP_length
 
 # standard library
 from pathlib import Path
@@ -38,7 +39,7 @@ if __name__ == '__main__':
     parser.add_argument('--arch', type=str, required=True, choices=['RNN', 'CNN', 'ResNet'],
                         help='Name of the architecture from which create the model')
     
-    parser.add_argument('--exp', type=str, required=True, choices=['ratio', 'quant', 'stride'],
+    parser.add_argument('--exp', type=str, required=True, choices=['ratio', 'quant', 'stride', 'length'],
                         help='Name of the architecture from which create the model')
 
     parser.add_argument('--rho_dfs', type=float, default=0.1,
@@ -97,7 +98,7 @@ if __name__ == '__main__':
     arch_dict = {"TS": {"RNN": RNN_TS, "CNN": CNN_TS, "ResNet": ResNet_TS}, "DF": {"CNN": CNN_DFS, "ResNet": ResNet_DFS}}
     if args.arch not in arch_dict[args.mode]:
         raise NotImplementedError("Invalid mode and architecture combination!")
-    exp_dict = {"ratio": EXP_ratio, "quant": EXP_quant, "stride": EXP_stride}
+    exp_dict = {"ratio": EXP_ratio, "quant": EXP_quant, "stride": EXP_stride, 'length': EXP_length}
     
     # get rest of variables
     dataset: str = args.dataset

@@ -7,7 +7,7 @@ Script that automates the experiments in a SLURM queue.
 from pathlib import Path
 import subprocess
 
-EXP = "stride"
+EXP = "length"
 ARCHS = {
     "DF": {"CNN", "ResNet"},
     #"TS": ("RNN", "CNN", "ResNet")
