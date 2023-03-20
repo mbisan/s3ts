@@ -70,12 +70,16 @@ def prepare_dms(
     log.info(f"   Total samples: {X_train.shape[0] + X_test.shape[0]}")
     
     # prtrain/train set splitting
-    log.debug(f"Splitting train and pretrain sets (seed: {random_state})")
-    X_tra, X_pre, Y_tra, Y_pre = train_test_split(X_train, Y_train, 
-        test_size=pret_frac, stratify=Y_train, random_state=random_state, shuffle=True)
+    if pret_frac > 0:
+        log.debug(f"Splitting train and pretrain sets (seed: {random_state})")
+        X_tra, X_pre, Y_tra, Y_pre = train_test_split(X_train, Y_train, 
+            test_size=pret_frac, stratify=Y_train, random_state=random_state, shuffle=True)
+    else:
+        X_tra, Y_tra = X_train, Y_train
 
     # print more dataset info
-    log.info(f"Pretrain samples: {X_pre.shape[0]}")
+    if pret_frac > 0:
+        log.info(f"Pretrain samples: {X_pre.shape[0]}")
     log.info(f"   Train samples: {X_tra.shape[0]}")
     log.info(f"    Test samples: {X_test.shape[0]}")
     log.info("~~~~~~~~~~~~~~~~~~~~~~~~~")
@@ -87,15 +91,18 @@ def prepare_dms(
     log.info("Generating 'train' STS...")       # train STS generation
     STS_tra, labels_tra, frames_tra = compute_STS(X=X_tra,Y=Y_tra, target_nframes=nsamp_tra, 
         frame_buffer=window_length*3, random_state=random_state)
+    
+    if pret_frac > 0:
+        log.info("Generating 'pretrain' STS...")    # pretrain STS generation
+        STS_pre, _, frames_pre = compute_STS(X=X_pre, Y=Y_pre, target_nframes=nsamp_pre, 
+            frame_buffer=window_length*3, random_state=random_state)
+        
+        kbd = KBinsDiscretizer(n_bins=quant_intervals, encode="ordinal", strategy="quantile", random_state=random_state)
+        kbd.fit(STS_pre.reshape(-1,1))
+        labels_pre = kbd.transform(STS_pre.reshape(-1,1)).squeeze().astype(int)
+    else:
+        frames_pre = 0
 
-    log.info("Generating 'pretrain' STS...")    # pretrain STS generation
-    STS_pre, _, frames_pre = compute_STS(X=X_pre, Y=Y_pre, target_nframes=nsamp_pre, 
-        frame_buffer=window_length*3, random_state=random_state)
-    
-    kbd = KBinsDiscretizer(n_bins=quant_intervals, encode="ordinal", strategy="quantile", random_state=random_state)
-    kbd.fit(STS_pre.reshape(-1,1))
-    labels_pre = kbd.transform(STS_pre.reshape(-1,1)).squeeze().astype(int)
-    
     log.info("Generating 'test' STS...")        # test STS generation
     STS_test, labels_test, frames_test = compute_STS(X=X_test, Y=Y_test, target_nframes=nsamp_test, 
         frame_buffer=window_length*3,random_state=random_state)
@@ -108,15 +115,22 @@ def prepare_dms(
     if not Path(cache_file).exists():
         log.info("Generating 'train' DFS...")
         DFS_tra = compute_OESM(STS_tra, medoids, rho=rho_dfs)
-        log.info("Generating 'pretrain' DFS...")
-        DFS_pre = compute_OESM(STS_pre, medoids, rho=rho_dfs) 
+        if pret_frac > 0:
+            log.info("Generating 'pretrain' DFS...")
+            DFS_pre = compute_OESM(STS_pre, medoids, rho=rho_dfs) 
         log.info("Generating 'test' DFS...")
         DFS_test = compute_OESM(STS_test, medoids, rho=rho_dfs) 
-        np.savez_compressed(cache_file, DFS_tra=DFS_tra, DFS_pre=DFS_pre, DFS_test=DFS_test)
+        if pret_frac > 0:
+            np.savez_compressed(cache_file, DFS_tra=DFS_tra, DFS_pre=DFS_pre, DFS_test=DFS_test)
+        else:
+            np.savez_compressed(cache_file, DFS_tra=DFS_tra, DFS_test=DFS_test)
     else:
         log.info(f"Loading DFS from cached file... ({cache_file})")
         with np.load(cache_file) as data:
-            DFS_tra, DFS_pre, DFS_test = data["DFS_tra"], data["DFS_pre"], data["DFS_test"]
+            if pret_frac > 0:
+                DFS_tra, DFS_pre, DFS_test = data["DFS_tra"], data["DFS_pre"], data["DFS_test"]
+            else:
+                DFS_tra, DFS_test = data["DFS_tra"], data["DFS_test"]
 
     log.info("Creating 'train' dataset...")
     dm_tra = FullDataModule(
@@ -125,16 +139,18 @@ def prepare_dms(
         window_length=window_length, window_stride=window_stride, batch_size=batch_size, 
         quant_shifts=[0], frames=frames, patterns=medoids)
 
-    log.info("Creating 'pretrain' dataset...")
-    quant_shifts = np.round(np.array(quant_shifts)*X_train.shape[1]).astype(int)
-    log.info(f"Number of quantiles: {quant_intervals}")
-    log.info(f"Label shifts: {quant_shifts}")    
-
-    # create data module (pretrain)
-    dm_pre = FullDataModule(
-        STS_train=STS_pre, DFS_train=DFS_pre, labels_train=labels_pre, nsamp_train=frames_pre,
-        window_length=window_length, window_stride=window_stride, batch_size=batch_size, 
-        quant_shifts=quant_shifts, frames=frames, patterns=medoids)   
+    if pret_frac > 0:
+        log.info("Creating 'pretrain' dataset...")
+        quant_shifts = np.round(np.array(quant_shifts)*X_train.shape[1]).astype(int)
+        log.info(f"Number of quantiles: {quant_intervals}")
+        log.info(f"Label shifts: {quant_shifts}")    
+        dm_pre = FullDataModule(
+            STS_train=STS_pre, DFS_train=DFS_pre, labels_train=labels_pre, nsamp_train=frames_pre,
+            window_length=window_length, window_stride=window_stride, batch_size=batch_size, 
+            quant_shifts=quant_shifts, frames=frames, patterns=medoids)   
+    else:
+        dm_pre = None
+    
 
     return dm_tra, dm_pre
 
@@ -162,7 +178,7 @@ def setup_trainer(
             LearningRateMonitor(logging_interval='epoch'),  # learning rate logger
             checkpoint  # save best model version
             ],
-        max_epochs=epoch_max,  deterministic = True, benchmark=True,
+        max_epochs=epoch_max,  deterministic = False, benchmark=True,
         log_every_n_steps=1, check_val_every_n_epoch=1
     )
 

@@ -18,6 +18,7 @@ from s3ts.models.encoders.series.CNN import CNN_TS
 from s3ts.models.encoders.series.RNN import RNN_TS
 
 # experiments
+from s3ts.experiments.base import EXP_base
 from s3ts.experiments.ratio  import EXP_ratio
 from s3ts.experiments.quant  import EXP_quant
 from s3ts.experiments.stride import EXP_stride
@@ -36,7 +37,7 @@ torch.set_float32_matmul_precision("medium")
 # SETTINGS
 # =================================
 
-EXP = "ratio"
+EXP = "base"
 DATASETS = ["GunPoint", "ECG200", "Coffee", "Plane", "Trace", "PowerCons"]
 DATASETS = ["GunPoint"]
 ENCODERS = [CNN_DFS, ResNet_DFS, RNN_TS, CNN_TS, ResNet_TS]
@@ -63,7 +64,7 @@ RANDOM_STATE = 0
 
 # =================================
 
-exp_dict = {"ratio": EXP_ratio, "quant": EXP_quant, "stride": EXP_stride}
+exp_dict = {"base": EXP_base, "ratio": EXP_ratio, "quant": EXP_quant, "stride": EXP_stride}
 EXP = exp_dict[EXP]
 
 for i, (arch, dataset) in enumerate(product(ENCODERS, DATASETS)):

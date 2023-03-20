@@ -36,6 +36,7 @@ class WrapperModel(LightningModule):
         window_length: int,
         lab_shifts: list[int],
         arch: type[LightningModule],
+        approach: str = "lstm",
         target: str = "cls",
         learning_rate: float = 1e-4,
         ):
@@ -49,53 +50,96 @@ class WrapperModel(LightningModule):
         self.l_patterns = l_patterns
         self.window_length = window_length
         self.learning_rate = learning_rate
+        self.approach = approach
         self.target = target
-
-        # encoder
-        self.encoder: LightningModule = arch(
-            ref_size=l_patterns, 
-            channels=n_patterns, 
-            window_size=window_length)
         
+        # encoder
+        
+        if approach not in ["lstm", "linear", "old"]:
+            raise NotImplementedError()
+        if target not in ["cls", "reg"]:
+            raise NotImplementedError()
         
         self.lstm_features = 64
 
         # decoder
         # self.decoder = LinearDecoder(in_features=embedding_size, hid_features=embedding_size//2, 
         #     out_features=n_labels*self.n_shifts)
+
+        self.encoder: LightningModule = arch(               # encoder
+                ref_size=l_patterns, 
+                channels=n_patterns, 
+                window_size=window_length)
         
-        if self.target == "cls":
+        if self.approach == "lstm":
 
-            # decoder
-            self.decoder = nn.Sequential(LSTMDecoder(
-                in_features = window_length,
-                hid_features = self.lstm_features,
-                out_features = n_labels
-                ), nn.Softmax()  
-            )    
-
-            # metrics
-            for phase in ["train", "val", "test"]:
-                self.__setattr__(f"{phase}_acc", tm.Accuracy(num_classes=n_labels, task="multiclass"))
-                self.__setattr__(f"{phase}_f1",  tm.F1Score(num_classes=n_labels, task="multiclass"))
-                if phase != "train":
-                    self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=n_labels, task="multiclass"))
-
-        elif self.target == "reg":
-
-            # decoder
-            self.decoder = LSTMDecoder(
-                in_features = window_length,
-                hid_features = self.lstm_features,
-                out_features = window_length)
+            if self.target == "cls":
+                self.decoder = nn.Sequential(LSTMDecoder(   # decoder
+                    in_features = window_length,
+                    hid_features = self.lstm_features,
+                    out_features = n_labels
+                    ), nn.Softmax())    
+                for phase in ["train", "val", "test"]:      # metrics
+                    self.__setattr__(f"{phase}_acc", tm.Accuracy(num_classes=n_labels, task="multiclass"))
+                    self.__setattr__(f"{phase}_f1",  tm.F1Score(num_classes=n_labels, task="multiclass"))
+                    if phase != "train":
+                        self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=n_labels, task="multiclass"))
+            elif self.target == "reg":
+                self.decoder = LSTMDecoder(                 # decoder
+                    in_features = window_length,
+                    hid_features = self.lstm_features,
+                    out_features = window_length)
+                for phase in ["train", "val", "test"]:      # metrics
+                    self.__setattr__(f"{phase}_mse", tm.MeanSquaredError(squared=False))
+                    self.__setattr__(f"{phase}_r2",  tm.R2Score(num_outputs=window_length))
+    
+        elif self.approach == "linear":
             
-            # metricss
-            for phase in ["train", "val", "test"]:
-                self.__setattr__(f"{phase}_mse", tm.MeanSquaredError(squared=False))
-                self.__setattr__(f"{phase}_r2",  tm.R2Score(num_outputs=window_length))
+            if self.target == "cls":
+                self.decoder = nn.Sequential(LinearDecoder(     # decoder
+                    hid_features = self.lstm_features,
+                    out_features = n_labels
+                    ), nn.Softmax())    
+                for phase in ["train", "val", "test"]:          # metrics
+                    self.__setattr__(f"{phase}_acc", tm.Accuracy(num_classes=n_labels, task="multiclass"))
+                    self.__setattr__(f"{phase}_f1",  tm.F1Score(num_classes=n_labels, task="multiclass"))
+                    if phase != "train":
+                        self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=n_labels, task="multiclass"))
+            elif self.target == "reg":
+                self.decoder = LinearDecoder(                   # decoder
+                    hid_features = self.lstm_features,
+                    out_features = window_length)
+                for phase in ["train", "val", "test"]:          # metrics
+                    self.__setattr__(f"{phase}_mse", tm.MeanSquaredError(squared=False))
+                    self.__setattr__(f"{phase}_r2",  tm.R2Score(num_outputs=window_length))
 
-        else:
-            raise NotImplementedError()
+        elif self.approach == "old":
+            
+            self.encoder = nn.Sequential(arch(                  # encoder
+                ref_size=l_patterns, channels=n_patterns, 
+                window_size=window_length),
+                nn.Flatten(), nn.LazyLinear(out_features=128),
+                nn.Linear(in_features=128, out_features=256))
+            
+            if self.target == "cls":
+                self.decoder = nn.Sequential(LinearDecoder(     # decoder
+                    hid_features = self.lstm_features,
+                    out_features = n_labels
+                    ), nn.Softmax())    
+                for phase in ["train", "val", "test"]:          # metrics
+                    self.__setattr__(f"{phase}_acc", tm.Accuracy(num_classes=n_labels, task="multiclass"))
+                    self.__setattr__(f"{phase}_f1",  tm.F1Score(num_classes=n_labels, task="multiclass"))
+                    if phase != "train":
+                        self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=n_labels, task="multiclass"))
+            elif self.target == "reg":
+                self.decoder = LinearDecoder(                   # decoder
+                    hid_features = self.lstm_features,
+                    out_features = window_length)
+                for phase in ["train", "val", "test"]:          # metrics
+                    self.__setattr__(f"{phase}_mse", tm.MeanSquaredError(squared=False))
+                    self.__setattr__(f"{phase}_r2",  tm.R2Score(num_outputs=window_length))
+
+
 
     # FORWARD
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #

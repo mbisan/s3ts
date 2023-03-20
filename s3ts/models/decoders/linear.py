@@ -23,7 +23,7 @@ class LinearDecoder(LightningModule):
         self.out_features = out_features
 
         layers = []
-        layers.append(nn.Linear(in_features=in_features, out_features=hid_features))
+        layers.append(nn.LazyLinear(out_features=hid_features))
         for _ in range(hid_layers):
             layers.append(nn.Linear(in_features=hid_features, out_features=hid_features)) 
         layers.append(nn.Linear(in_features=hid_features, out_features=out_features))

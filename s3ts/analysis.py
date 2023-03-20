@@ -16,10 +16,9 @@ def load_data(folder: Path) -> pd.DataFrame:
     df = pd.concat(dfs, ignore_index=True)
 
     df["target_nepochs"] = df["target_best_model"].str.split("/").str[5].str[6:].str.split("-").str[0]
-    df["pretrain_nepochs"] = df["pretrain_best_model"].str.split("/").str[5].str[6:].str.split("-").str[0]
-
-    # TODO grab nepochs from path to best model
-
+    if "pretrain_best_model" in df.columns:
+        df["pretrain_nepochs"] = df["pretrain_best_model"].str.split("/").str[5].str[6:].str.split("-").str[0]
+        
     return df
 
 # ================================================= #
