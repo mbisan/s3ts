@@ -48,47 +48,97 @@ def EXP_base(
 
     # reset the seed
     seed_everything(random_state, workers=True)
+    pret_frac = 1 - 1/(total_folds-1) 
+    # pret_frac = 0
 
     log.info("Preparing data modules...")
 
     # prepare the dms
-    train_dm, _ = prepare_dms(dataset=dataset,
+    train_dm, pretrain_dm = prepare_dms(dataset=dataset,
         X_train=X_train, X_test=X_test, Y_train=Y_train, Y_test=Y_test,
         batch_size=batch_size, window_length=window_length, window_stride=window_stride, 
-        rho_dfs=rho_dfs, pret_frac=0, 
+        rho_dfs=rho_dfs, pret_frac=pret_frac, 
         quant_shifts=quant_shifts, quant_intervals=quant_intervals,
         nsamp_tra=nsamp_tra, nsamp_pre=nsamp_pre, nsamp_test=nsamp_test,
         fold_number=fold_number, random_state=random_state, 
         frames=arch.__frames__(), dir_cache=dir_cache)
     train_dm: FullDataModule
-        
-    # define the training directory        
-    date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
-    subdir_train = dir_train / f"EXP_{exp_name}_f{fold_number}.base_{date_flag}"
 
-    # run the base model
-    log.info("Training target model...")
-    data, model, checkpoint = train_model(
-        directory=subdir_train, label="target", 
-        epoch_max=tra_maxepoch,
-        dm=train_dm, arch=arch, target="cls",
-        learning_rate=learning_rate)
-    
     runs = []
-    results = pd.concat([base_results(dataset=dataset, fold_number=fold_number, arch=arch, pretrained=False, 
-                        batch_size=batch_size, window_length=window_length, window_stride=window_stride, 
-                        random_state=random_state), 
-                        data], axis = 1)
-    
-    results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
-    results["nsamp_pre"] = 0
-    results["nsamp_test"] = len(train_dm.ds_test) 
+    APPROACHES = ["lstm", "linear", "old"]
+    APPROACHES = ["linear", "old"]
+    for approach in APPROACHES:
+        
+        # define the training directory        
+        date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        subdir_train = dir_train / f"EXP_{exp_name}_f{fold_number}.{approach}_base_{date_flag}"
 
-    # update results file
-    runs.append(results)
-    log.info(f"Updating results file ({str(res_file)})")
-    runs_df = pd.concat(runs, ignore_index=True)
-    runs_df.to_csv(res_file, index=False)
+        # run the base model
+        log.info(f"Training target model ({approach})...")
+        seed_everything(random_state, workers=True)
+        data, model, checkpoint = train_model(
+            directory=subdir_train, label="target", 
+            epoch_max=tra_maxepoch, approach=approach,
+            dm=train_dm, arch=arch, target="cls",
+            learning_rate=learning_rate)
+        
+        results = pd.concat([base_results(dataset=dataset, fold_number=fold_number, arch=arch, pretrained=False, 
+                            batch_size=batch_size, window_length=window_length, window_stride=window_stride, 
+                            random_state=random_state),
+                            data], axis = 1)
+        
+        results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
+        results["nsamp_pre"] = 0
+        results["nsamp_test"] = len(train_dm.ds_test) 
+
+        # update results file
+        runs.append(results)
+        log.info(f"Updating results file ({str(res_file)})")
+        runs_df = pd.concat(runs, ignore_index=True)
+        runs_df.to_csv(res_file, index=False)
+
+        # ================================================= #
+
+        # reset the seed
+        seed_everything(random_state, workers=True)
+
+        # define the training directory   
+        date_flag = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        subdir_train = dir_train / f"EXP_{exp_name}_f{fold_number}.{approach}_pret_{date_flag}"
+
+        results = base_results(dataset=dataset, fold_number=fold_number, arch=arch, pretrained=True, 
+            batch_size=batch_size, window_length=window_length, window_stride=window_stride,
+            random_state=random_state)
+        results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
+        results["nsamp_pre"] = len(pretrain_dm.ds_train) + len(pretrain_dm.ds_val)
+        results["nsamp_test"] = len(train_dm.ds_test)
+
+        # pretrain the encoder
+        log.info("Training the encoder...")
+        data, model, checkpoint = train_model(
+            directory=subdir_train, label="pretrain", 
+            epoch_max=pre_maxepoch, approach=approach,
+            dm=pretrain_dm, arch=arch, target="reg",
+            learning_rate=learning_rate)
+        results = pd.concat([results, data], axis=1)
+        encoder = model.encoder
+
+        # train with the original task
+        log.info("Training target model with pretrained encoder...")
+        data, model, checkpoint = train_model(
+            directory=subdir_train, label="target", 
+            epoch_max=tra_maxepoch,  target="cls",
+            dm=train_dm, arch=arch, approach=approach, 
+            learning_rate=learning_rate, encoder=encoder)
+        results = pd.concat([results, data], axis=1)
+
+        # update results file
+        runs.append(results)
+        log.info(f"Updating results file ({str(res_file)})")
+        runs_df = pd.concat(runs, ignore_index=True)
+        runs_df.to_csv(res_file, index=False)
+
+    # ================================================= #
             
     log.info(f"~~ EXPERIMENT COMPLETE! (fold #{fold_number+1}/{total_folds}) ~~")
 

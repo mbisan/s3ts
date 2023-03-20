@@ -7,8 +7,7 @@ class LinearDecoder(LightningModule):
 
     """ Basic linear sequence. """
 
-    def __init__(self, 
-            in_features: int,
+    def __init__(self,
             hid_features: int,
             out_features: int,
             hid_layers: int = 0
@@ -16,8 +15,6 @@ class LinearDecoder(LightningModule):
 
         super().__init__()
         self.save_hyperparameters()
-        
-        self.in_features = in_features
         
         self.hid_features = hid_features
         self.out_features = out_features

@@ -191,8 +191,9 @@ def train_model(
     label: str,
     epoch_max: int,
     dm: FullDataModule,
-    target: str,
+    target: str, 
     arch: type[LightningModule],
+    approach: str="lstm",
     encoder: LightningModule = None,
     learning_rate: float = 1e-4,
     ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
@@ -215,6 +216,7 @@ def train_model(
                 lab_shifts=[0],
                 arch=arch, 
                 target=target,
+                approach=approach,
                 learning_rate=learning_rate)
     else:
         model = WrapperModel(
@@ -225,6 +227,7 @@ def train_model(
                 lab_shifts=[0],
                 arch=arch,
                 target=target, 
+                approach=approach,
                 learning_rate=learning_rate)
     
     # set encoder if one was passed
@@ -251,6 +254,7 @@ def train_model(
             results[f"{label}_test_{m}"] = test_results[0][f"test_{m}"]
 
     # load model info
+    results["approach"] = approach
     results[f"{label}_best_model"] = checkpoint.best_model_path
     results[f"{label}_train_csv"] = str(directory  / "logs" / label / "metrics.csv")
     #results[f"{label}_nepochs"] = pd.read_csv(results[f"{label}_train_csv"])["epoch_train_acc"].count()

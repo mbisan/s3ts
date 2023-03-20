@@ -60,7 +60,7 @@ class WrapperModel(LightningModule):
         if target not in ["cls", "reg"]:
             raise NotImplementedError()
         
-        self.lstm_features = 64
+        self.decoder_features = 256 
 
         # decoder
         # self.decoder = LinearDecoder(in_features=embedding_size, hid_features=embedding_size//2, 
@@ -76,7 +76,7 @@ class WrapperModel(LightningModule):
             if self.target == "cls":
                 self.decoder = nn.Sequential(LSTMDecoder(   # decoder
                     in_features = window_length,
-                    hid_features = self.lstm_features,
+                    hid_features = self.decoder_features // 4,
                     out_features = n_labels
                     ), nn.Softmax())    
                 for phase in ["train", "val", "test"]:      # metrics
@@ -87,7 +87,7 @@ class WrapperModel(LightningModule):
             elif self.target == "reg":
                 self.decoder = LSTMDecoder(                 # decoder
                     in_features = window_length,
-                    hid_features = self.lstm_features,
+                    hid_features = self.decoder_features // 4,
                     out_features = window_length)
                 for phase in ["train", "val", "test"]:      # metrics
                     self.__setattr__(f"{phase}_mse", tm.MeanSquaredError(squared=False))
@@ -96,9 +96,10 @@ class WrapperModel(LightningModule):
         elif self.approach == "linear":
             
             if self.target == "cls":
-                self.decoder = nn.Sequential(LinearDecoder(     # decoder
-                    hid_features = self.lstm_features,
-                    out_features = n_labels
+                self.decoder = nn.Sequential(                   # decoder
+                    nn.Flatten(), LinearDecoder(     
+                    hid_features = self.decoder_features,
+                    hid_layers = 2, out_features = n_labels
                     ), nn.Softmax())    
                 for phase in ["train", "val", "test"]:          # metrics
                     self.__setattr__(f"{phase}_acc", tm.Accuracy(num_classes=n_labels, task="multiclass"))
@@ -106,9 +107,10 @@ class WrapperModel(LightningModule):
                     if phase != "train":
                         self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=n_labels, task="multiclass"))
             elif self.target == "reg":
-                self.decoder = LinearDecoder(                   # decoder
-                    hid_features = self.lstm_features,
-                    out_features = window_length)
+                self.decoder = nn.Sequential(                   # decoder
+                    nn.Flatten(), LinearDecoder(                   
+                    hid_features = self.decoder_features,
+                    hid_layers = 2, out_features = window_length))
                 for phase in ["train", "val", "test"]:          # metrics
                     self.__setattr__(f"{phase}_mse", tm.MeanSquaredError(squared=False))
                     self.__setattr__(f"{phase}_r2",  tm.R2Score(num_outputs=window_length))
@@ -118,12 +120,12 @@ class WrapperModel(LightningModule):
             self.encoder = nn.Sequential(arch(                  # encoder
                 ref_size=l_patterns, channels=n_patterns, 
                 window_size=window_length),
-                nn.Flatten(), nn.LazyLinear(out_features=128),
+                nn.Flatten(), nn.LazyLinear(out_features=256),
                 nn.Linear(in_features=128, out_features=256))
             
             if self.target == "cls":
                 self.decoder = nn.Sequential(LinearDecoder(     # decoder
-                    hid_features = self.lstm_features,
+                    hid_features = self.decoder_features,
                     out_features = n_labels
                     ), nn.Softmax())    
                 for phase in ["train", "val", "test"]:          # metrics
