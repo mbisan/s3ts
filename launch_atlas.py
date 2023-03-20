@@ -7,9 +7,9 @@ Script that automates the experiments in a SLURM queue.
 from pathlib import Path
 import subprocess
 
-EXP = "length"
+EXP = "ratio"
 ARCHS = {
-    "DF": {"CNN", "ResNet"},
+    "DF": {"ResNet", "CNN"},
     #"TS": ("RNN", "CNN", "ResNet")
 }
 DATASETS = ["GunPoint", "ECG200", "Coffee", "Plane", "Trace", "PowerCons"]
