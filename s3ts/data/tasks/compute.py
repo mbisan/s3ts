@@ -37,10 +37,14 @@ def compute_medoids(
 
         # ...using Dynamic Time Warping (DTW)
         elif distance_type == "dtw":
-            tskm = TimeSeriesKMedoids(n_clusters=1, init_algorithm="forgy", metric="dtw")
-            tskm.fit(Xi)
-            medoids[i,:] = tskm.cluster_centers_.squeeze()
-            medoid_ids[i] = np.where(np.all(Xi.squeeze() == medoids[i,:], axis=1))[0][0]
+            if Xi.shape[0] > 1:
+                tskm = TimeSeriesKMedoids(n_clusters=1, init_algorithm="forgy", metric="dtw")
+                tskm.fit(Xi)
+                medoids[i,:] = tskm.cluster_centers_.squeeze()
+                medoid_ids[i] = np.where(np.all(Xi.squeeze() == medoids[i,:], axis=1))[0][0]
+            else:
+                medoids[i,:] = Xi.squeeze()
+                medoid_ids[i] = np.where(np.all(Xi.squeeze() == medoids[i,:], axis=1))[0][0]
 
         else:
             raise NotImplementedError

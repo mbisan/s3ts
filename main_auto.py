@@ -39,7 +39,7 @@ torch.set_float32_matmul_precision("medium")
 
 EXP = "base"
 DATASETS = ["GunPoint", "ECG200", "Coffee", "Plane", "Trace", "PowerCons"]
-DATASETS = ["GunPoint"]
+DATASETS = ["SyntheticControl", "Chinatown"]
 ENCODERS = [CNN_DFS, ResNet_DFS, RNN_TS, CNN_TS, ResNet_TS]
 ENCODERS = [CNN_DFS]
 # ~~~~~~~~~~~~~~~~~~~~~~~
