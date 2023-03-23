@@ -5,7 +5,6 @@
 
 # standard library
 from pathlib import Path
-from math import ceil
 import logging as log
 
 # basics
@@ -13,19 +12,17 @@ import numpy as np
 import pandas as pd
 
 # models / modules
-from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
+from pytorch_lightning import LightningModule, Trainer
 
 # data processing stuff
-from scipy.spatial import distance_matrix
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import KBinsDiscretizer
 from sktime.clustering.k_medoids import TimeSeriesKMedoids
+from scipy.spatial import distance_matrix
 
 # in-package imports
-from s3ts.data.modules import FullDataModule
 from s3ts.models.wrapper import WrapperModel
+from s3ts.data.modules import DFDataModule
 from s3ts.data.oesm import compute_DM
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -162,24 +159,22 @@ def prepare_dm(
         Y_train: np.ndarray, Y_pretest: np.ndarray,
         STS_sample_multiplier: int, 
         train_samples_per_class: int,
-        rho_dfs: float, batch_size: int, 
-        window_length: int, window_stride: int,
+        rho_dfs: float, batch_size: int, window_length: int, 
+        window_time_stride: int, window_pattern_stride: int,
         fold_number: int, random_state: int,
         num_workers: int = 4,
+        use_cache: bool = True,
         pattern_type: str = "medoids",
         dir_cache: Path = Path("cache"),
         test_sample_multiplier: int = 2,
         pretrain_sample_multiplier: int = 16,
-        ) -> tuple[FullDataModule, FullDataModule]:
+        ) -> DFDataModule:
 
     """ Prepare the data module for training/pretraining/testing. """
-
 
     # Validate the inputs
     n_classes = len(np.unique(Y_train))     # Get the number of classes
     s_length = X_train.shape[1]             # Get the length of the time series
-    n_samp_tra = X_train.shape[0]           # Get the number of train samples
-    n_samp_pre = X_pretest.shape[0]         # Get the number of pretest samples
 
     # Check the pattern type is valid
     valid_patterns = ["medoids"]
@@ -202,8 +197,12 @@ def prepare_dm(
     multiplier_str = f"{train_samples_per_class}sxc_{pretrain_sample_multiplier}p_{test_sample_multiplier}t_{STS_sample_multiplier}STS"
     cache_file = dir_cache / f"{dataset}_{multiplier_str}_{pattern_type}_fold{fold_number}_rs{random_state}.npz"
 
+    STS_tra_samples = int(train_samples_per_class*n_classes)*STS_sample_multiplier
+    STS_pre_samples = STS_tra_samples*pretrain_sample_multiplier
+    STS_test_samples = STS_tra_samples*test_sample_multiplier
+
     # If the cache file exists, load everything from there
-    if cache_file.exists():
+    if use_cache and cache_file.exists():
 
         log.info(f"Loading data from cache file {cache_file}")
         data = np.load(cache_file, allow_pickle=True)
@@ -215,13 +214,10 @@ def prepare_dm(
     else:
 
         # Generate the STSs
-        STS_tra_samples = int(train_samples_per_class*n_classes)*STS_sample_multiplier
-        STS_pre_samples = STS_tra_samples*pretrain_sample_multiplier + STS_tra_samples*test_sample_multiplier
-
-        STS_tra, SCS_tra = compute_STS( # Generate train STS
-            X_train, Y_train, fix_limits=True, STS_samples=STS_tra_samples+1, mode="random", random_state=random_state)
-        STS_pre, SCS_pre = compute_STS( # Generate pretest STS
-            X_pretest, Y_pretest, fix_limits=True, STS_samples=STS_pre_samples+1, mode="random", random_state=random_state)
+        STS_tra, SCS_tra = compute_STS(X_train, Y_train,        # Generate train STS  
+            fix_limits=True, STS_samples=STS_tra_samples+1, mode="random", random_state=random_state)
+        STS_pre, SCS_pre = compute_STS(X_pretest, Y_pretest,    # Generate pretest STS 
+            fix_limits=True, STS_samples=STS_pre_samples+STS_test_samples+1, mode="random", random_state=random_state)
 
         # Generate the patterns for the DMs
         if pattern_type == "medoids":
@@ -246,9 +242,18 @@ def prepare_dm(
             STS_tra=STS_tra, SCS_tra=SCS_tra, DM_tra=DM_tra,
             STS_pre=STS_pre, SCS_pre=SCS_pre, DM_pre=DM_pre)
 
-
     # Return the DataModule
-    return FullDataModule()
+    return DFDataModule(
+        STS_tra=STS_tra, SCS_tra=SCS_tra, DM_tra=DM_tra,
+        STS_pre=STS_pre, SCS_pre=SCS_pre, DM_pre=DM_pre,
+        STS_tra_samples=STS_tra_samples, 
+        STS_pre_samples=STS_pre_samples,
+        STS_test_samples=STS_test_samples,
+        sample_length=s_length, patterns=patterns,
+        batch_size=batch_size, window_length=window_length,
+        window_time_stride=window_time_stride, 
+        window_pattern_stride=window_pattern_stride,
+        random_state=random_state, num_workers=num_workers)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -286,7 +291,7 @@ def train_model(
     directory: Path,
     label: str,
     epoch_max: int,
-    dm: FullDataModule,
+    dm: DFDataModule,
     target: str, 
     arch: type[LightningModule],
     approach: str="lstm",
@@ -305,7 +310,7 @@ def train_model(
     # create the model
     if frames:
         model = WrapperModel(
-                n_labels=dm.n_labels, 
+                n_labels=dm.n_classes, 
                 n_patterns=dm.n_patterns,
                 l_patterns=dm.l_patterns,
                 window_length=dm.window_length,
@@ -316,7 +321,7 @@ def train_model(
                 learning_rate=learning_rate)
     else:
         model = WrapperModel(
-                n_labels=dm.n_labels, 
+                n_labels=dm.n_classes, 
                 n_patterns=1,
                 l_patterns=1,
                 window_length=dm.window_length,
