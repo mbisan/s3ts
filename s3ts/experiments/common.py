@@ -3,155 +3,252 @@
 
 """ Common functions for the experiments. """
 
-# data processing stuff
-from s3ts.data.tasks.compute import compute_medoids, compute_STS
-from s3ts.data.tasks.oesm import compute_OESM
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import KBinsDiscretizer
+# standard library
+from pathlib import Path
+from math import ceil
+import logging as log
+
+# basics
+import numpy as np
+import pandas as pd
 
 # models / modules
-from pytorch_lightning import LightningModule
+from pytorch_lightning import LightningModule, Trainer
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
+
+# data processing stuff
+from scipy.spatial import distance_matrix
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import KBinsDiscretizer
+from sktime.clustering.k_medoids import TimeSeriesKMedoids
+
+# in-package imports
 from s3ts.data.modules import FullDataModule
 from s3ts.models.wrapper import WrapperModel
+from s3ts.data.oesm import compute_DM
 
-# training stuff
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
-from pytorch_lightning import Trainer
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-from pathlib import Path
-import logging as log
-import pandas as pd
-import numpy as np
+def compute_medoids(
+        X: np.ndarray, 
+        Y: np.ndarray,
+        distance_type: str = 'dtw'
+    ) -> tuple[np.ndarray, np.ndarray]: 
 
-# =====================================================
-# =====================================================
-# AUXILIARY FUNCTIONS
-# =====================================================
-# =====================================================
+    """ Computes the medoids of the classes in the dataset. 
+    
+    Parameters
+    ----------
+    X : np.ndarray
+        The time series dataset.
+    Y : np.ndarray
+        The labels of the time series dataset.
+    distance_type : str, optional
+        The distance type to use, by default 'dtw'
+    """
 
-def create_folders(
-        dir_cache: Path = Path("cache/"),
-        dir_train: Path = Path("training/"),
-        dir_results: Path = Path("results/")
-        ) -> None:
+    # Check the distance type
+    if distance_type not in ["euclidean", "dtw"]:
+        raise ValueError("The distance type must be either 'euclidean' or 'dtw'.")
+    
+    # Check the shape of the dataset and labels match
+    if X.shape[0] != Y.shape[0]:
+        raise ValueError("The number of samples in the dataset and labels must be the same.")
 
-    """ Ensures all needed folders exist."""
-    log.info("Creating folders...")
-    for path in [dir_cache, dir_train, dir_results]:
-        path.mkdir(parents=True, exist_ok=True)
-        log.info("..." + str(path))
-    log.info("Done!")
+    # Get the number of classes
+    n_classes = len(np.unique(Y))
+    
+    # Get the length of the time series
+    s_length = X.shape[1]
 
-def prepare_dms(
+    # Initialize the arrays
+    medoids = np.empty((n_classes, s_length), dtype=float)
+    medoid_ids = np.empty(n_classes, dtype=int)
+    
+    # Find the medoids for each class
+    for i, y in enumerate(np.unique(Y)):
+
+        # Get the samples of the class
+        index = np.argwhere(Y == y)
+        Xy = X[index, :]
+
+        # ...using Euclidean distance        
+        if distance_type == "euclidean":
+            medoid_idx = np.argmin(distance_matrix(Xy.squeeze(), Xy.squeeze()).sum(axis=0))
+            medoids[i,:] = Xy[medoid_idx,:]
+            medoid_ids[i] = index[medoid_idx]
+
+        # ...using Dynamic Time Warping (DTW)
+        if distance_type == "dtw":
+            if Xy.shape[0] > 1:
+                tskm = TimeSeriesKMedoids(n_clusters=1, init_algorithm="forgy", metric="dtw")
+                tskm.fit(Xy)
+                medoids[i,:] = tskm.cluster_centers_.squeeze()
+                medoid_ids[i] = np.where(np.all(Xy.squeeze() == medoids[i,:], axis=1))[0][0]
+            else:
+                medoids[i,:] = Xy.squeeze()
+                medoid_ids[i] = np.where(np.all(Xy.squeeze() == medoids[i,:], axis=1))[0][0]
+
+    # Return the medoids and their indices
+    return medoids, medoid_ids
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+def compute_STS(
+        X: np.ndarray, 
+        Y: np.ndarray,
+        STS_samples: int,
+        shift_limits: bool,
+        mode: str = "random",
+        random_state: int = 0,
+        ) -> tuple[np.ndarray, np.ndarray]:
+
+    """ Generates a Streaming Time Series (STS) from a given dataset. """
+
+    # Check the shape of the dataset and labels match
+    if X.shape[0] != Y.shape[0]:
+        raise ValueError("The number of samples in the dataset and labels must be the same.")
+
+    # Set the random state for reproducibility
+    rng = np.random.default_rng(seed=random_state)
+    
+    # Get the number of classes
+    n_classes = len(np.unique(Y))
+    
+    # Get the length of the time series
+    s_length = X.shape[1]
+    
+    # Get the number of samples
+    n_samples = X.shape[0]
+
+    # Get the length of the final STS
+    STS_length = STS_samples*s_length
+
+    # Do some logging
+    log.info(f"Number of samples: {n_samples}")
+    log.info(f"Length of samples: {s_length}")
+    log.info(f"Number of classes: {n_classes}")
+    log.info(f"Class ratios: {np.unique(Y, return_counts=True)[1]/n_samples}")
+    log.info(f"Length of STS: {STS_length}")
+
+    # Initialize the arrays
+    STS = np.empty(STS_length, dtype=float)
+    SCS = np.empty(STS_length, dtype=int)
+
+    # Generate the STS 
+    if mode == "random":
+        for s in range(STS_samples):
+            random_idx = rng.integers(0, n_samples)
+
+            # Calculate shift so that sample ends match
+            shift = STS[s-1] - X[random_idx,0] if shift_limits else 0
+
+            STS[s*s_length:(s+1)*s_length] = X[random_idx,:] + shift
+            SCS[s*s_length:(s+1)*s_length] = Y[random_idx]
+
+    # Normalize the STS
+    STS = (STS - np.mean(STS))/np.std(STS)
+
+    # Return the STS and the SCS
+    return STS, SCS
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+def prepare_dm(
         dataset: str, 
-        X_train: np.ndarray, X_test: np.ndarray, 
-        Y_train: np.ndarray, Y_test: np.ndarray,
-        rho_dfs: float, pret_frac: float,
-        # ~~ # NOTE: can be changed without recalcs # ~~ #
-        batch_size: int, window_length: int, window_stride: int,                  
-        quant_shifts: list[int], quant_intervals: int,     
-        # multipliers for the number of frames generated
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        nsamp_tra: float = None, nsamp_pre: float = None, nsamp_test: float = None,
-        # cross validation stuff
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        fold_number: int = 0, random_state: int = 0, frames: bool = True,
-        dir_cache: Path = Path("cache/"),
+        X_train: np.ndarray, X_pretest: np.ndarray, 
+        Y_train: np.ndarray, Y_pretest: np.ndarray,
+        STS_sample_multiplier: int, 
+        train_samples_per_class: int,
+        rho_dfs: float, batch_size: int, 
+        window_length: int, window_stride: int,
+        fold_number: int, random_state: int,
+        num_workers: int = 4,
+        pattern_type: str = "medoids",
+        dir_cache: Path = Path("cache"),
+        test_sample_multiplier: int = 2,
+        pretrain_sample_multiplier: int = 16,
         ) -> tuple[FullDataModule, FullDataModule]:
 
-    # print dataset info
-    log.info("~~~~~~~~~~~~~~~~~~~~~~~~~")
-    log.info(f"         Dataset: {dataset}")
-    log.info(f"     Fold number: {fold_number}")
-    log.info(f"   Total samples: {X_train.shape[0] + X_test.shape[0]}")
+    """ Prepare the data module for training/pretraining/testing. """
+
+
+    # Validate the inputs
+    n_classes = len(np.unique(Y_train))     # Get the number of classes
+    s_length = X_train.shape[1]             # Get the length of the time series
+    n_samp_tra = X_train.shape[0]           # Get the number of train samples
+    n_samp_pre = X_pretest.shape[0]         # Get the number of pretest samples
+
+    # Check the pattern type is valid
+    valid_patterns = ["medoids"]
+    if pattern_type not in valid_patterns:
+        raise ValueError(f"patterns must be one of {valid_patterns}")
+
+    # Check there is the same numbe of classes in train and test
+    if len(np.unique(Y_train)) != len(np.unique(Y_pretest)):
+        raise ValueError("The number of classes in train and test must be the same.")
     
-    # prtrain/train set splitting
-    if pret_frac > 0:
-        log.debug(f"Splitting train and pretrain sets (seed: {random_state})")
-        X_tra, X_pre, Y_tra, Y_pre = train_test_split(X_train, Y_train, 
-            test_size=pret_frac, stratify=Y_train, random_state=random_state, shuffle=True)
+    # Check the number of samples per class in train
+    if np.unique(Y_train, return_counts=True)[1].min() < train_samples_per_class:
+        raise ValueError(f"The number of samples per class in the train set must be at least {train_samples_per_class}.")
+
+    # Check the number of samples per class in pretest
+    if np.unique(Y_pretest, return_counts=True)[1].min() < train_samples_per_class*2:
+        raise ValueError(f"The number of samples per class in the pretest set must be at least {train_samples_per_class*2}.")
+
+    # Generate filenames for the cache files using the parametersç
+    multiplier_str = f"{train_samples_per_class}sxc_{pretrain_sample_multiplier}p_{test_sample_multiplier}t_{STS_sample_multiplier}STS"
+    cache_file = dir_cache / f"{dataset}_{multiplier_str}_{pattern_type}_fold{fold_number}_rs{random_state}.npz"
+
+    # If the cache file exists, load everything from there
+    if cache_file.exists():
+
+        log.info(f"Loading data from cache file {cache_file}")
+        data = np.load(cache_file, allow_pickle=True)
+        STS_tra, SCS_tra = data["STS_tra"], data["SCS_tra"]
+        STS_pre, SCS_pre = data["STS_pre"], data["SCS_pre"]
+        DM_tra, DM_pre = data["DM_tra"], data["DM_pre"]
+        patterns = data["patterns"]
+
     else:
-        X_tra, Y_tra = X_train, Y_train
 
-    # print more dataset info
-    if pret_frac > 0:
-        log.info(f"Pretrain samples: {X_pre.shape[0]}")
-    log.info(f"   Train samples: {X_tra.shape[0]}")
-    log.info(f"    Test samples: {X_test.shape[0]}")
-    log.info("~~~~~~~~~~~~~~~~~~~~~~~~~")
+        # Generate the STSs
+        STS_tra_samples = int(train_samples_per_class*n_classes)*STS_sample_multiplier
+        STS_pre_samples = STS_tra_samples*pretrain_sample_multiplier + STS_tra_samples*test_sample_multiplier
 
-    # pattern selection: shape = [n_patterns,  l_patterns]
-    log.info(f"Selecting the DFS patterns from the train data")
-    medoids, medoid_ids = compute_medoids(X_tra, Y_tra, distance_type="dtw")
+        STS_tra, SCS_tra = compute_STS( # Generate train STS
+            X_train, Y_train, fix_limits=True, STS_samples=STS_tra_samples+1, mode="random", random_state=random_state)
+        STS_pre, SCS_pre = compute_STS( # Generate pretest STS
+            X_pretest, Y_pretest, fix_limits=True, STS_samples=STS_pre_samples+1, mode="random", random_state=random_state)
 
-    log.info("Generating 'train' STS...")       # train STS generation
-    STS_tra, labels_tra, frames_tra = compute_STS(X=X_tra,Y=Y_tra, target_nframes=nsamp_tra, 
-        frame_buffer=window_length*3, random_state=random_state)
-    
-    if pret_frac > 0:
-        log.info("Generating 'pretrain' STS...")    # pretrain STS generation
-        STS_pre, _, frames_pre = compute_STS(X=X_pre, Y=Y_pre, target_nframes=nsamp_pre, 
-            frame_buffer=window_length*3, random_state=random_state)
-        
-        kbd = KBinsDiscretizer(n_bins=quant_intervals, encode="ordinal", strategy="quantile", random_state=random_state)
-        kbd.fit(STS_pre.reshape(-1,1))
-        labels_pre = kbd.transform(STS_pre.reshape(-1,1)).squeeze().astype(int)
-    else:
-        frames_pre = 0
+        # Generate the patterns for the DMs
+        if pattern_type == "medoids":
+            log.info("Selecting the medoids from the train data")
+            medoids, medoid_ids = compute_medoids(X_train, Y_train, distance_type="dtw")
+            patterns = medoids
+  
+         # Generate the DMs
+        DM_tra = compute_DM(STS_tra, patterns, rho_dfs, num_workers = num_workers)
+        DM_pre = compute_DM(STS_pre, patterns, rho_dfs, num_workers = num_workers)
 
-    log.info("Generating 'test' STS...")        # test STS generation
-    STS_test, labels_test, frames_test = compute_STS(X=X_test, Y=Y_test, target_nframes=nsamp_test, 
-        frame_buffer=window_length*3,random_state=random_state)
+        # Remove the first sample from the STSs
+        STS_tra = STS_tra[s_length:]
+        STS_pre = STS_pre[s_length:]
+        SCS_tra = SCS_tra[s_length:]
+        SCS_pre = SCS_pre[s_length:]
+        DM_tra = DM_tra[:,:,s_length:]
+        DM_pre = DM_pre[:,:,s_length:]
 
-    # DFS generation ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    fracs_str = f"pf{pret_frac}"
-    seeds_str = f"f{fold_number}-rs{random_state}"
-    frames_str = f"tr{frames_tra}-pr{frames_pre}-ts{frames_test}"
-    cache_file = dir_cache / f"DFS_{dataset}_{fracs_str}_{seeds_str}_{frames_str}.npz"
-    if not Path(cache_file).exists():
-        log.info("Generating 'train' DFS...")
-        DFS_tra = compute_OESM(STS_tra, medoids, rho=rho_dfs)
-        if pret_frac > 0:
-            log.info("Generating 'pretrain' DFS...")
-            DFS_pre = compute_OESM(STS_pre, medoids, rho=rho_dfs) 
-        log.info("Generating 'test' DFS...")
-        DFS_test = compute_OESM(STS_test, medoids, rho=rho_dfs) 
-        # save all the data to a cache file
-        log.info(f"Saving DFS to cache file... ({cache_file})")
-        if pret_frac > 0:
-            np.savez_compressed(cache_file, DFS_tra=DFS_tra, DFS_pre=DFS_pre, DFS_test=DFS_test)
-        else:
-            np.savez_compressed(cache_file, DFS_tra=DFS_tra, DFS_test=DFS_test)
-    else:
-        log.info(f"Loading DFS from cached file... ({cache_file})")
-        with np.load(cache_file) as data:
-            if pret_frac > 0:
-                DFS_tra, DFS_pre, DFS_test = data["DFS_tra"], data["DFS_pre"], data["DFS_test"]
-            else:
-                DFS_tra, DFS_test = data["DFS_tra"], data["DFS_test"]
+        # Save the data to the cache file
+        np.savez(cache_file, patterns=patterns,
+            STS_tra=STS_tra, SCS_tra=SCS_tra, DM_tra=DM_tra,
+            STS_pre=STS_pre, SCS_pre=SCS_pre, DM_pre=DM_pre)
 
-    log.info("Creating 'train' dataset...")
-    dm_tra = FullDataModule(
-        STS_train=STS_tra, DFS_train=DFS_tra, labels_train=labels_tra, nsamp_train=frames_tra,
-        STS_test=STS_test, DFS_test=DFS_test, labels_test=labels_test, nsamp_test=frames_test,
-        window_length=window_length, window_stride=window_stride, batch_size=batch_size, 
-        quant_shifts=[0], frames=frames, patterns=medoids)
 
-    if pret_frac > 0:
-        log.info("Creating 'pretrain' dataset...")
-        quant_shifts = np.round(np.array(quant_shifts)*X_train.shape[1]).astype(int)
-        log.info(f"Number of quantiles: {quant_intervals}")
-        log.info(f"Label shifts: {quant_shifts}")    
-        dm_pre = FullDataModule(
-            STS_train=STS_pre, DFS_train=DFS_pre, labels_train=labels_pre, nsamp_train=frames_pre,
-            window_length=window_length, window_stride=window_stride, batch_size=batch_size, 
-            quant_shifts=quant_shifts, frames=frames, patterns=medoids)   
-    else:
-        dm_pre = None
-    
-
-    return dm_tra, dm_pre
+    # Return the DataModule
+    return FullDataModule()
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

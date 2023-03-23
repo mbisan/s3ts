@@ -4,6 +4,7 @@ import logging as log
 
 import numpy as np
 
+# TODO: optimize this class
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 class OESM:
@@ -40,10 +41,10 @@ class OESM:
             ) -> None:
 
         # Check if distance metric choice is valid
-        if dist in ['euclidean', 'edr', 'erp', 'edit']:
-            self.dist = dist
-        else:
-            raise NotImplementedError('Incorrect distance metric.')
+        valid_dist = ['euclidean', 'edr', 'erp', 'edit']
+        if dist not in valid_dist:
+            raise ValueError(f"dist must be one of {valid_dist}")
+        
 
         if isinstance(R, (np.ndarray)) and R.size > 2:
             self.R = R
@@ -220,85 +221,66 @@ class OESM:
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def compute_OESM_distance_matrix(
-        pattern: np.ndarray, 
-        STS: np.ndarray, 
-        rho: float, 
-        dist: str = "euclidean"
-        ) -> np.ndarray:
+def compute_patt_DM(patt_idx: np.ndarray, rho: float,
+        STS: np.ndarray, patterns: np.ndarray, 
+        dist: str = "euclidean"):
     
-    """ Wapper that uses the OES class to """
+    """ Wrapper that calculates the distance matrix for given single pattern. """
 
-    """
-    Compute distance matrix.
-    :param ref: reference pattern
-    :param stream: stream time series
-    :param rho: memory
-    :return: distance matrices
-    """
-    # print('Computing ODTW distance matrix')
+    STS_length: int = STS.shape[0]
+    l_patts: int = patterns.shape[1]
 
     init_width = 3
-    oesm = OESM(pattern, rho, dist=dist)
-    dtw_mat = np.zeros((len(pattern), len(STS)))
-    dtw_mat[:,:init_width] = oesm.init_dist(STS[:init_width])
+    oesm = OESM(R = patterns[patt_idx], rho=rho, dist=dist)
 
+    patt_DM = np.empty((l_patts, STS_length), dtype=np.float64)
+    patt_DM[:,:init_width] = oesm.init_dist(STS[:init_width])
     for point in range(init_width, len(STS)):
+        patt_DM[:, point] = oesm.update_dist(STS[point:point+1])
 
-        # if type(stream[point]) is list or type(stream[point]) is np.ndarray:
-        #     tmp_stream = np.expand_dims(stream[point], axis=0)
-        # else:
-        #     tmp_stream = [stream[point]]
-        
-        dtw_mat[:, point] = oesm.update_dist(STS[point:point+1])
-
-    return dtw_mat
+    return patt_DM
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def compute_OESM_sc(
-        patt_idx: np.ndarray, 
-        STS: np.ndarray, 
-        patterns: np.ndarray, 
-        rho: float,
-    ):
+def compute_DM(STS: np.ndarray, patterns: np.ndarray, rho: float, 
+        dist: str = "euclidean", num_workers: int = mp.cpu_count()):
 
-    sts_length = STS.shape[0]
-    patt_length = patterns.shape[1]
+    """ Computes the dissimilarity matrix (DM) for a given set of patterns and a given STS. 
+    THe DM has dimensions (n_patts, l_patts, STS_length), where n_patts is the number of patterns,
+    l_patts is the length of the patterns, and STS_length is the length of the STS.
 
-    partial_OESM = np.zeros((patt_length, sts_length))
-    partial_OESM = compute_OESM_distance_matrix(pattern=patterns[patt_idx], 
-            STS=STS, rho=rho, dist="euclidean")
+    Parameters
+    ----------
+    STS : np.ndarray
+        The STS to compute the DM for.
+    patterns : np.ndarray
+        The patterns used to compute the DM.
+    rho : float
+        The memory parameter.
+    nprocs : int, optional
+        The number of processes to use, by default mp.cpu_count()
+    """
 
-    return partial_OESM
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-
-def compute_OESM(
-        STS: np.ndarray, 
-        patterns: np.ndarray,
-        rho: float,
-        nprocs: int = 4
-    ):
-
-    assert(len(STS.shape) == 1)
-    assert(len(patterns.shape) == 2)
+    # Get the number of patterns
     n_patts = patterns.shape[0]
+
+    # Get the length of the patterns
     l_samp = patterns.shape[1]
 
+    # Scale memory parameters
     scaled_rho = rho ** (1 / l_samp)
 
-    # IDs to send to each process
+    # List of pattern IDs
     patt_ids = np.arange(n_patts).tolist()
 
-    # INFO: "partial" basically makes "compute_OESM_sc" take only the data as argument
-    compute_OESM_sc_call = partial(compute_OESM_sc, STS=STS, patterns=patterns, rho=scaled_rho)
+    # Function call to compute the distance matrix for each pattern ID
+    compute_patt_DM_call = partial(compute_patt_DM, STS=STS, patterns=patterns, rho=scaled_rho, dist=dist)
 
-    with mp.Pool(processes=nprocs) as pool:
-        full_OESM = pool.map(compute_OESM_sc_call, patt_ids)
+    # Compute the distance matrix for each pattern ID in parallel
+    with mp.Pool(processes=min(mp.cpu_count(), n_patts)) as pool:
+        full_DM = pool.map(compute_patt_DM_call, patt_ids)
 
-    full_OESM = np.array(full_OESM)
-
-    return full_OESM
+    # Return the full distance matrix
+    return np.array(full_DM)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
