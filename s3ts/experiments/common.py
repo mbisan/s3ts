@@ -1,8 +1,7 @@
 #/usr/bin/python3
+# -*- coding: utf-8 -*-
 
-"""
-Functions to perform the experiments presented in the article.
-"""
+""" Common functions for the experiments. """
 
 # data processing stuff
 from s3ts.data.tasks.compute import compute_medoids, compute_STS
@@ -61,8 +60,6 @@ def prepare_dms(
         dir_cache: Path = Path("cache/"),
         ) -> tuple[FullDataModule, FullDataModule]:
 
-    """ Prepares the data modules for the training. """
-
     # print dataset info
     log.info("~~~~~~~~~~~~~~~~~~~~~~~~~")
     log.info(f"         Dataset: {dataset}")
@@ -120,6 +117,8 @@ def prepare_dms(
             DFS_pre = compute_OESM(STS_pre, medoids, rho=rho_dfs) 
         log.info("Generating 'test' DFS...")
         DFS_test = compute_OESM(STS_test, medoids, rho=rho_dfs) 
+        # save all the data to a cache file
+        log.info(f"Saving DFS to cache file... ({cache_file})")
         if pret_frac > 0:
             np.savez_compressed(cache_file, DFS_tra=DFS_tra, DFS_pre=DFS_pre, DFS_test=DFS_test)
         else:

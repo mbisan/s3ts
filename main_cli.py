@@ -1,3 +1,22 @@
+#/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+""" 
+    Command line interface for S3TS experiments. 
+
+    This script is used to train all the models in the paper.
+    It is possible to choose the experiment type (base, ratio, quant, stride)
+    and the datasets to be used.
+    The script will automatically train all the models for all the datasets.
+    The results will be saved in the folder "results/".
+    The training logs will be saved in the folder "training/".
+    The datasets will be downloaded in the folder "cache/".
+    The script will automatically create the folders if they do not exist.
+    
+    Usage:
+        python main_cli.py --dataset <dataset> --mode <mode> --arch <arch> --exp <exp>
+"""
+
 # data
 from s3ts.data.tasks.download import download_dataset
 from sklearn.model_selection import StratifiedKFold
