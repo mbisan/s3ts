@@ -15,7 +15,7 @@
 """
 
 # data
-from s3ts.data.tasks.download import download_dataset
+from s3ts.data.acquisition import download_dataset
 from sklearn.model_selection import StratifiedKFold
 
 # architectures
