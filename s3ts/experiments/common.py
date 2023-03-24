@@ -3,14 +3,6 @@
 
 """ Common functions for the experiments. """
 
-# standard library
-from pathlib import Path
-import logging as log
-
-# basics
-import numpy as np
-import pandas as pd
-
 # models / modules
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
@@ -24,6 +16,14 @@ from scipy.spatial import distance_matrix
 from s3ts.models.wrapper import WrapperModel
 from s3ts.data.modules import DFDataModule
 from s3ts.data.oesm import compute_DM
+
+# standard library
+from pathlib import Path
+import logging as log
+
+# basics
+import pandas as pd
+import numpy as np
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
@@ -258,25 +258,22 @@ def prepare_dm(
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def train_model(
-    dataset: str, fold_number: int, 
-    pretrained: bool, 
+    dataset: str, repr: str, arch: str, target: str,
+    dm: DFDataModule, pretrain: bool, 
+
+    fold_number: int, 
     batch_size: int, window_length: int, window_stride: int,
     
     directory: Path,
     label: str,
     epoch_max: int,
-    dm: DFDataModule,
-    target: str, 
-    arch: type[LightningModule],
-    approach: str="lstm",
-    encoder: LightningModule = None,
+    
+     
     random_state: int = 0,
     learning_rate: float = 1e-4,
     ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
 
     # TODO add additional label for directory
-
-    
 
     if target == "cls":
         stop_metric, mode, metrics = "val_acc", "max", ["acc", "f1", "auroc"]
@@ -288,31 +285,13 @@ def train_model(
     cls_metrics = ["acc", "f1", "auroc"]
     reg_metrics = ["mse", "r2"]
 
+    if pretrain:
+        pret_model = WrapperModel(repr=repr, arch=arch, target="reg", dm=dm, 
+        learning_rate=learning_rate, decoder_feats=64)
+
     # create the model
-    if frames:
-        model = WrapperModel(
-                n_labels=dm.n_classes, 
-                window_length=dm.window_length,
-                lab_shifts=[0],
-                arch=arch, 
-                target=target,
-                approach=approach,
-                learning_rate=learning_rate)
-    else:
-        model = WrapperModel(
-                n_labels=dm.n_classes, 
-                n_patterns=1,
-                l_patterns=1,
-                window_length=dm.window_length,
-                lab_shifts=[0],
-                arch=arch,
-                target=target, 
-                approach=approach,
-                learning_rate=learning_rate)
-    
-    # set encoder if one was passed
-    if encoder is not None:
-        model.encoder = encoder
+    model = WrapperModel(repr=repr, arch=arch, target="cls", dm=dm, 
+        learning_rate=learning_rate, decoder_feats=64)
 
     def setup_trainer(max_epochs: int, stop_metric: str, mode: str):
         # Create the callbacks
@@ -346,9 +325,14 @@ def train_model(
         for m in metrics:
             res[f"{label}_test_{m}"] = test_res[0][f"test_{m}"]
 
-    # load model info
 
-    res["dataset"], res["arch"], res["pretrained"]  = dataset, arch.__str__(), pretrained
+    # Create output dataframe
+    res["dataset"] = dataset
+    res["arch"] = arch
+    res["repr"] = repr
+    res["pretrain"]  = pretrain
+
+
     res["fold_number"], res["random_state"] = fold_number, random_state
     res["batch_size"], res["window_length"], res["window_stride"] = batch_size, window_length, window_stride
 

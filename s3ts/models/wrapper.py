@@ -134,7 +134,7 @@ class WrapperModel(LightningModule):
             # Add the decoder modules
             self.decoder.add_module("lstm", LSTMDecoder(
                     in_features = in_feats,
-                    hid_features = decoder_feats,
+                    hid_features = decoder_feats**2,
                     out_features = out_feats))
 
             # Add the metrics
