@@ -157,7 +157,7 @@ def prepare_dm(
         dataset: str, 
         X_train: np.ndarray, X_pretest: np.ndarray, 
         Y_train: np.ndarray, Y_pretest: np.ndarray,
-        STS_sample_multiplier: int, 
+        train_sample_multiplier: int, 
         train_samples_per_class: int,
         rho_dfs: float, batch_size: int, window_length: int, 
         window_time_stride: int, window_pattern_stride: int,
@@ -167,7 +167,7 @@ def prepare_dm(
         pattern_type: str = "medoids",
         dir_cache: Path = Path("cache"),
         test_sample_multiplier: int = 2,
-        pretrain_sample_multiplier: int = 16,
+        pret_sample_multiplier: int = 16,
         ) -> DFDataModule:
 
     """ Prepare the data module for training/pretraining/testing. """
@@ -194,11 +194,11 @@ def prepare_dm(
         raise ValueError(f"The number of samples per class in the pretest set must be at least {train_samples_per_class*2}.")
 
     # Generate filenames for the cache files using the parametersç
-    multiplier_str = f"{train_samples_per_class}sxc_{pretrain_sample_multiplier}p_{test_sample_multiplier}t_{STS_sample_multiplier}STS"
+    multiplier_str = f"{train_samples_per_class}sxc_{train_sample_multiplier}t_{pret_sample_multiplier}pt_{test_sample_multiplier}s"
     cache_file = dir_cache / f"{dataset}_{multiplier_str}_{pattern_type}_fold{fold_number}_rs{random_state}.npz"
 
-    STS_tra_samples = int(train_samples_per_class*n_classes)*STS_sample_multiplier
-    STS_pre_samples = STS_tra_samples*pretrain_sample_multiplier
+    STS_tra_samples = int(train_samples_per_class*n_classes)*train_sample_multiplier
+    STS_pre_samples = STS_tra_samples*pret_sample_multiplier
     STS_test_samples = STS_tra_samples*test_sample_multiplier
 
     # If the cache file exists, load everything from there
@@ -257,37 +257,11 @@ def prepare_dm(
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-def setup_trainer(
-    directory: Path,
-    version: str,
-    epoch_max: int,
-    stop_metric: str = "val_acc",
-    mode: str = "max",
-    ) -> tuple[Trainer, ModelCheckpoint]:
-
-    """ Shared setup for the Trainer objects. """
-
-    checkpoint = ModelCheckpoint(monitor=stop_metric, mode=mode)    
-    trainer = Trainer(default_root_dir=directory,  accelerator="auto", devices="auto",
-        # progress logs
-        logger = [
-            TensorBoardLogger(save_dir=directory, name="logs", version=version),
-            CSVLogger(save_dir=directory, name="logs", version=version)
-        ],
-        callbacks=[
-            # early stop the model         
-            LearningRateMonitor(logging_interval='epoch'),  # learning rate logger
-            checkpoint  # save best model version
-            ],
-        max_epochs=epoch_max,  deterministic = False, benchmark=True,
-        log_every_n_steps=1, check_val_every_n_epoch=1
-    )
-
-    return trainer, checkpoint
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 def train_model(
+    dataset: str, fold_number: int, 
+    pretrained: bool, 
+    batch_size: int, window_length: int, window_stride: int,
+    
     directory: Path,
     label: str,
     epoch_max: int,
@@ -296,23 +270,28 @@ def train_model(
     arch: type[LightningModule],
     approach: str="lstm",
     encoder: LightningModule = None,
+    random_state: int = 0,
     learning_rate: float = 1e-4,
     ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
+
+    # TODO add additional label for directory
+
+    
 
     if target == "cls":
         stop_metric, mode, metrics = "val_acc", "max", ["acc", "f1", "auroc"]
     elif target == "reg":
         stop_metric, mode, metrics = "val_mse", "min", ["mse", "r2"]
 
-    results = pd.Series(dtype="object")
-    frames: bool = arch.__frames__()
+    res = pd.Series(dtype="object")
+
+    cls_metrics = ["acc", "f1", "auroc"]
+    reg_metrics = ["mse", "r2"]
 
     # create the model
     if frames:
         model = WrapperModel(
                 n_labels=dm.n_classes, 
-                n_patterns=dm.n_patterns,
-                l_patterns=dm.l_patterns,
                 window_length=dm.window_length,
                 lab_shifts=[0],
                 arch=arch, 
@@ -335,45 +314,65 @@ def train_model(
     if encoder is not None:
         model.encoder = encoder
 
+    def setup_trainer(max_epochs: int, stop_metric: str, mode: str):
+        # Create the callbacks
+        checkpoint = ModelCheckpoint(monitor=stop_metric, mode=mode)    
+        lr_monitor = LearningRateMonitor(logging_interval='epoch')
+        callbacks = [lr_monitor, checkpoint]
+        # Creathe the loggers
+        tb_logger = TensorBoardLogger(save_dir=directory, name="logs", version=label)
+        csv_logger = CSVLogger(save_dir=directory, name="logs", version=label)
+        loggers = [tb_logger, csv_logger]
+        # Create the trainer
+        return Trainer(default_root_dir=directory,  accelerator="auto", devices="auto",
+        loggers=loggers, callbacks=callbacks,
+        max_epochs=epoch_max,  deterministic=False, benchmark=True,
+        log_every_n_steps=1, check_val_every_n_epoch=1)
+
     # train the model
-    trainer, checkpoint = setup_trainer(directory=directory,  version=label,
-        epoch_max=epoch_max, stop_metric=stop_metric, mode=mode)
     trainer.fit(model, datamodule=dm)
 
     # load best checkpoint
     model = model.load_from_checkpoint(checkpoint.best_model_path)
 
-    # log val results
-    val_results = trainer.validate(model, datamodule=dm)
+    # log val res
+    val_res = trainer.validate(model, datamodule=dm)
     for m in metrics:
-        results[f"{label}_val_{m}"] = val_results[0][f"val_{m}"]
+        res[f"{label}_val_{m}"] = val_res[0][f"val_{m}"]
 
-    # log test results
+    # log test res
     if dm.test:
-        test_results = trainer.test(model, datamodule=dm)
+        test_res = trainer.test(model, datamodule=dm)
         for m in metrics:
-            results[f"{label}_test_{m}"] = test_results[0][f"test_{m}"]
+            res[f"{label}_test_{m}"] = test_res[0][f"test_{m}"]
 
     # load model info
-    results["approach"] = approach
-    results[f"{label}_best_model"] = checkpoint.best_model_path
-    results[f"{label}_train_csv"] = str(directory  / "logs" / label / "metrics.csv")
-    #results[f"{label}_nepochs"] = pd.read_csv(results[f"{label}_train_csv"])["epoch_train_acc"].count()
-    results = results.to_frame().transpose().copy()
 
-    return results, model, checkpoint
+    res["dataset"], res["arch"], res["pretrained"]  = dataset, arch.__str__(), pretrained
+    res["fold_number"], res["random_state"] = fold_number, random_state
+    res["batch_size"], res["window_length"], res["window_stride"] = batch_size, window_length, window_stride
 
-def base_results(dataset: str, fold_number: int, 
-        arch: type[LightningModule], pretrained: bool, 
-        batch_size: int, window_length: int, window_stride: int,
-        random_state: int = 0) -> pd.DataFrame:
-    
-    """ Series template for the results. """
+    results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
+    results["nsamp_pre"] = len(pretrain_dm.ds_train) + len(pretrain_dm.ds_val)
+    results["nsamp_test"] = len(train_dm.ds_test)
 
-    df = pd.Series(dtype="object")
-    df["dataset"], df["arch"], df["pretrained"]  = dataset, arch.__str__(), pretrained
-    df["fold_number"], df["random_state"] = fold_number, random_state
-    df["batch_size"], df["window_length"], df["window_stride"] = batch_size, window_length, window_stride
-    df = df.to_frame().transpose().copy()
+    res["approach"] = approach
+    res[f"{label}_best_model"] = checkpoint.best_model_path
+    res[f"{label}_train_csv"] = str(directory  / "logs" / label / "metrics.csv")
+    res[f"{label}_nepochs"] = res[f"{label}_best_model"].str.split("/").str[5].str[6:].str.split("-").str[0].astype(int)
 
-    return df
+    # Convert to DataFrame
+    res = res.to_frame().transpose().copy()
+
+    return res, model
+
+
+def update_results_file(res_list: list[pd.DataFrame], new_res: pd.DataFrame, res_file: Path):
+
+    # update results file
+    res_list.append(new_res)
+    log.info(f"Updating results file ({str(res_file)})")
+    res_df = pd.concat(res_list, ignore_index=True)
+    res_df.to_csv(res_file, index=False)
+
+    return res_list

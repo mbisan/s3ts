@@ -19,6 +19,16 @@ import torchmetrics as tm
 import torch.nn as nn
 import torch
 
+# datamodule
+from s3ts.data.modules import DFDataModule
+
+# architectures
+from s3ts.models.encoders.frames.ResNet import ResNet_DFS
+from s3ts.models.encoders.frames.CNN import CNN_DFS
+from s3ts.models.encoders.series.ResNet import ResNet_TS
+from s3ts.models.encoders.series.CNN import CNN_TS
+from s3ts.models.encoders.series.RNN import RNN_TS
+
 # numpy
 import logging as log
 import numpy as np
@@ -29,127 +39,111 @@ import numpy as np
 
 class WrapperModel(LightningModule):
 
-    def __init__(self,      
-        n_labels: int,
-        n_patterns: int, 
-        l_patterns: int,
-        window_length: int,
-        lab_shifts: list[int],
-        arch: type[LightningModule],
-        approach: str = "lstm",
-        target: str = "cls",
-        learning_rate: float = 1e-4,
+    def __init__(self,
+        repr: str, arch: str,
+        target: str, dm: DFDataModule,
+        learning_rate: float,
+        decoder_feats: int = 64,
         ):
 
-        super().__init__()
-        self.save_hyperparameters()
+        """ Wrapper for the PyTorch models used in the experiments. """
 
-        self.n_labels = n_labels
-        self.n_shifts = len(lab_shifts)
-        self.n_patterns = n_patterns
-        self.l_patterns = l_patterns
-        self.window_length = window_length
-        self.learning_rate = learning_rate
-        self.approach = approach
+        super().__init__()
+        
+        self.encoder_dict = {"TS": {"RNN": RNN_TS, "CNN": CNN_TS, "ResNet": ResNet_TS}, 
+                        "DF": {"CNN": CNN_DFS, "ResNet": ResNet_DFS}}
+        
+        # Check encoder parameters
+        if repr not in ["DF", "TS"]:
+            raise ValueError(f"Invalid representation: {repr}")
+        if arch not in ["RNN", "CNN", "ResNet"]:
+            raise ValueError(f"Invalid architecture: {arch}")
+        if arch not in self.encoder_dict[repr]:
+            raise ValueError(f"Architecture {arch} not available for representation {repr}.")
+        encoder_arch = self.encoder_dict[repr][arch]
+
+        # Check decoder parameters
+        if target not in ["cls", "reg"]:
+            raise ValueError(f"Invalid target: {target}")
+        
+        # Gather model parameters
+        self.repr = repr
+        self.arch = arch
         self.target = target
         
-        # encoder
+        self.n_classes = dm.n_classes
+        self.n_patterns = dm.n_patterns
+        self.l_patterns = dm.n_patterns
+        self.window_length = dm.window_length
+        self.window_time_stride = dm.window_time_stride
+        self.window_pattern_stride = dm.window_pattern_stride
+        self.stride_series = dm.stride_series
+
+        self.learning_rate = learning_rate
+        self.decoder_feats = decoder_feats
+
+        # Save hyperparameters
+        self.save_hyperparameters(learning_rate=learning_rate, repr=repr, arch=arch, target=target, 
+            window_length=self.window_length, window_time_stride=self.window_time_stride, 
+            window_pattern_stride=self.window_pattern_stride, stride_series=self.stride_series)
         
-        if approach not in ["lstm", "linear", "old"]:
-            raise NotImplementedError()
-        if target not in ["cls", "reg"]:
-            raise NotImplementedError()
-        
-        self.decoder_features = 256 
+        # Create the encoder
+        self.encoder = nn.Sequential()
+        if repr == "DF":
+            ref_size, channels = self.l_patterns, self.n_patterns
+        elif repr == "TS":
+            ref_size, channels = 1, 1 
+        self.encoder.add_module("encoder", encoder_arch(
+            ref_size=ref_size, channels=channels, 
+            window_size=self.window_length))
 
-        # decoder
-        # self.decoder = LinearDecoder(in_features=embedding_size, hid_features=embedding_size//2, 
-        #     out_features=n_labels*self.n_shifts)
-
-        self.encoder: LightningModule = arch(               # encoder
-                ref_size=l_patterns, 
-                channels=n_patterns, 
-                window_size=window_length)
-        
-        if self.approach == "lstm":
-
-            if self.target == "cls":
-                self.decoder = nn.Sequential(LSTMDecoder(   # decoder
-                    in_features = window_length,
-                    hid_features = self.decoder_features // 4,
-                    out_features = n_labels
-                    ), nn.Softmax())    
-                for phase in ["train", "val", "test"]:      # metrics
-                    self.__setattr__(f"{phase}_acc", tm.Accuracy(num_classes=n_labels, task="multiclass"))
-                    self.__setattr__(f"{phase}_f1",  tm.F1Score(num_classes=n_labels, task="multiclass"))
-                    if phase != "train":
-                        self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=n_labels, task="multiclass"))
-            elif self.target == "reg":
-                self.decoder = LSTMDecoder(                 # decoder
-                    in_features = window_length,
-                    hid_features = self.decoder_features // 4,
-                    out_features = window_length)
-                for phase in ["train", "val", "test"]:      # metrics
-                    self.__setattr__(f"{phase}_mse", tm.MeanSquaredError(squared=False))
-                    self.__setattr__(f"{phase}_r2",  tm.R2Score(num_outputs=window_length))
-    
-        elif self.approach == "linear":
+        # Determine the number of decoder input features
+        in_feats = self.window_length if self.repr == "DF" else self.encoder.get_output_shape()
+      
+        # Add the metrics depending on the target
+        self.decoder = nn.Sequential()
+        if self.target == "cls":
             
-            if self.target == "cls":
-                self.decoder = nn.Sequential(                   # decoder
-                    nn.Flatten(), LinearDecoder(     
-                    hid_features = self.decoder_features,
-                    hid_layers = 2, out_features = n_labels
-                    ), nn.Softmax())    
-                for phase in ["train", "val", "test"]:          # metrics
-                    self.__setattr__(f"{phase}_acc", tm.Accuracy(num_classes=n_labels, task="multiclass"))
-                    self.__setattr__(f"{phase}_f1",  tm.F1Score(num_classes=n_labels, task="multiclass"))
-                    if phase != "train":
-                        self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=n_labels, task="multiclass"))
-            elif self.target == "reg":
-                self.decoder = nn.Sequential(                   # decoder
-                    nn.Flatten(), LinearDecoder(                   
-                    hid_features = self.decoder_features,
-                    hid_layers = 2, out_features = window_length))
-                for phase in ["train", "val", "test"]:          # metrics
-                    self.__setattr__(f"{phase}_mse", tm.MeanSquaredError(squared=False))
-                    self.__setattr__(f"{phase}_r2",  tm.R2Score(num_outputs=window_length))
+            # Determine the number of output features
+            out_feats = self.n_classes
 
-        elif self.approach == "old":
+            # Add the decoder modules
+            if self.repr == "DF":
+                self.decoder.add_module("lstm", LSTMDecoder(
+                        in_features = in_feats,
+                        hid_features = decoder_feats,
+                        out_features = out_feats))
+            elif self.repr == "TS":
+                self.decoder.add_module("linear", LinearDecoder(
+                        hid_features = decoder_feats,
+                        out_features = out_feats))
+            self.decoder.add_module("softmax", nn.Softmax())
             
-            self.encoder = nn.Sequential(arch(                  # encoder
-                ref_size=l_patterns, channels=n_patterns, 
-                window_size=window_length),
-                nn.Flatten(), nn.LazyLinear(out_features=256),
-                nn.Linear(in_features=128, out_features=256))
+            # Add the metrics
+            for phase in ["train", "val", "test"]: 
+                self.__setattr__(f"{phase}_acc", tm.Accuracy(num_classes=out_feats, task="multiclass"))
+                self.__setattr__(f"{phase}_f1",  tm.F1Score(num_classes=out_feats, task="multiclass"))
+                if phase != "train":
+                    self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=out_feats, task="multiclass"))
+
+        elif self.target == "reg":
+
+            # Determine the number of output features
+            out_feats = self.window_length if self.stride_series else self.window_length*self.window_time_stride
             
-            if self.target == "cls":
-                self.decoder = nn.Sequential(LinearDecoder(     # decoder
-                    hid_features = self.decoder_features,
-                    out_features = n_labels
-                    ), nn.Softmax())    
-                for phase in ["train", "val", "test"]:          # metrics
-                    self.__setattr__(f"{phase}_acc", tm.Accuracy(num_classes=n_labels, task="multiclass"))
-                    self.__setattr__(f"{phase}_f1",  tm.F1Score(num_classes=n_labels, task="multiclass"))
-                    if phase != "train":
-                        self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=n_labels, task="multiclass"))
-            elif self.target == "reg":
-                self.decoder = LinearDecoder(                   # decoder
-                    hid_features = self.lstm_features,
-                    out_features = window_length)
-                for phase in ["train", "val", "test"]:          # metrics
-                    self.__setattr__(f"{phase}_mse", tm.MeanSquaredError(squared=False))
-                    self.__setattr__(f"{phase}_r2",  tm.R2Score(num_outputs=window_length))
+            # Add the decoder modules
+            self.decoder.add_module("lstm", LSTMDecoder(
+                    in_features = in_feats,
+                    hid_features = decoder_feats,
+                    out_features = out_feats))
 
-
-
-    # FORWARD
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+            # Add the metrics
+            for phase in ["train", "val", "test"]:
+                self.__setattr__(f"{phase}_mse", tm.MeanSquaredError(squared=False))
+                self.__setattr__(f"{phase}_r2",  tm.R2Score(num_outputs=out_feats))
 
     def forward(self, frame):
-
-        """ Use for inference only (separate from training_step)"""
-
+        """ Forward pass. """
         out = self.encoder(frame)
         out = self.decoder(out)
         return out
@@ -159,16 +153,15 @@ class WrapperModel(LightningModule):
 
     def _inner_step(self, batch: tuple[torch.Tensor, torch.Tensor, torch.Tensor], stage: str = None):
 
-        """ Common actions for training, test and val steps. """
+        """ Inner step for the training, validation and testing. """
 
-        # x[0] is the time series
-        # x[1] are the sim frames
-        
+        # Unpack the batch from the dataloader
         frames, series, label = batch
 
+        # Forward pass
         output = self(frames)
 
-        # accumulate and return metrics for logging
+        # Compute the loss and metrics
         if self.target == "cls":
             loss = F.cross_entropy(output, label.to(torch.float32))
             acc = self.__getattr__(f"{stage}_acc")(output, torch.argmax(label, dim=1))
@@ -180,6 +173,7 @@ class WrapperModel(LightningModule):
             mse = self.__getattr__(f"{stage}_mse")(output, series)
             r2 = self.__getattr__(f"{stage}_r2")(output, series)
 
+        # Log the loss and metrics
         if stage == "train":
             self.log(f"{stage}_loss", loss, sync_dist=True)
             if self.target == "cls":
@@ -189,6 +183,7 @@ class WrapperModel(LightningModule):
                 self.log(f"{stage}_mse", mse, prog_bar=True, sync_dist=True)
                 self.log(f"{stage}_r2", r2, prog_bar=True, sync_dist=True)
 
+        # Return the loss
         return loss.to(torch.float32)
 
     def training_step(self, batch, batch_idx):
@@ -208,10 +203,9 @@ class WrapperModel(LightningModule):
 
     def _custom_epoch_end(self, step_outputs: list[torch.Tensor], stage: str):
 
-        """ Common actions for validation and test epoch ends. """
+        """ Custom epoch end for the training, validation and testing. """
 
-        # metrics to analyze
-
+        # Metrics to compute
         if self.target == "cls":
             metrics = ["acc", "f1"]
             if stage != "train":
@@ -219,7 +213,7 @@ class WrapperModel(LightningModule):
         elif self.target == "reg":
             metrics = ["mse", "r2"]
         
-        # task flags
+        # Compute, log and print the metrics
         if stage == "val":
             print("")
         print(f"\n\n  ~~ {stage} stats ~~")
@@ -246,12 +240,10 @@ class WrapperModel(LightningModule):
         """ Actions to carry out at the end of each test epoch. """
         self._custom_epoch_end(test_step_outputs, "test")
 
-    # OPTIMIZERS
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
     def configure_optimizers(self):
 
-        """ Define optimizers and LR schedulers. """
+        """ Configure the optimizers. """
 
         if self.target == "cls":
             mode, monitor = "max", "val_acc"

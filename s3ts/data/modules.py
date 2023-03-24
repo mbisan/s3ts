@@ -1,16 +1,23 @@
-# external imports
-from torch.utils.data import Dataset, DataLoader
+#/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+""" Data modules for the S3TS project. """
+
+# torch / lightning imports
 from pytorch_lightning import LightningDataModule
+from torch.utils.data import Dataset, DataLoader
 import torchvision as tv
 import torch
 
+# standard library imports
 import multiprocessing as mp
 import logging as log
 import numpy as np
 
-# ================================================================= #
 
 class DFDataset(Dataset):
+
+    """ Dataset for the experiments. """
 
     def __init__(self,
             DM: torch.Tensor,
@@ -64,6 +71,8 @@ class DFDataset(Dataset):
         self.wps = window_pattern_stride
         self.stride_series = stride_series
 
+        self.available_events = 1
+
         self.DM_transform = DM_transform
         self.STS_transform = STS_transform
         self.SCS_transform = SCS_transform
@@ -73,6 +82,7 @@ class DFDataset(Dataset):
         """ Return the length of the dataset. """
         
         return len(self.index)
+
 
     def __getitem__(self, idx: int) -> tuple[np.ndarray, int]:
 
@@ -105,12 +115,15 @@ class DFDataset(Dataset):
 
 class DFDataModule(LightningDataModule):
 
+    """ Data module for the experiments. """
+
     def __init__(self,
             STS_tra: np.ndarray, STS_pre: np.ndarray, 
             SCS_tra: np.ndarray, SCS_pre: np.ndarray,
             DM_tra: np.ndarray, DM_pre: np.ndarray,
-            STS_tra_samples: int, STS_pre_samples: int,STS_test_samples: int, 
-            sample_length: int, patterns: np.ndarray, batch_size: int, 
+            sample_length: int, patterns: np.ndarray, 
+            val_size: float, batch_size: int, 
+            STS_train_events: int, STS_pret_events: int,STS_test_events: int, 
             window_length: int, window_time_stride: int, window_pattern_stride: int, 
             stride_series: bool, pretrain: bool, random_state: int = 0, 
             num_workers: int = mp.cpu_count()//2
@@ -132,14 +145,14 @@ class DFDataModule(LightningDataModule):
             Training Dissimilarity Matrix
         DM_pre : np.ndarray
             Pre-training Dissimilarity Matrix
-        STS_tra_samples : int
-            Number of samples in the training STS
-        STS_pre_samples : int
-            Number of samples in the pre-training STS
-        STS_test_samples : int
-            Number of samples in the test STS
-        sample_length : int
-            Length of the samples
+        STS_train_events : int
+            Number of events in the training STS
+        STS_pret_events : int
+            Number of events in the pretraining STS
+        STS_test_events : int
+            Number of events in the test STS
+        event_length : int
+            Length of the events
         patterns : np.ndarray
             Patterns for the DMs
         batch_size : int
@@ -162,6 +175,7 @@ class DFDataModule(LightningDataModule):
 
         # Register dataset parameters
         self.pretrain = pretrain
+        self.val_size = val_size
         self.batch_size = batch_size
         self.window_length = window_length
         self.window_time_stride = window_time_stride
@@ -172,7 +186,9 @@ class DFDataModule(LightningDataModule):
 
         # Gather dataset info
         self.sample_length = sample_length
-
+        self.STS_train_events = STS_train_events
+        self.STS_pret_events = STS_pret_events
+        self.STS_test_events = STS_test_events
         self.n_classes = len(np.unique(SCS_tra))
         self.n_patterns = patterns.shape[0]
         self.l_patterns = patterns.shape[1]
@@ -194,62 +210,23 @@ class DFDataModule(LightningDataModule):
         # Convert patterns to tensors
         self.patterns = torch.from_numpy(patterns).to(torch.float32)
 
-        # Calculate the valid indices based on the window length and stride
-        # TODO: Fix index calculation
-        self.tra_indices = np.arange(self.window_length*self.window_stride-1, self.STS_tra.shape[0])
-        self.pre_indices = np.arange(self.window_length*self.window_stride-1, self.STS_pre.shape[0])
-        self.test_indices = np.arange(self.window_length*self.window_stride-1, self.STS_test.shape[0])
-        
-        # Normalization transform for the frames
-        DM_transform = tv.transforms.Normalize(
-            self.DM_tra.mean(axis=[1,2]),
-            self.DM_tra.std(axis=[1,2]))
- 
-        # Create the training datasets
-        self.ds_tra_train = DFDataset(index=self.tra_indices,
-            DM=self.DM_tra, STS=self.STS_tra, SCS=self.labels_tra,
-            window_length=window_length, stride_series=self.stride_series, 
-            window_time_stride=window_time_stride, window_pattern_stride=window_pattern_stride, 
-            DM_transform=DM_transform)
-        self.ds_tra_val   = DFDataset(index=self.tra_indices,
-            DM=self.DM_tra, STS=self.STS_tra, SCS=self.labels_tra,
-            window_length=window_length, stride_series=self.stride_series, 
-            window_time_stride=window_time_stride, window_pattern_stride=window_pattern_stride, 
-            DM_transform=DM_transform)
+        # Create the indices
+        self.create_sample_index()
 
-        # Create the pretraining datasets
-        self.ds_pre_train = DFDataset(index=self.pre_indices,
-            DM=self.DM_pre, STS=self.STS_pre, SCS=self.labels_pre,
-            window_length=window_length, stride_series=self.stride_series,
-            window_time_stride=window_time_stride, window_pattern_stride=window_pattern_stride,
-            DM_transform=DM_transform)
-        self.ds_pre_val   = DFDataset(index=self.pre_indices,
-            DM=self.DM_pre, STS=self.STS_pre, SCS=self.labels_pre,
-            window_length=window_length, stride_series=self.stride_series,
-            window_time_stride=window_time_stride, window_pattern_stride=window_pattern_stride,
-            DM_transform=DM_transform)
-        
-        # Create the testing dataset
-        self.ds_test = DFDataset(index=self.test_indices,
-            DM=self.DM_pre, STS=self.STS_pre, SCS=self.labels_pre,
-            window_length=window_length, stride_series=self.stride_series,
-            window_time_stride=window_time_stride, window_pattern_stride=window_pattern_stride,
-            DM_transform=DM_transform)
-        
         # Do some logging
-        log.info(f"Events in training STS: {STS_tra_samples}")
+        log.info(f"Events in training STS: {STS_train_events}")
         log.info(f"Frames in training STS: {len(self.tra_indices)} ")
-        self.tra_ratios = np.unique(SCS_tra[self.tra_indices], return_counts=True)[1]/(STS_tra_samples*sample_length)
+        self.tra_ratios = np.unique(SCS_tra[self.tra_indices], return_counts=True)[1]/(STS_train_events*sample_length)
         log.info(f"Train STS class ratios: {self.tra_ratios}")
 
-        log.info(f"Events in pretrain STS: {STS_pre_samples}")
+        log.info(f"Events in pretrain STS: {STS_pret_events}")
         log.info(f"Frames in pretrain STS: {len(self.pre_indices)}")
-        self.pre_ratios = np.unique(SCS_pre[self.pre_indices], return_counts=True)[1]/(STS_pre_samples*sample_length)
+        self.pre_ratios = np.unique(SCS_pre[self.pre_indices], return_counts=True)[1]/(STS_pret_events*sample_length)
         log.info(f"Pretrain STS class ratios: {self.pre_ratios}")
 
-        log.info(f"Events in testing STS: {STS_test_samples} samples")
+        log.info(f"Events in testing STS: {STS_test_events}")
         log.info(f"Frames in testing STS: {len(self.test_indices)}")
-        self.test_ratios = np.unique(SCS_pre[self.test_indices], return_counts=True)[1]/(STS_test_samples*sample_length)
+        self.test_ratios = np.unique(SCS_pre[self.test_indices], return_counts=True)[1]/(STS_test_events*sample_length)
         log.info(f"Test STS class ratios: {self.test_ratios}")
 
         # Calculate the memory usage of the datasets
@@ -261,6 +238,81 @@ class DFDataModule(LightningDataModule):
         log.info(f"STS memory usage: {self.STS_mem/1e6} MB")
         log.info(f"SCS memory usage: {self.SCS_mem/1e6} MB")
 
+    def create_sample_index(self, 
+            av_train_events: int = None,
+            av_pret_events: int = None,
+            av_test_events: int = None):
+        
+        """ Create the sample indeces for the datasets. """
+
+        # Check requested available samples are not larger than the actual ones
+        if av_train_events is not None:
+            assert av_train_events <= self.STS_train_events, "Requested available training events are larger than the actual ones"
+        if av_pret_events is not None:
+            assert av_pret_events <= self.STS_pret_events, "Requested available pretrain events are larger than the actual ones"
+        if av_test_events is not None:
+            assert av_test_events <= self.STS_test_events, "Requested available test events are larger than the actual ones"
+
+        # TODO implement this garbage
+
+        # Calculate the valid indices based on the window length and stride
+        margin = self.window_length*self.window_pattern_stride
+        self.tra_indices = np.arange(margin, self.STS_train_events*self.sample_length)
+        self.pre_indices = np.arange(margin, self.STS_pret_events*self.sample_length)
+        self.test_indices = np.arange(self.STS_pret_events*self.sample_length + margin,
+            (self.STS_pret_events + self.STS_test_events)*self.sample_length)
+
+    def create_datasets(self):
+
+        # Normalization transform for the frames
+        DM_transform = tv.transforms.Normalize(
+            self.DM_tra.mean(axis=[1,2]),
+            self.DM_tra.std(axis=[1,2]))
+        
+        # Create the training datasets
+        tra_tot_samples = len(self.tra_indices)
+        tra_train_samples = tra_tot_samples-int(tra_tot_samples*self.val_size)
+        self.ds_tra_train = DFDataset(index=self.tra_indices[:tra_train_samples],
+            DM=self.DM_tra, STS=self.STS_tra, SCS=self.labels_tra,
+            window_length=self.window_length, stride_series=self.stride_series, 
+            window_time_stride=self.window_time_stride, window_pattern_stride=self.window_pattern_stride, 
+            DM_transform=DM_transform)
+        self.ds_tra_val   = DFDataset(index=self.tra_indices[tra_train_samples:],
+            DM=self.DM_tra, STS=self.STS_tra, SCS=self.labels_tra,
+            window_length=self.window_length, stride_series=self.stride_series, 
+            window_time_stride=self.window_time_stride, window_pattern_stride=self.window_pattern_stride, 
+            DM_transform=DM_transform)
+
+        # Create the pretraining datasets
+        pre_tot_samples = len(self.pre_indices)
+        pre_train_samples = pre_tot_samples-int(pre_tot_samples*self.val_size)
+        self.ds_pre_train = DFDataset(index=self.pre_indices[:pre_train_samples],
+            DM=self.DM_pre, STS=self.STS_pre, SCS=self.labels_pre,
+            window_length=self.window_length, stride_series=self.stride_series,
+            window_time_stride=self.window_time_stride, window_pattern_stride=self.window_pattern_stride,
+            DM_transform=DM_transform)
+        self.ds_pre_val   = DFDataset(index=self.pre_indices[pre_train_samples:],
+            DM=self.DM_pre, STS=self.STS_pre, SCS=self.labels_pre,
+            window_length=self.window_length, stride_series=self.stride_series,
+            window_time_stride=self.window_time_stride, window_pattern_stride=self.window_pattern_stride,
+            DM_transform=DM_transform)
+        
+        # Create the testing dataset
+        self.ds_test = DFDataset(index=self.test_indices,
+            DM=self.DM_pre, STS=self.STS_pre, SCS=self.labels_pre,
+            window_length=self.window_length, stride_series=self.stride_series,
+            window_time_stride=self.window_time_stride, window_pattern_stride=self.window_pattern_stride,
+            DM_transform=DM_transform)
+
+    def update_sample_availability(self, 
+            av_train_events: int = None,
+            av_pret_events: int = None,
+            av_test_events: int = None):
+        
+        """ Updates the samples index based on the available events. """
+        
+        self.create_sample_index(av_train_events, av_pret_events, av_test_events)
+        self.create_datasets()
 
     def train_dataloader(self):
         """ Returns the training DataLoader. """

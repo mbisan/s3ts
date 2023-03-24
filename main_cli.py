@@ -21,19 +21,8 @@
 from s3ts.data.acquisition import download_dataset
 from sklearn.model_selection import StratifiedKFold
 
-# architectures
-from s3ts.models.encoders.frames.ResNet import ResNet_DFS
-from s3ts.models.encoders.frames.CNN import CNN_DFS
-
-from s3ts.models.encoders.series.ResNet import ResNet_TS
-from s3ts.models.encoders.series.CNN import CNN_TS
-from s3ts.models.encoders.series.RNN import RNN_TS
-
 # experiments
 from s3ts.experiments.ratio  import EXP_ratio
-from s3ts.experiments.quant  import EXP_quant
-from s3ts.experiments.stride import EXP_stride
-from s3ts.experiments.length import EXP_length
 
 # standard library
 from pathlib import Path
@@ -53,13 +42,13 @@ if __name__ == '__main__':
                                    "ECG200", "Trace", "SyntheticControl", "Chinatown"],
                         help='Name of the dataset from which create the DTWs')
 
-    parser.add_argument('--mode', type=str, required=True, choices=['DF', 'TS'],
-                        help='Name of the dataset from which create the DTWs')
+    parser.add_argument('--repr', type=str, required=True, choices=['DF', 'TS'],
+                        help='Data representation (DF: Dissimilarity Frame, TS: Time Series)')
 
     parser.add_argument('--arch', type=str, required=True, choices=['RNN', 'CNN', 'ResNet'],
                         help='Name of the architecture from which create the model')
     
-    parser.add_argument('--exp', type=str, required=True, choices=['ratio', 'quant', 'stride', 'length'],
+    parser.add_argument('--exp', type=str, required=True, choices=['ratio'],
                         help='Name of the architecture from which create the model')
 
     parser.add_argument('--rho_dfs', type=float, default=0.1,
@@ -97,6 +86,9 @@ if __name__ == '__main__':
 
     parser.add_argument('--random_state', type=int, default=0,
                         help='Global seed for the random number generators')
+    
+    parser.add_argument('--use_cache', type=bool, default=False,
+                        help='Use cached data if available')
 
     parser.add_argument('--dir_cache', type=str, default="cache/",
                         help='Directory for the cached data')
@@ -115,10 +107,10 @@ if __name__ == '__main__':
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     # sanity checks and variable selectors
-    arch_dict = {"TS": {"RNN": RNN_TS, "CNN": CNN_TS, "ResNet": ResNet_TS}, "DF": {"CNN": CNN_DFS, "ResNet": ResNet_DFS}}
-    if args.arch not in arch_dict[args.mode]:
-        raise NotImplementedError("Invalid mode and architecture combination!")
-    exp_dict = {"ratio": EXP_ratio, "quant": EXP_quant, "stride": EXP_stride, 'length': EXP_length}
+    arch_dict = {"TS": ["RNN", "CNN", "ResNet"], "DF": ["CNN", "ResNet"]}
+    if args.arch not in arch_dict[args.repr]:
+        raise ValueError(f"Architecture {args.arch} not available for representation {args.repr}.")
+    exp_dict = {"ratio": EXP_ratio}
     
     # get rest of variables
     dataset: str = args.dataset
@@ -175,8 +167,6 @@ if __name__ == '__main__':
             batch_size=batch_size,
             window_length=window_length,
             window_stride=window_stride,
-            quant_intervals=args.quant_intervals,
-            quant_shifts=quant_shifts,
             # ~~~~~~~~~~~~~~~~~~~~~~~
             dir_cache=dir_cache,
             dir_train=dir_train,
