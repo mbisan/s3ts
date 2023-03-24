@@ -258,44 +258,19 @@ def prepare_dm(
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def train_model(
-    dataset: str, repr: str, arch: str, target: str,
-    dm: DFDataModule, pretrain: bool, 
-
-    fold_number: int, 
-    batch_size: int, window_length: int, window_stride: int,
-    
-    directory: Path,
-    label: str,
-    epoch_max: int,
-    
-     
-    random_state: int = 0,
-    learning_rate: float = 1e-4,
-    ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
+        dataset: str, repr: str, arch: str, target: str,
+        dm: DFDataModule, pretrain: bool, fold_number: int, 
+        directory: Path, label: str,
+        max_epoch_pre: int, max_epoch_tgt: int,
+        random_state: int = 0, learning_rate: float = 1e-4,
+        ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
 
     # TODO add additional label for directory
 
-    if target == "cls":
-        stop_metric, mode, metrics = "val_acc", "max", ["acc", "f1", "auroc"]
-    elif target == "reg":
-        stop_metric, mode, metrics = "val_mse", "min", ["mse", "r2"]
-
-    res = pd.Series(dtype="object")
-
-    cls_metrics = ["acc", "f1", "auroc"]
-    reg_metrics = ["mse", "r2"]
-
-    if pretrain:
-        pret_model = WrapperModel(repr=repr, arch=arch, target="reg", dm=dm, 
-        learning_rate=learning_rate, decoder_feats=64)
-
-    # create the model
-    model = WrapperModel(repr=repr, arch=arch, target="cls", dm=dm, 
-        learning_rate=learning_rate, decoder_feats=64)
-
-    def setup_trainer(max_epochs: int, stop_metric: str, mode: str):
+    def _setup_trainer(max_epochs: int, stop_metric: str, 
+            stop_mode: str) -> tuple[Trainer, ModelCheckpoint]:
         # Create the callbacks
-        checkpoint = ModelCheckpoint(monitor=stop_metric, mode=mode)    
+        checkpoint = ModelCheckpoint(monitor=stop_metric, stop_mode=stop_mode)    
         lr_monitor = LearningRateMonitor(logging_interval='epoch')
         callbacks = [lr_monitor, checkpoint]
         # Creathe the loggers
@@ -305,51 +280,77 @@ def train_model(
         # Create the trainer
         return Trainer(default_root_dir=directory,  accelerator="auto", devices="auto",
         loggers=loggers, callbacks=callbacks,
-        max_epochs=epoch_max,  deterministic=False, benchmark=True,
-        log_every_n_steps=1, check_val_every_n_epoch=1)
+        max_epochs=max_epochs,  deterministic=False, benchmark=True,
+        log_every_n_steps=1, check_val_every_n_epoch=1), checkpoint
 
-    # train the model
-    trainer.fit(model, datamodule=dm)
+    cls_metrics = ["acc", "f1", "auroc"]
+    reg_metrics = ["mse", "r2"]
 
-    # load best checkpoint
-    model = model.load_from_checkpoint(checkpoint.best_model_path)
+    # Pretrain the model if needed
+    if pretrain:
+        
+        # Create the model, trainer and checkpoint
+        pre_model = WrapperModel(repr=repr, arch=arch, target="reg", dm=dm, 
+        learning_rate=learning_rate, decoder_feats=64)
+        pre_trainer, pre_ckpt = _setup_trainer(max_epoch_pre, "val_mse", "min")
 
-    # log val res
-    val_res = trainer.validate(model, datamodule=dm)
-    for m in metrics:
-        res[f"{label}_val_{m}"] = val_res[0][f"val_{m}"]
+        # Configure the datamodule
+        dm.pretrain = True
 
-    # log test res
-    if dm.test:
-        test_res = trainer.test(model, datamodule=dm)
-        for m in metrics:
-            res[f"{label}_test_{m}"] = test_res[0][f"test_{m}"]
+        # Perform the pretraining
+        pre_trainer.fit(pre_model, datamodule=dm)
 
+        # Load the best checkpoint
+        pre_model = pre_model.load_from_checkpoint(pre_ckpt.best_model_path)
 
-    # Create output dataframe
+    # Configure the datamodule
+    dm.pretrain = False
+
+    # Create the model, trainer and checkpoint
+    tgt_model = WrapperModel(repr=repr, arch=arch, target="cls", dm=dm, 
+        learning_rate=learning_rate, decoder_feats=64)
+    tgt_trainer, tgt_ckpt = _setup_trainer(max_epoch_tgt, "val_acc", "max")
+
+    # Load encoder if needed
+    if pretrain:
+        tgt_model.encoder = pre_model.encoder
+
+    # Train the model
+    tgt_trainer.fit(tgt_model, datamodule=dm)
+
+    # Load the best checkpoint
+    tgt_model = tgt_model.load_from_checkpoint(tgt_ckpt.best_model_path)
+
+    # Save the experiment settings and results
+    res = pd.Series(dtype="object")
     res["dataset"] = dataset
-    res["arch"] = arch
-    res["repr"] = repr
-    res["pretrain"]  = pretrain
-
-
-    res["fold_number"], res["random_state"] = fold_number, random_state
-    res["batch_size"], res["window_length"], res["window_stride"] = batch_size, window_length, window_stride
-
-    results["nsamp_tra"] = len(train_dm.ds_train) + len(train_dm.ds_val)
-    results["nsamp_pre"] = len(pretrain_dm.ds_train) + len(pretrain_dm.ds_val)
-    results["nsamp_test"] = len(train_dm.ds_test)
-
-    res["approach"] = approach
-    res[f"{label}_best_model"] = checkpoint.best_model_path
-    res[f"{label}_train_csv"] = str(directory  / "logs" / label / "metrics.csv")
-    res[f"{label}_nepochs"] = res[f"{label}_best_model"].str.split("/").str[5].str[6:].str.split("-").str[0].astype(int)
+    res["arch"], res["repr"] = arch, repr
+    res["pretrain"], res["fold_number"], res["random_state"] = pretrain, fold_number, random_state
+    res["batch_size"], res["window_length"] = dm.batch_size, dm.window_length
+    res["window_time_stride"], res["window_pattern_stride"] = dm.window_time_stride, dm.window_pattern_stride
+    res["nevents_train"] = dm.STS_train_events
+    res["nevents_pret"] = dm.STS_pret_events if pretrain else 0
+    res["nevents_test"] = dm.STS_test_events
+    res["tgt_best_model"] = tgt_ckpt.best_model_path
+    res["tgt_train_csv"] = str(directory  / "logs" / label / "metrics.csv")
+    res["tgt_nepochs"] = res["tgt_best_model"].str.split("/").str[5].str[6:].str.split("-").str[0].astype(int)
+    train_res_val  = tgt_trainer.validate(pre_model, datamodule=dm)
+    train_res_test = tgt_trainer.test(pre_model, datamodule=dm)
+    for m in cls_metrics:
+        res[f"target_val_{m}"]  = train_res_val[0][f"val_{m}"]
+        res[f"target_test_{m}"] = train_res_test[0][f"test_{m}"]
+    if pretrain:
+        pret_res = pre_trainer.validate(pre_model, datamodule=dm)
+        for m in reg_metrics:
+            res[f"{label}_pretrain_{m}"] = pret_res[0][f"val_{m}"]
+        res["pre_best_model"] = tgt_ckpt.best_model_path
+        res["pre_train_csv"] = str(directory  / "logs" / label / "metrics.csv")
+        res["pre_nepochs"] = res["tgt_best_model"].str.split("/").str[5].str[6:].str.split("-").str[0].astype(int)
 
     # Convert to DataFrame
     res = res.to_frame().transpose().copy()
 
-    return res, model
-
+    return res, tgt_model
 
 def update_results_file(res_list: list[pd.DataFrame], new_res: pd.DataFrame, res_file: Path):
 
