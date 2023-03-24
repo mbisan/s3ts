@@ -6,7 +6,7 @@
 # models / modules
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
-from pytorch_lightning import LightningModule, Trainer
+from pytorch_lightning import Trainer
 
 # data processing stuff
 from sktime.clustering.k_medoids import TimeSeriesKMedoids
@@ -150,7 +150,6 @@ def compute_STS(
     # Return the STS and the SCS
     return STS, SCS
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 def prepare_dm(
@@ -265,8 +264,6 @@ def train_model(
         random_state: int = 0, learning_rate: float = 1e-4,
         ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
 
-    # TODO add additional label for directory
-
     def _setup_trainer(max_epochs: int, stop_metric: str, 
             stop_mode: str) -> tuple[Trainer, ModelCheckpoint]:
         # Create the callbacks
@@ -274,8 +271,8 @@ def train_model(
         lr_monitor = LearningRateMonitor(logging_interval='epoch')
         callbacks = [lr_monitor, checkpoint]
         # Creathe the loggers
-        tb_logger = TensorBoardLogger(save_dir=directory, name="logs", version=label)
-        csv_logger = CSVLogger(save_dir=directory, name="logs", version=label)
+        tb_logger = TensorBoardLogger(save_dir=directory, name="logs", version=f"{label}") # TODO add additional label for directory
+        csv_logger = CSVLogger(save_dir=directory, name="logs", version=f"{label}") # TODO add additional label for directory
         loggers = [tb_logger, csv_logger]
         # Create the trainer
         return Trainer(default_root_dir=directory,  accelerator="auto", devices="auto",
