@@ -36,7 +36,7 @@ class CNN_DFS(LightningModule):
             nn.Conv2d(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 4,
                       kernel_size=3, padding='same'),
         )
-        self.linear_1 = self.dynamic_linear((1, channels, ref_size, window_size))
+        #self.linear_1 = self.dynamic_linear((1, channels, ref_size, window_size))
         self.linear_1 = nn.LazyLinear(out_features=self.n_feature_maps * 4)
         self.linear_2 = nn.Linear(in_features=self.n_feature_maps * 4, out_features=self.n_feature_maps * 8)
         

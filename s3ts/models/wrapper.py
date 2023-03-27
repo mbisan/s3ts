@@ -83,9 +83,7 @@ class WrapperModel(LightningModule):
         self.decoder_feats = decoder_feats
 
         # Save hyperparameters
-        self.save_hyperparameters(learning_rate=learning_rate, repr=repr, arch=arch, target=target, 
-            window_length=self.window_length, window_time_stride=self.window_time_stride, 
-            window_pattern_stride=self.window_pattern_stride, stride_series=self.stride_series)
+        self.save_hyperparameters(ignore="dm")
         
         # Create the encoder
         self.encoder = nn.Sequential()

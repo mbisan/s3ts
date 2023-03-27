@@ -285,8 +285,21 @@ def compute_DM(STS: np.ndarray, patterns: np.ndarray, rho: float,
 @jit(nopython=True, parallel=True)
 def compute_DM_optim(STS: np.ndarray, patterns: np.ndarray, rho: float):
 
-
-    """ Computes the dissimilarity matrix (DM) for a given set of patterns and a given STS."""
+    """ Computes the dissimilarity matrix (DM) for a given set of patterns and a given STS.
+        Optimized version using Numba.
+        
+        The DM has dimensions (n_patts, l_patts, STS_length), where n_patts is the number of patterns,
+        l_patts is the length of the patterns, and STS_length is the length of the STS.
+        
+        Parameters
+        ----------
+        STS : np.ndarray
+            The STS to compute the DM for.
+        patterns : np.ndarray
+            The patterns used to compute the DM.
+        rho : float
+            The memory parameter.
+    """
 
     n_patts: int = patterns.shape[0]
     l_patts: int = patterns.shape[1]

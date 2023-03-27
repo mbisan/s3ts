@@ -55,7 +55,7 @@ def download_dataset(dataset: str, dir_cache: Path) -> tuple[np.ndarray, np.ndar
                                 return_type="np2d",
                                 return_X_y=True)
         X: np.ndarray = X.astype(np.float32)
-        Y: np.ndarray = Y.astype(np.int32)
+        Y: np.ndarray = Y.astype(np.int8)
 
         # Ensure the dataset is normalized
         X = (X - X.mean(axis=1, keepdims=True)) / X.std(axis=1, keepdims=True)

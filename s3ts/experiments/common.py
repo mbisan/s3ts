@@ -31,7 +31,7 @@ def train_pretest_split(X: np.ndarray, Y: np.ndarray,
         sxc: int, nreps: int, random_state: int):
 
     """ Splits the dataset into train and pretest sets.
-    Selects sxc samples per class for the train set and the rest for the pretest set.
+    Selects sxc events per class for the train set and the rest for the pretest set.
     
     Parameters
     ----------
@@ -40,7 +40,7 @@ def train_pretest_split(X: np.ndarray, Y: np.ndarray,
     Y : np.ndarray
         The labels of the time series dataset.
     sxc : int
-        The number of samples per class in the train set.
+        The number of events per class in the train set.
     nreps : int
         The number of different splits.
     random_state : int
@@ -49,7 +49,7 @@ def train_pretest_split(X: np.ndarray, Y: np.ndarray,
 
     # Check the shape of the dataset and labels match
     if X.shape[0] != Y.shape[0]:
-        raise ValueError("The number of samples in the dataset and labels must be the same.")
+        raise ValueError("The number of events in the dataset and labels must be the same.")
 
     idx = np.arange(X.shape[0])
     rng = np.random.default_rng(random_state)
@@ -90,7 +90,7 @@ def compute_medoids(
     
     # Check the shape of the dataset and labels match
     if X.shape[0] != Y.shape[0]:
-        raise ValueError("The number of samples in the dataset and labels must be the same.")
+        raise ValueError("The number of events in the dataset and labels must be the same.")
 
     # Get the number of classes
     n_classes = len(np.unique(Y))
@@ -105,7 +105,7 @@ def compute_medoids(
     # Find the medoids for each class
     for i, y in enumerate(np.unique(Y)):
 
-        # Get the samples of the class
+        # Get the events of the class
         index = np.argwhere(Y == y)
         Xy = X[index, :]
 
@@ -134,7 +134,7 @@ def compute_medoids(
 def compute_STS(
         X: np.ndarray, 
         Y: np.ndarray,
-        STS_samples: int,
+        STS_events: int,
         shift_limits: bool,
         mode: str = "random",
         random_state: int = 0,
@@ -144,7 +144,7 @@ def compute_STS(
 
     # Check the shape of the dataset and labels match
     if X.shape[0] != Y.shape[0]:
-        raise ValueError("The number of samples in the dataset and labels must be the same.")
+        raise ValueError("The number of events in the dataset and labels must be the same.")
 
     # Set the random state for reproducibility
     rng = np.random.default_rng(seed=random_state)
@@ -155,27 +155,27 @@ def compute_STS(
     # Get the length of the time series
     s_length = X.shape[1]
     
-    # Get the number of samples
-    n_samples = X.shape[0]
+    # Get the number of events
+    n_events = X.shape[0]
 
     # Get the length of the final STS
-    STS_length = STS_samples*s_length
+    STS_length = STS_events*s_length
 
     # Do some logging
-    log.info(f"Number of samples: {n_samples}")
-    log.info(f"Length of samples: {s_length}")
+    log.info(f"Number of events: {n_events}")
+    log.info(f"Length of events: {s_length}")
     log.info(f"Number of classes: {n_classes}")
-    log.info(f"Class ratios: {np.unique(Y, return_counts=True)[1]/n_samples}")
+    log.info(f"Class ratios: {np.unique(Y, return_counts=True)[1]/n_events}")
     log.info(f"Length of STS: {STS_length}")
 
     # Initialize the arrays
-    STS = np.empty(STS_length, dtype=float)
-    SCS = np.empty(STS_length, dtype=int)
+    STS = np.empty(STS_length, dtype=np.float32)
+    SCS = np.empty(STS_length, dtype=np.int8)
 
     # Generate the STS 
     if mode == "random":
-        for s in range(STS_samples):
-            random_idx = rng.integers(0, n_samples)
+        for s in range(STS_events):
+            random_idx = rng.integers(0, n_events)
 
             # Calculate shift so that sample ends match
             shift = STS[s-1] - X[random_idx,0] if shift_limits else 0
@@ -195,17 +195,18 @@ def prepare_dm(
         dataset: str, 
         X_train: np.ndarray, X_pretest: np.ndarray, 
         Y_train: np.ndarray, Y_pretest: np.ndarray,
-        train_sample_multiplier: int, 
-        train_samples_per_class: int,
-        rho_dfs: float, batch_size: int, window_length: int, 
+        train_events_per_class: int,
+        train_event_multiplier: int,
+        pret_event_multiplier: int,
+        test_event_multiplier: int,
+        rho_dfs: float, batch_size: int, val_size: float,
+        window_length: int, stride_series: bool,
         window_time_stride: int, window_pattern_stride: int,
         fold_number: int, random_state: int,
         num_workers: int = 4,
         use_cache: bool = True,
         pattern_type: str = "medoids",
         cache_dir: Path = Path("cache"),
-        test_sample_multiplier: int = 2,
-        pret_sample_multiplier: int = 16,
         ) -> DFDataModule:
 
     """ Prepare the data module for training/pretraining/testing. """
@@ -223,21 +224,21 @@ def prepare_dm(
     if len(np.unique(Y_train)) != len(np.unique(Y_pretest)):
         raise ValueError("The number of classes in train and test must be the same.")
     
-    # Check the number of samples per class in train
-    if np.unique(Y_train, return_counts=True)[1].min() < train_samples_per_class:
-        raise ValueError(f"The number of samples per class in the train set must be at least {train_samples_per_class}.")
+    # Check the number of events per class in train
+    if np.unique(Y_train, return_counts=True)[1].min() < train_events_per_class:
+        raise ValueError(f"The number of events per class in the train set must be at least {train_events_per_class}.")
 
-    # Check the number of samples per class in pretest
-    if np.unique(Y_pretest, return_counts=True)[1].min() < train_samples_per_class*2:
-        raise ValueError(f"The number of samples per class in the pretest set must be at least {train_samples_per_class*2}.")
+    # Check the number of events per class in pretest
+    if np.unique(Y_pretest, return_counts=True)[1].min() < train_events_per_class*2:
+        raise ValueError(f"The number of events per class in the pretest set must be at least {train_events_per_class*2}.")
 
     # Generate filenames for the cache files using the parametersç
-    multiplier_str = f"{train_samples_per_class}sxc_{train_sample_multiplier}t_{pret_sample_multiplier}pt_{test_sample_multiplier}s"
+    multiplier_str = f"{train_events_per_class}sxc_{train_event_multiplier}t_{pret_event_multiplier}pt_{test_event_multiplier}s"
     cache_file = cache_dir / f"{dataset}_{multiplier_str}_{pattern_type}_fold{fold_number}_rs{random_state}.npz"
 
-    STS_tra_samples = int(train_samples_per_class*n_classes)*train_sample_multiplier
-    STS_pre_samples = STS_tra_samples*pret_sample_multiplier
-    STS_test_samples = STS_tra_samples*test_sample_multiplier
+    STS_train_events = int(train_events_per_class*n_classes)*train_event_multiplier
+    STS_pret_events = STS_train_events*pret_event_multiplier
+    STS_test_events = STS_train_events*test_event_multiplier
 
     # If the cache file exists, load everything from there
     if use_cache and cache_file.exists():
@@ -253,9 +254,9 @@ def prepare_dm(
 
         # Generate the STSs
         STS_tra, SCS_tra = compute_STS(X_train, Y_train,        # Generate train STS  
-            shift_limits=True, STS_samples=STS_tra_samples+1, mode="random", random_state=random_state)
+            shift_limits=True, STS_events=STS_train_events+1, mode="random", random_state=random_state)
         STS_pre, SCS_pre = compute_STS(X_pretest, Y_pretest,    # Generate pretest STS 
-            shift_limits=True, STS_samples=STS_pre_samples+STS_test_samples+1, mode="random", random_state=random_state)
+            shift_limits=True, STS_events=STS_pret_events+STS_test_events+1, mode="random", random_state=random_state)
 
         # Generate the patterns for the DMs
         if pattern_type == "medoids":
@@ -286,11 +287,13 @@ def prepare_dm(
     return DFDataModule(
         STS_tra=STS_tra, SCS_tra=SCS_tra, DM_tra=DM_tra,
         STS_pre=STS_pre, SCS_pre=SCS_pre, DM_pre=DM_pre,
-        STS_tra_samples=STS_tra_samples, 
-        STS_pre_samples=STS_pre_samples,
-        STS_test_samples=STS_test_samples,
+        STS_train_events=STS_train_events, 
+        STS_pret_events=STS_pret_events,
+        STS_test_events=STS_test_events,
         sample_length=s_length, patterns=patterns,
-        batch_size=batch_size, window_length=window_length,
+        batch_size=batch_size, val_size=val_size, 
+        pretrain = False, window_length=window_length,
+        stride_series=stride_series,
         window_time_stride=window_time_stride, 
         window_pattern_stride=window_pattern_stride,
         random_state=random_state, num_workers=num_workers)
@@ -309,7 +312,7 @@ def train_model(
             stop_mode: str, pretrain: bool) -> tuple[Trainer, ModelCheckpoint]:
         version = f"{label}_pretrain" if pretrain else label
         # Create the callbacks
-        checkpoint = ModelCheckpoint(monitor=stop_metric, stop_mode=stop_mode)    
+        checkpoint = ModelCheckpoint(monitor=stop_metric, mode=stop_mode)    
         lr_monitor = LearningRateMonitor(logging_interval='epoch')
         callbacks = [lr_monitor, checkpoint]
         # Creathe the loggers
@@ -318,7 +321,7 @@ def train_model(
         loggers = [tb_logger, csv_logger]
         # Create the trainer
         return Trainer(default_root_dir=directory,  accelerator="auto", devices="auto",
-        loggers=loggers, callbacks=callbacks,
+        logger=loggers, callbacks=callbacks,
         max_epochs=max_epochs,  deterministic=False, benchmark=True,
         log_every_n_steps=1, check_val_every_n_epoch=1), checkpoint
 
@@ -328,9 +331,11 @@ def train_model(
     # Pretrain the model if needed
     if pretrain:
         
+        log.info("Pretraining the encoder...")
+
         # Create the model, trainer and checkpoint
         pre_model = WrapperModel(repr=repr, arch=arch, target="reg", dm=dm, 
-        learning_rate=learning_rate, decoder_feats=64)
+            learning_rate=learning_rate, decoder_feats=64)
         pre_trainer, pre_ckpt = _setup_trainer(max_epoch_pre, "val_mse", "min", True)
 
         # Configure the datamodule
@@ -340,10 +345,12 @@ def train_model(
         pre_trainer.fit(pre_model, datamodule=dm)
 
         # Load the best checkpoint
-        pre_model = pre_model.load_from_checkpoint(pre_ckpt.best_model_path)
+        pre_model = pre_model.load_from_checkpoint(pre_ckpt.best_model_path, dm=dm)
 
     # Configure the datamodule
     dm.pretrain = False
+
+    log.info("Training the target model...")
 
     # Create the model, trainer and checkpoint
     tgt_model = WrapperModel(repr=repr, arch=arch, target="cls", dm=dm, 
@@ -358,7 +365,7 @@ def train_model(
     tgt_trainer.fit(tgt_model, datamodule=dm)
 
     # Load the best checkpoint
-    tgt_model = tgt_model.load_from_checkpoint(tgt_ckpt.best_model_path)
+    tgt_model = tgt_model.load_from_checkpoint(tgt_ckpt.best_model_path, dm=dm)
 
     # Save the experiment settings and results
     res = pd.Series(dtype="object")
@@ -372,9 +379,9 @@ def train_model(
     res["nevents_test"] = dm.STS_test_events
     res["tgt_best_model"] = tgt_ckpt.best_model_path
     res["tgt_train_csv"] = str(directory  / "logs" / label / "metrics.csv")
-    res["tgt_nepochs"] = res["tgt_best_model"].str.split("/").str[5].str[6:].str.split("-").str[0].astype(int)
-    train_res_val  = tgt_trainer.validate(pre_model, datamodule=dm)
-    train_res_test = tgt_trainer.test(pre_model, datamodule=dm)
+    res["tgt_nepochs"] = int(tgt_ckpt.best_model_path.split("/")[5][6:].split("-")[0])
+    train_res_val  = tgt_trainer.validate(tgt_model, datamodule=dm)
+    train_res_test = tgt_trainer.test(tgt_model, datamodule=dm)
     for m in cls_metrics:
         res[f"target_val_{m}"]  = train_res_val[0][f"val_{m}"]
         res[f"target_test_{m}"] = train_res_test[0][f"test_{m}"]
@@ -384,7 +391,7 @@ def train_model(
             res[f"{label}_pretrain_{m}"] = pret_res[0][f"val_{m}"]
         res["pre_best_model"] = tgt_ckpt.best_model_path
         res["pre_train_csv"] = str(directory  / "logs" / label / "metrics.csv")
-        res["pre_nepochs"] = res["tgt_best_model"].str.split("/").str[5].str[6:].str.split("-").str[0].astype(int)
+        res["pre_nepochs"] = int(pre_ckpt.best_model_path.split("/")[5][6:].split("-")[0])
 
     # Convert to DataFrame
     res = res.to_frame().transpose().copy()

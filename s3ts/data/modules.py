@@ -215,13 +215,13 @@ class DFDataModule(LightningDataModule):
 
         # Do some logging
         log.info(f"Events in training STS: {STS_train_events}")
-        log.info(f"Frames in training STS: {len(self.tra_indices)} ")
-        self.tra_ratios = np.unique(SCS_tra[self.tra_indices], return_counts=True)[1]/(STS_train_events*sample_length)
+        log.info(f"Frames in training STS: {len(self.train_indices)} ")
+        self.tra_ratios = np.unique(SCS_tra[self.train_indices], return_counts=True)[1]/(STS_train_events*sample_length)
         log.info(f"Train STS class ratios: {self.tra_ratios}")
 
         log.info(f"Events in pretrain STS: {STS_pret_events}")
-        log.info(f"Frames in pretrain STS: {len(self.pre_indices)}")
-        self.pre_ratios = np.unique(SCS_pre[self.pre_indices], return_counts=True)[1]/(STS_pret_events*sample_length)
+        log.info(f"Frames in pretrain STS: {len(self.pret_indices)}")
+        self.pre_ratios = np.unique(SCS_pre[self.pret_indices], return_counts=True)[1]/(STS_pret_events*sample_length)
         log.info(f"Pretrain STS class ratios: {self.pre_ratios}")
 
         log.info(f"Events in testing STS: {STS_test_events}")
@@ -245,22 +245,23 @@ class DFDataModule(LightningDataModule):
         
         """ Create the sample indeces for the datasets. """
 
+        margin = self.window_length*self.window_pattern_stride
+        self.train_indices = np.arange(margin, self.STS_train_events*self.sample_length)
+        self.pret_indices = np.arange(margin, self.STS_pret_events*self.sample_length)
+        self.test_indices = np.arange(self.STS_pret_events*self.sample_length + margin,
+            (self.STS_pret_events + self.STS_test_events)*self.sample_length)
+
         # Check requested available samples are not larger than the actual ones
         if av_train_events is not None:
             assert av_train_events <= self.STS_train_events, "Requested available training events are larger than the actual ones"
+            self.train_indices = np.arange(margin, av_train_events*self.sample_length)
         if av_pret_events is not None:
             assert av_pret_events <= self.STS_pret_events, "Requested available pretrain events are larger than the actual ones"
+            self.pret_indices = np.arange(margin, av_pret_events*self.sample_length)
         if av_test_events is not None:
             assert av_test_events <= self.STS_test_events, "Requested available test events are larger than the actual ones"
-
-        # TODO implement this garbage
-
-        # Calculate the valid indices based on the window length and stride
-        margin = self.window_length*self.window_pattern_stride
-        self.tra_indices = np.arange(margin, self.STS_train_events*self.sample_length)
-        self.pre_indices = np.arange(margin, self.STS_pret_events*self.sample_length)
-        self.test_indices = np.arange(self.STS_pret_events*self.sample_length + margin,
-            (self.STS_pret_events + self.STS_test_events)*self.sample_length)
+            self.test_indices = np.arange(self.STS_pret_events*self.sample_length + margin,
+                (self.STS_pret_events + av_test_events)*self.sample_length)
 
     def create_datasets(self):
 
@@ -270,28 +271,28 @@ class DFDataModule(LightningDataModule):
             self.DM_tra.std(axis=[1,2]))
         
         # Create the training datasets
-        tra_tot_samples = len(self.tra_indices)
+        tra_tot_samples = len(self.train_indices)
         tra_train_samples = tra_tot_samples-int(tra_tot_samples*self.val_size)
-        self.ds_tra_train = DFDataset(index=self.tra_indices[:tra_train_samples],
+        self.ds_tra_train = DFDataset(index=self.train_indices[:tra_train_samples],
             DM=self.DM_tra, STS=self.STS_tra, SCS=self.labels_tra,
             window_length=self.window_length, stride_series=self.stride_series, 
             window_time_stride=self.window_time_stride, window_pattern_stride=self.window_pattern_stride, 
             DM_transform=DM_transform)
-        self.ds_tra_val   = DFDataset(index=self.tra_indices[tra_train_samples:],
+        self.ds_tra_val   = DFDataset(index=self.train_indices[tra_train_samples:],
             DM=self.DM_tra, STS=self.STS_tra, SCS=self.labels_tra,
             window_length=self.window_length, stride_series=self.stride_series, 
             window_time_stride=self.window_time_stride, window_pattern_stride=self.window_pattern_stride, 
             DM_transform=DM_transform)
 
         # Create the pretraining datasets
-        pre_tot_samples = len(self.pre_indices)
+        pre_tot_samples = len(self.pret_indices)
         pre_train_samples = pre_tot_samples-int(pre_tot_samples*self.val_size)
-        self.ds_pre_train = DFDataset(index=self.pre_indices[:pre_train_samples],
+        self.ds_pre_train = DFDataset(index=self.pret_indices[:pre_train_samples],
             DM=self.DM_pre, STS=self.STS_pre, SCS=self.labels_pre,
             window_length=self.window_length, stride_series=self.stride_series,
             window_time_stride=self.window_time_stride, window_pattern_stride=self.window_pattern_stride,
             DM_transform=DM_transform)
-        self.ds_pre_val   = DFDataset(index=self.pre_indices[pre_train_samples:],
+        self.ds_pre_val   = DFDataset(index=self.pret_indices[pre_train_samples:],
             DM=self.DM_pre, STS=self.STS_pre, SCS=self.labels_pre,
             window_length=self.window_length, stride_series=self.stride_series,
             window_time_stride=self.window_time_stride, window_pattern_stride=self.window_pattern_stride,
