@@ -15,7 +15,7 @@ from scipy.spatial import distance_matrix
 # in-package imports
 from s3ts.models.wrapper import WrapperModel
 from s3ts.data.modules import DFDataModule
-from s3ts.data.oesm import compute_DM
+from s3ts.data.oesm import compute_DM_optim
 
 # standard library
 from pathlib import Path
@@ -24,6 +24,45 @@ import logging as log
 # basics
 import pandas as pd
 import numpy as np
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+def train_pretest_split(X: np.ndarray, Y: np.ndarray, 
+        sxc: int, nreps: int, random_state: int):
+
+    """ Splits the dataset into train and pretest sets.
+    Selects sxc samples per class for the train set and the rest for the pretest set.
+    
+    Parameters
+    ----------
+    X : np.ndarray
+        The time series dataset.
+    Y : np.ndarray
+        The labels of the time series dataset.
+    sxc : int
+        The number of samples per class in the train set.
+    nreps : int
+        The number of different splits.
+    random_state : int
+        Random state for the RNG.
+    """
+
+    # Check the shape of the dataset and labels match
+    if X.shape[0] != Y.shape[0]:
+        raise ValueError("The number of samples in the dataset and labels must be the same.")
+
+    idx = np.arange(X.shape[0])
+    rng = np.random.default_rng(random_state)
+
+    for _ in range(nreps):
+        
+        train_idx = []
+        for c in np.unique(Y):
+            train_idx.append(rng.choice(idx, size=sxc, p=(Y==c).astype(int)/sum(Y==c), replace=False))
+        train_idx = np.concatenate(train_idx)
+        pretest_idx = np.setdiff1d(idx, train_idx)
+
+        yield train_idx, pretest_idx
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
@@ -164,7 +203,7 @@ def prepare_dm(
         num_workers: int = 4,
         use_cache: bool = True,
         pattern_type: str = "medoids",
-        dir_cache: Path = Path("cache"),
+        cache_dir: Path = Path("cache"),
         test_sample_multiplier: int = 2,
         pret_sample_multiplier: int = 16,
         ) -> DFDataModule:
@@ -194,7 +233,7 @@ def prepare_dm(
 
     # Generate filenames for the cache files using the parametersç
     multiplier_str = f"{train_samples_per_class}sxc_{train_sample_multiplier}t_{pret_sample_multiplier}pt_{test_sample_multiplier}s"
-    cache_file = dir_cache / f"{dataset}_{multiplier_str}_{pattern_type}_fold{fold_number}_rs{random_state}.npz"
+    cache_file = cache_dir / f"{dataset}_{multiplier_str}_{pattern_type}_fold{fold_number}_rs{random_state}.npz"
 
     STS_tra_samples = int(train_samples_per_class*n_classes)*train_sample_multiplier
     STS_pre_samples = STS_tra_samples*pret_sample_multiplier
@@ -214,9 +253,9 @@ def prepare_dm(
 
         # Generate the STSs
         STS_tra, SCS_tra = compute_STS(X_train, Y_train,        # Generate train STS  
-            fix_limits=True, STS_samples=STS_tra_samples+1, mode="random", random_state=random_state)
+            shift_limits=True, STS_samples=STS_tra_samples+1, mode="random", random_state=random_state)
         STS_pre, SCS_pre = compute_STS(X_pretest, Y_pretest,    # Generate pretest STS 
-            fix_limits=True, STS_samples=STS_pre_samples+STS_test_samples+1, mode="random", random_state=random_state)
+            shift_limits=True, STS_samples=STS_pre_samples+STS_test_samples+1, mode="random", random_state=random_state)
 
         # Generate the patterns for the DMs
         if pattern_type == "medoids":
@@ -225,8 +264,10 @@ def prepare_dm(
             patterns = medoids
   
          # Generate the DMs
-        DM_tra = compute_DM(STS_tra, patterns, rho_dfs, num_workers = num_workers)
-        DM_pre = compute_DM(STS_pre, patterns, rho_dfs, num_workers = num_workers)
+        log.info("Computing the training DM")
+        DM_tra = compute_DM_optim(STS_tra, patterns, rho_dfs)
+        log.info("Computing the pretrain/test DM")
+        DM_pre = compute_DM_optim(STS_pre, patterns, rho_dfs)
 
         # Remove the first sample from the STSs
         STS_tra = STS_tra[s_length:]
@@ -257,22 +298,23 @@ def prepare_dm(
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 def train_model(
-        dataset: str, repr: str, arch: str, target: str,
+        dataset: str, repr: str, arch: str,
         dm: DFDataModule, pretrain: bool, fold_number: int, 
         directory: Path, label: str,
         max_epoch_pre: int, max_epoch_tgt: int,
-        random_state: int = 0, learning_rate: float = 1e-4,
+        learning_rate: float, random_state: int = 0, 
         ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
 
     def _setup_trainer(max_epochs: int, stop_metric: str, 
-            stop_mode: str) -> tuple[Trainer, ModelCheckpoint]:
+            stop_mode: str, pretrain: bool) -> tuple[Trainer, ModelCheckpoint]:
+        version = f"{label}_pretrain" if pretrain else label
         # Create the callbacks
         checkpoint = ModelCheckpoint(monitor=stop_metric, stop_mode=stop_mode)    
         lr_monitor = LearningRateMonitor(logging_interval='epoch')
         callbacks = [lr_monitor, checkpoint]
         # Creathe the loggers
-        tb_logger = TensorBoardLogger(save_dir=directory, name="logs", version=f"{label}") # TODO add additional label for directory
-        csv_logger = CSVLogger(save_dir=directory, name="logs", version=f"{label}") # TODO add additional label for directory
+        tb_logger = TensorBoardLogger(save_dir=directory, name="logs", version=version)
+        csv_logger = CSVLogger(save_dir=directory, name="logs", version=version)
         loggers = [tb_logger, csv_logger]
         # Create the trainer
         return Trainer(default_root_dir=directory,  accelerator="auto", devices="auto",
@@ -289,7 +331,7 @@ def train_model(
         # Create the model, trainer and checkpoint
         pre_model = WrapperModel(repr=repr, arch=arch, target="reg", dm=dm, 
         learning_rate=learning_rate, decoder_feats=64)
-        pre_trainer, pre_ckpt = _setup_trainer(max_epoch_pre, "val_mse", "min")
+        pre_trainer, pre_ckpt = _setup_trainer(max_epoch_pre, "val_mse", "min", True)
 
         # Configure the datamodule
         dm.pretrain = True
@@ -306,7 +348,7 @@ def train_model(
     # Create the model, trainer and checkpoint
     tgt_model = WrapperModel(repr=repr, arch=arch, target="cls", dm=dm, 
         learning_rate=learning_rate, decoder_feats=64)
-    tgt_trainer, tgt_ckpt = _setup_trainer(max_epoch_tgt, "val_acc", "max")
+    tgt_trainer, tgt_ckpt = _setup_trainer(max_epoch_tgt, "val_acc", "max", False)
 
     # Load encoder if needed
     if pretrain:

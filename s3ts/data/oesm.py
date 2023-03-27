@@ -2,10 +2,9 @@ from functools import partial
 import multiprocessing as mp
 import logging as log
 
+from numba import jit, prange
+from math import sqrt
 import numpy as np
-
-# TODO: optimize this class
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 class OESM:
     
@@ -44,7 +43,7 @@ class OESM:
         valid_dist = ['euclidean', 'edr', 'erp', 'edit']
         if dist not in valid_dist:
             raise ValueError(f"dist must be one of {valid_dist}")
-        
+        self.dist = dist
 
         if isinstance(R, (np.ndarray)) and R.size > 2:
             self.R = R
@@ -131,7 +130,6 @@ class OESM:
 
         Warning: the time series have to be non-empty
         (at least composed by a single measure)
-
 
           -----------
         R | RS | RY |
@@ -231,8 +229,7 @@ def compute_patt_DM(patt_idx: np.ndarray, rho: float,
     l_patts: int = patterns.shape[1]
 
     init_width = 3
-    oesm = OESM(R = patterns[patt_idx], rho=rho, dist=dist)
-
+    oesm = OESM(R = patterns[patt_idx], w=rho, dist=dist)
     patt_DM = np.empty((l_patts, STS_length), dtype=np.float64)
     patt_DM[:,:init_width] = oesm.init_dist(STS[:init_width])
     for point in range(init_width, len(STS)):
@@ -284,3 +281,85 @@ def compute_DM(STS: np.ndarray, patterns: np.ndarray, rho: float,
     return np.array(full_DM)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+@jit(nopython=True, parallel=True)
+def compute_DM_optim(STS: np.ndarray, patterns: np.ndarray, rho: float):
+
+
+    """ Computes the dissimilarity matrix (DM) for a given set of patterns and a given STS."""
+
+    n_patts: int = patterns.shape[0]
+    l_patts: int = patterns.shape[1]
+    l_STS: int = STS.shape[0]
+    
+    w: float = rho ** (1 / l_patts)
+
+    # Compute point-wise distance
+    DM = np.zeros((n_patts, l_patts, l_STS), dtype=np.float32)
+    for p in prange(n_patts):
+        for i in prange(l_patts):
+            for j in prange(l_STS):
+                DM[p, i, j] = sqrt((patterns[p,i] - STS[j])**2)
+
+    # Compute the distance matrix
+    for p in prange(n_patts):
+
+        # Solve first row
+        for j in range(1, l_STS):
+            DM[p,0,j] += w*DM[p,0,j-1]
+
+        # Solve first column
+        for i in range(1, l_patts):
+            DM[p,i,0] += DM[p,i-1,0]
+
+        # Solve the rest
+        for i in range(1, l_patts):
+            for j in range(1, l_STS):
+                DM[p,i,j] += min([DM[p,i-1,j], w*DM[p,i-1,j-1], w*DM[p,i,j-1]])
+
+    # Return the full distance matrix
+    return DM
+
+
+if __name__ == "__main__":
+
+    import time
+    import matplotlib.pyplot as plt 
+
+    STS = np.sin(np.linspace(0, 6*np.pi, 10000))
+    lpat = 300
+    patterns = np.stack([np.arange(0, lpat), np.zeros(lpat), np.arange(0, lpat)[::-1]])
+    # standardize patterns
+    patterns = (patterns - np.mean(patterns, axis=1, keepdims=True)) / np.std(patterns, axis=1, keepdims=True)
+    print(patterns)
+
+    start = time.perf_counter()
+    DM1 = compute_DM(STS, patterns, 0.1)
+    end = time.perf_counter()
+    print("Elapsed (baseline) = {}s".format((end - start)))
+
+    start = time.perf_counter()
+    DM2 = compute_DM_optim(STS, patterns, 0.1)
+    end = time.perf_counter()
+    print("Elapsed (with compilation) = {}s".format((end - start)))
+
+    start = time.perf_counter()
+    DM2 = compute_DM_optim(STS, patterns, 0.1)
+    end = time.perf_counter()
+    print("Elapsed (with compilation) = {}s".format((end - start)))
+
+    
+    # plt.plot(STS)
+    # plt.plot(patterns[0])
+    # plt.plot(patterns[1])
+    
+    # plt.figure()
+    # plt.imshow(DM1[0])
+
+    # plt.figure()
+    # plt.imshow(DM2[0])
+
+    
+    plt.show()
+
+
