@@ -17,11 +17,9 @@
         python main_cli.py --dataset <dataset> --mode <mode> --arch <arch> --exp <exp>
 """
 
-# data
+# package imports
 from s3ts.data.acquisition import download_dataset
-from sklearn.model_selection import StratifiedKFold
-
-# experiments
+from s3ts.experiments.common import train_pretest_split
 from s3ts.experiments.ratio  import EXP_ratio
 
 # standard library
@@ -50,6 +48,18 @@ if __name__ == '__main__':
     
     parser.add_argument('--exp', type=str, required=True, choices=['ratio'],
                         help='Name of the architecture from which create the model')
+
+    parser.add_argument('--exc', type=int, default=16,
+                        help='Number of samples per class')
+    
+    parser.add_argument('--train_mult', type=int, default=2,
+                        help='Number of samples per class')
+    
+    parser.add_argument('--pret_mult', type=int, default=16,
+                        help='Number of samples per class')
+
+    parser.add_argument('--test_mult', type=int, default=2,
+                        help='Number of samples per class')
 
     parser.add_argument('--rho_dfs', type=float, default=0.1,
                         help='Value of the forgetting parameter')
@@ -114,27 +124,32 @@ if __name__ == '__main__':
     
     # get rest of variables
     dataset: str = args.dataset
-    arch = arch_dict[args.mode][args.arch]
-    exp = exp_dict[args.exp]
+    repr: str = args.repr
+    arch: str = args.arch
+    exp: function = exp_dict[args.exp]
+    # ~~~~~~~~~~~~~~~~~~~~~~~
+    exc: float = args.exc
+    train_mult: float = args.train_mult
+    pret_mult: float = args.pret_mult
+    test_mult: float = args.test_mult
     # ~~~~~~~~~~~~~~~~~~~~~~~
     rho_dfs: float = args.rho_dfs
     batch_size: int = args.batch_size
     window_length: int = args.window_length
-    window_stride: int = args.window_stride
-    quant_shifts: list[float] = [args.quant_shift]
-    quant_intervals: int = args.quant_intervals
+    window_time_stride: int = args.window_time_stride
+    window_patt_stride: int = args.window_patt_stride
     # ~~~~~~~~~~~~~~~~~~~~~~~
     pre_maxepoch: int = args.pre_maxepoch
     tra_maxepoch: int = args.tra_maxepoch
     learning_rate: float = args.learning_rate
     # ~~~~~~~~~~~~~~~~~~~~~~~
-    dir_cache: Path = Path(args.dir_cache)
-    dir_train: Path = Path(args.dir_train)
-    dir_results: Path = Path(args.dir_results)
+    cache_dir: Path = Path(args.dir_cache)
+    train_dir: Path = Path(args.dir_train)
+    results_dir: Path = Path(args.dir_results)
     log_file: Path = Path(args.log_file)
     # ~~~~~~~~~~~~~~~~~~~~~~~
     fold: int = args.fold
-    n_splits: int = args.n_splits
+    nreps: int = args.nreps
     random_state: int = args.random_state
     
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -148,33 +163,28 @@ if __name__ == '__main__':
     dataset: str = args.dataset
     X, Y, mapping = download_dataset(dataset_name=dataset, dir_cache=dir_cache)
     
-    log.info(f"Train-test K-Fold validation: ({n_splits} splits)")
-    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=args.random_state)
-    for j, (train_index, test_index) in enumerate(skf.split(X, Y)):
+    for j, (train_index, pretest_index) in enumerate(
+        train_pretest_split(X, Y, exc=exc, nreps=nreps, random_state=random_state)):
+
+        X_train, Y_train = X[train_index,:], Y[train_index]
+        X_pretest, Y_pretest = X[pretest_index,:], Y[pretest_index]
 
         if fold is not None:
             if j != fold:
                 continue
 
         X_train, Y_train = X[train_index,:], Y[train_index]
-        X_test, Y_test = X[test_index,:], Y[test_index]
+        X_test, Y_test = X[pretest_index,:], Y[pretest_index]
         
-        exp(dataset=dataset, arch=arch, 
-            X_train=X_train, Y_train=Y_train, 
-            X_test=X_test, Y_test=Y_test,
-            # ~~~~~~~~~~~~~~~~~~~~~~~
-            rho_dfs=rho_dfs,
-            batch_size=batch_size,
-            window_length=window_length,
-            window_stride=window_stride,
-            # ~~~~~~~~~~~~~~~~~~~~~~~
-            dir_cache=dir_cache,
-            dir_train=dir_train,
-            dir_results=dir_results,
-            # ~~~~~~~~~~~~~~~~~~~~~~~
-            pre_maxepoch=pre_maxepoch, 
-            tra_maxepoch=tra_maxepoch,
-            learning_rate=learning_rate,
-            # ~~~~~~~~~~~~~~~~~~~~~~~
-            fold_number=j, total_folds=n_splits,
-            random_state=random_state)
+        EXP(dataset=dataset, repr=repr, arch=arch,
+            X_train=X_train, X_pretest=X_pretest,
+            Y_train=Y_train, Y_pretest=Y_pretest,
+            fold_number=j, total_folds=nreps, rho_dfs=rho_dfs,
+            batch_size=batch_size, window_length=window_length,
+            window_time_stride=window_time_stride, window_pattern_stride=window_patt_stride,
+            train_events_per_class=exc, train_event_multiplier=train_mult,
+            pret_event_multiplier=pret_mult, test_event_multiplier=test_mult,
+            max_epoch_pre=PRE_MAXEPOCH, max_epoch_tra=TRA_MAXEPOCH,
+            learning_rate=learning_rate, random_state=RANDOM_STATE,
+            use_cache=True, pattern_type="medoids",
+            cache_dir=cache_dir, train_dir=train_dir, results_dir=results_dir)

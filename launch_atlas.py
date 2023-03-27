@@ -9,20 +9,20 @@ import subprocess
 
 EXP = "ratio"
 ARCHS = {
-    "DF": {"ResNet", "CNN"},
-    #"TS": ("RNN", "CNN", "ResNet")
+    "DF": ["CNN", "ResNet"],
+    #"TS": ["RNN", "CNN", "ResNet"]
 }
 DATASETS = ["GunPoint", "ECG200", "Coffee", "Plane", "Trace", "PowerCons", "SyntheticControl", "Chinatown"]
 N_SPLITS = 5
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-account = "bcam-exclusive"
-partition = "bcam-exclusive"
-email = "rcoterillo@bcamath.org"
-env = Path("/scratch/rcoterillo/s3ts/s3ts_env/bin/activate")
-script = Path("/scratch/rcoterillo/s3ts/main_cli.py")
-dir_cache = Path("/scratch/rcoterillo/s3ts/cache")
+account     = "bcam-exclusive"
+partition   = "bcam-exclusive"
+email       = "rcoterillo@bcamath.org"
+env         = Path("/scratch/rcoterillo/s3ts/s3ts_env/bin/activate")
+script      = Path("/scratch/rcoterillo/s3ts/main_cli.py")
+dir_cache   = Path("/scratch/rcoterillo/s3ts/cache")
 
 outputs = Path("outputs/").absolute()
 outputs.mkdir(exist_ok=True)
@@ -35,18 +35,18 @@ jobs.mkdir(exist_ok=True)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-for mode in ARCHS:
-    for arch in ARCHS[mode]:
+for repr in ARCHS:
+    for arch in ARCHS[repr]:
         for dataset in DATASETS:
             for fold in range(N_SPLITS):
             
-                job_name = f"{arch}_{mode}_{EXP}_{dataset}_f{fold}"
+                job_name = f"{arch}_{repr}_{EXP}_{dataset}_f{fold}"
                 job_file = jobs / (job_name + ".job")
                 log_file = logs / (job_name + ".log")
                 out_file = outputs / (job_name + ".out")
                 err_file = outputs / (job_name + ".err")
                 
-                gpu = (mode == "DF")
+                gpu = (repr == "DF")
                 gpu = False
 
                 with job_file.open(mode="w") as f:
@@ -69,7 +69,7 @@ for mode in ARCHS:
                     f.write(f"module load Python/3.10.4-GCCcore-11.3.0\n")
                     f.write(f"source {str(env)}\n")
                     f.write(f"python {str(script)} --dataset {dataset} " + \
-                            f"--mode {mode} --arch {arch} --exp {EXP} " + \
+                            f"--repr {repr} --arch {arch} --exp {EXP} " + \
                             f"--log_file {str(log_file)} --fold {fold} " + \
                             f"--dir_cache {str(dir_cache)}")
                 subprocess.run(["sbatch", str(job_file)], capture_output=True)

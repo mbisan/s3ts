@@ -80,15 +80,15 @@ EXP = exp_dict[EXP]
 # Iterate over all the combinations
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
-for mode in ARCHS:
-    for arch in ARCHS[mode]:
+for repr in ARCHS:
+    for arch in ARCHS[repr]:
         for dataset in DATASETS:
 
             # Download dataset
             X, Y = download_dataset(dataset=dataset, dir_cache=DIR_CACHE)
         
             log.info(f"Current dataset: {dataset}")
-            log.info(f"Current decoder: {arch} ({mode})")
+            log.info(f"Current decoder: {arch} ({repr})")
     
             # Split data
             for j, (train_index, pretest_index) in enumerate(
@@ -97,7 +97,7 @@ for mode in ARCHS:
                 X_train, Y_train = X[train_index,:], Y[train_index]
                 X_pretest, Y_pretest = X[pretest_index,:], Y[pretest_index]
 
-                EXP(dataset=dataset, repr=mode, arch=arch,
+                EXP(dataset=dataset, repr=repr, arch=arch,
                     X_train=X_train, X_pretest=X_pretest,
                     Y_train=Y_train, Y_pretest=Y_pretest,
                     fold_number=j, total_folds=NREPS, rho_dfs=RHO_DFS,

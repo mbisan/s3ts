@@ -28,7 +28,7 @@ import numpy as np
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 def train_pretest_split(X: np.ndarray, Y: np.ndarray, 
-        sxc: int, nreps: int, random_state: int):
+        exc: int, nreps: int, random_state: int):
 
     """ Splits the dataset into train and pretest sets.
     Selects sxc events per class for the train set and the rest for the pretest set.
@@ -51,6 +51,14 @@ def train_pretest_split(X: np.ndarray, Y: np.ndarray,
     if X.shape[0] != Y.shape[0]:
         raise ValueError("The number of events in the dataset and labels must be the same.")
 
+    # Check the number of events per class is not larger than the total number of events
+    if exc > X.shape[0]:
+        raise ValueError("The number of events per class cannot be larger than the total number of events.")
+    
+    # Check the number of events per class is not larger than the number of events per class
+    if exc > np.unique(Y, return_counts=True)[1].min():
+        raise ValueError("The number of events per class cannot be larger than the minimum number of events per class.")
+
     idx = np.arange(X.shape[0])
     rng = np.random.default_rng(random_state)
 
@@ -58,7 +66,7 @@ def train_pretest_split(X: np.ndarray, Y: np.ndarray,
         
         train_idx = []
         for c in np.unique(Y):
-            train_idx.append(rng.choice(idx, size=sxc, p=(Y==c).astype(int)/sum(Y==c), replace=False))
+            train_idx.append(rng.choice(idx, size=exc, p=(Y==c).astype(int)/sum(Y==c), replace=False))
         train_idx = np.concatenate(train_idx)
         pretest_idx = np.setdiff1d(idx, train_idx)
 
