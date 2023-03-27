@@ -336,6 +336,9 @@ def compute_DM_optim(STS: np.ndarray, patterns: np.ndarray, rho: float):
 
 if __name__ == "__main__":
 
+
+    """ Small test script for optimization. """
+
     import time
     import matplotlib.pyplot as plt 
 
