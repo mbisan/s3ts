@@ -52,7 +52,7 @@ def EXP_ratio(
 
     # Experiment parameters    
     EVENTS_PER_CLASS = [8, 16, 32]
-    PRET_MULTIPLIERS = [4, 8]
+    PRET_MULTIPLIERS = [4, 8, 16]
 
     # Create the data module
     dm : DFDataModule = prepare_dm(dataset=dataset, rho_dfs=rho_dfs,
