@@ -26,7 +26,7 @@ class DFDataset(Dataset):
             index: np.ndarray,
             window_length: int,
             window_time_stride: int,
-            window_pattern_stride: int,
+            window_patt_stride: int,
             DM_transform = None,
             STS_transform = None, 
             SCS_transform = None,
@@ -49,7 +49,7 @@ class DFDataset(Dataset):
             Length of the window
         window_time_stride : int
             Time stride of the frame window
-        window_pattern_stride : int
+        window_patt_stride : int
             Pattern stride of the frame window
         DM_transform : callable, optional
             Transformation to apply to the DM
@@ -68,7 +68,7 @@ class DFDataset(Dataset):
 
         self.window_length = window_length
         self.wts = window_time_stride
-        self.wps = window_pattern_stride
+        self.wps = window_patt_stride
         self.stride_series = stride_series
 
         self.available_events = 1
@@ -292,12 +292,12 @@ class DFDataModule(LightningDataModule):
         self.ds_tra_train = DFDataset(index=self.train_indices[:tra_train_samples],
             DM=self.DM_tra, STS=self.STS_tra, SCS=self.labels_tra,
             window_length=self.window_length, stride_series=self.stride_series, 
-            window_time_stride=self.window_time_stride, window_pattern_stride=self.window_pattern_stride, 
+            window_time_stride=self.window_time_stride, window_patt_stride=self.window_patt_stride, 
             DM_transform=DM_transform)
         self.ds_tra_val   = DFDataset(index=self.train_indices[tra_train_samples:],
             DM=self.DM_tra, STS=self.STS_tra, SCS=self.labels_tra,
             window_length=self.window_length, stride_series=self.stride_series, 
-            window_time_stride=self.window_time_stride, window_pattern_stride=self.window_pattern_stride, 
+            window_time_stride=self.window_time_stride, window_patt_stride=self.window_patt_stride, 
             DM_transform=DM_transform)
 
         # Create the pretraining datasets
@@ -306,19 +306,19 @@ class DFDataModule(LightningDataModule):
         self.ds_pre_train = DFDataset(index=self.pret_indices[:pre_train_samples],
             DM=self.DM_pre, STS=self.STS_pre, SCS=self.labels_pre,
             window_length=self.window_length, stride_series=self.stride_series,
-            window_time_stride=self.window_time_stride, window_pattern_stride=self.window_pattern_stride,
+            window_time_stride=self.window_time_stride, window_patt_stride=self.window_patt_stride,
             DM_transform=DM_transform)
         self.ds_pre_val   = DFDataset(index=self.pret_indices[pre_train_samples:],
             DM=self.DM_pre, STS=self.STS_pre, SCS=self.labels_pre,
             window_length=self.window_length, stride_series=self.stride_series,
-            window_time_stride=self.window_time_stride, window_pattern_stride=self.window_pattern_stride,
+            window_time_stride=self.window_time_stride, window_patt_stride=self.window_patt_stride,
             DM_transform=DM_transform)
         
         # Create the testing dataset
         self.ds_test = DFDataset(index=self.test_indices,
             DM=self.DM_pre, STS=self.STS_pre, SCS=self.labels_pre,
             window_length=self.window_length, stride_series=self.stride_series,
-            window_time_stride=self.window_time_stride, window_pattern_stride=self.window_pattern_stride,
+            window_time_stride=self.window_time_stride, window_patt_stride=self.window_patt_stride,
             DM_transform=DM_transform)
 
     def update_sample_availability(self, 

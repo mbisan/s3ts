@@ -440,7 +440,7 @@ def train_model(
     res["arch"], res["repr"] = arch, repr
     res["pretrain"], res["fold_number"], res["random_state"] = pretrain, fold_number, random_state
     res["batch_size"], res["stride_series"], res["window_length"] = dm.batch_size, dm.stride_series, dm.window_length
-    res["window_time_stride"], res["window_pattern_stride"] = dm.window_time_stride, dm.window_pattern_stride
+    res["window_time_stride"], res["window_patt_stride"] = dm.window_time_stride, dm.window_patt_stride
     res["train_events_per_class"] = train_events_per_class
     res["train_event_multiplier"] = train_event_multiplier
     res["nevents_train"] = dm.av_train_events
