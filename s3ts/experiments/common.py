@@ -408,7 +408,7 @@ def train_model(
         pre_trainer.fit(pre_model, datamodule=dm)
 
         # Load the best checkpoint
-        pre_model = pre_model.load_from_checkpoint(pre_ckpt.best_model_paths)
+        pre_model = pre_model.load_from_checkpoint(pre_ckpt.best_model_path)
 
     # Configure the datamodule
     dm.pretrain = False
