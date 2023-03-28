@@ -12,7 +12,7 @@ ARCHS = {
     "DF": ["CNN", "ResNet"],
     #"TS": ["RNN", "CNN", "ResNet"]
 }
-DATASETS = ["GunPoint", "ECG200", "Coffee", "Plane", "Trace", "PowerCons", "SyntheticControl", "Chinatown"]
+DATASETS = ["GunPoint", "Chinatown", "ECG200"]
 NREPS = 5
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

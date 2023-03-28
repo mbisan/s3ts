@@ -49,7 +49,7 @@ if __name__ == '__main__':
     parser.add_argument('--exp', type=str, required=True, choices=['ratio'],
                         help='Name of the architecture from which create the model')
 
-    parser.add_argument('--exc', type=int, default=16,
+    parser.add_argument('--exc', type=int, default=32,
                         help='Number of samples per class')
     
     parser.add_argument('--train_mult', type=int, default=4,

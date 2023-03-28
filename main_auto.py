@@ -39,7 +39,7 @@ torch.set_float32_matmul_precision("medium")
 
 EXP = "ratio"                       # Experiment
 DATASETS = [                        # Datasets
-    "GunPoint"
+    "GunPoint", "Chinatown", "ECG200", "Crop", "CBF", "FordA", "DiatomSizeReduction"
     ]             
 ARCHS = {                           # Architectures
     "DF": ["CNN", "ResNet"],
