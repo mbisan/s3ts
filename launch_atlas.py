@@ -13,7 +13,7 @@ ARCHS = {
     #"TS": ["RNN", "CNN", "ResNet"]
 }
 DATASETS = ["GunPoint", "ECG200", "Coffee", "Plane", "Trace", "PowerCons", "SyntheticControl", "Chinatown"]
-N_SPLITS = 5
+NREPS = 5
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -38,7 +38,7 @@ jobs.mkdir(exist_ok=True)
 for repr in ARCHS:
     for arch in ARCHS[repr]:
         for dataset in DATASETS:
-            for fold in range(N_SPLITS):
+            for fold in range(NREPS):
             
                 job_name = f"{arch}_{repr}_{EXP}_{dataset}_f{fold}"
                 job_file = jobs / (job_name + ".job")
@@ -71,5 +71,5 @@ for repr in ARCHS:
                     f.write(f"python {str(script)} --dataset {dataset} " + \
                             f"--repr {repr} --arch {arch} --exp {EXP} " + \
                             f"--log_file {str(log_file)} --fold {fold} " + \
-                            f"--dir_cache {str(dir_cache)}")
+                            f"--cache_dir {str(dir_cache)}")
                 subprocess.run(["sbatch", str(job_file)], capture_output=True)
