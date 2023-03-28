@@ -404,7 +404,8 @@ def train_model(
         pre_trainer.fit(pre_model, datamodule=dm)
 
         # Load the best checkpoint
-        pre_model = pre_model.load_from_checkpoint(pre_ckpt.best_model_path, dm=dm)
+        pre_model = pre_model.load_from_checkpoint(pre_ckpt.best_model_path, repr=repr, 
+            arch=arch, target="reg", dm=dm, learning_rate=learning_rate, decoder_feats=64)
 
     # Configure the datamodule
     dm.pretrain = False
@@ -424,7 +425,8 @@ def train_model(
     tgt_trainer.fit(tgt_model, datamodule=dm)
 
     # Load the best checkpoint
-    tgt_model = tgt_model.load_from_checkpoint(tgt_ckpt.best_model_path, dm=dm)
+    tgt_model = tgt_model.load_from_checkpoint(tgt_ckpt.best_model_path, repr=repr, 
+        arch=arch, target="cls", dm=dm, learning_rate=learning_rate, decoder_feats=64)
 
     # Save the experiment settings and results
     res = pd.Series(dtype="object")
