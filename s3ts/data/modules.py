@@ -251,7 +251,7 @@ class DFDataModule(LightningDataModule):
         """ Create the sample indeces for the datasets. """
 
         # Calculate the margin due to the window length
-        margin = self.window_length*self.window_pattern_stride
+        margin = self.window_length*self.window_patt_stride
 
         # Creathe the default indices
         self.train_indices = np.arange(margin, self.STS_train_events*self.sample_length)
