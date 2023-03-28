@@ -245,23 +245,34 @@ class DFDataModule(LightningDataModule):
         
         """ Create the sample indeces for the datasets. """
 
+        # Calculate the margin due to the window length
         margin = self.window_length*self.window_pattern_stride
+
+        # Creathe the default indices
         self.train_indices = np.arange(margin, self.STS_train_events*self.sample_length)
         self.pret_indices = np.arange(margin, self.STS_pret_events*self.sample_length)
         self.test_indices = np.arange(self.STS_pret_events*self.sample_length + margin,
             (self.STS_pret_events + self.STS_test_events)*self.sample_length)
+        
+        # Set the available samples by default
+        self.av_train_events = self.STS_train_events
+        self.av_pret_events = self.STS_pret_events
+        self.av_test_events = self.STS_test_events
 
         # Check requested available samples are not larger than the actual ones
         if av_train_events is not None:
             assert av_train_events <= self.STS_train_events, "Requested available training events are larger than the actual ones"
             self.train_indices = np.arange(margin, av_train_events*self.sample_length)
+            self.av_train_events = av_train_events
         if av_pret_events is not None:
             assert av_pret_events <= self.STS_pret_events, "Requested available pretrain events are larger than the actual ones"
             self.pret_indices = np.arange(margin, av_pret_events*self.sample_length)
+            self.av_pret_events = av_pret_events
         if av_test_events is not None:
             assert av_test_events <= self.STS_test_events, "Requested available test events are larger than the actual ones"
             self.test_indices = np.arange(self.STS_pret_events*self.sample_length + margin,
                 (self.STS_pret_events + av_test_events)*self.sample_length)
+            self.av_test_events = av_test_events
 
     def create_datasets(self):
 

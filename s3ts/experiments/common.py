@@ -4,7 +4,7 @@
 """ Common functions for the experiments. """
 
 # models / modules
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 from pytorch_lightning import Trainer
 
@@ -146,6 +146,8 @@ def compute_STS(
         shift_limits: bool,
         mode: str = "random",
         random_state: int = 0,
+        event_strat_size: int = 4,
+        add_first_sample: bool = False,
         ) -> tuple[np.ndarray, np.ndarray]:
 
     """ Generates a Streaming Time Series (STS) from a given dataset. """
@@ -177,19 +179,63 @@ def compute_STS(
     log.info(f"Length of STS: {STS_length}")
 
     # Initialize the arrays
-    STS = np.empty(STS_length, dtype=np.float32)
-    SCS = np.empty(STS_length, dtype=np.int8)
+    if add_first_sample:
+        STS = np.empty(STS_length+s_length, dtype=np.float32)
+        SCS = np.empty(STS_length+s_length, dtype=np.int8)
+        random_idx = rng.integers(0, n_events)
+        STS[0:s_length] = X[random_idx,:]
+        SCS[0:s_length] = Y[random_idx]
+    else:
+        STS = np.empty(STS_length, dtype=np.float32)
+        SCS = np.empty(STS_length, dtype=np.int8)
 
     # Generate the STS 
     if mode == "random":
         for s in range(STS_events):
+
             random_idx = rng.integers(0, n_events)
+            s = s+1 if add_first_sample else s
 
             # Calculate shift so that sample ends match
             shift = STS[s-1] - X[random_idx,0] if shift_limits else 0
 
             STS[s*s_length:(s+1)*s_length] = X[random_idx,:] + shift
             SCS[s*s_length:(s+1)*s_length] = Y[random_idx]
+
+    if mode == "stratified":
+        
+        exc =  n_events//n_classes
+
+        if exc%event_strat_size != 0:
+            raise ValueError("The number of events per class must be a multiple of the event stratification size.")
+    
+        if STS_events%exc != 0:
+            raise ValueError("The number of events in the STS must be a multiple of the number of events per class.")
+
+        event_idx = np.arange(X.shape[0])
+        
+        clist = []
+        for c in np.unique(Y):
+            Yc_idx = event_idx[Y==c]
+            rng.shuffle(Yc_idx)
+            clist.append(np.reshape(Yc_idx, (-1, event_strat_size)))
+
+        strats = np.concatenate(clist, axis=1)
+        n_repeats = STS_events // n_events
+
+        cidx = 1 if add_first_sample else 0
+        for strat in range(strats.shape[0]):
+            for _ in range(n_repeats):
+                for s in rng.permutation(strats[strat,:]):
+
+                    # Calculate shift so that sample ends match
+                    shift = STS[cidx-1] - X[s,0] if shift_limits else 0
+
+                    STS[cidx*s_length:(cidx+1)*s_length] = X[s,:] + shift
+                    SCS[cidx*s_length:(cidx+1)*s_length] = Y[s]
+
+                    # Calculate shift so that sample ends match
+                    cidx += 1
 
     # Normalize the STS
     STS = (STS - np.mean(STS))/np.std(STS)
@@ -241,12 +287,12 @@ def prepare_dm(
         raise ValueError(f"The number of events per class in the pretest set must be at least {train_events_per_class*2}.")
 
     # Generate filenames for the cache files using the parametersç
-    multiplier_str = f"{train_events_per_class}sxc_{train_event_multiplier}t_{pret_event_multiplier}pt_{test_event_multiplier}s"
+    multiplier_str = f"{train_events_per_class}sxc_{train_event_multiplier}tramult_{pret_event_multiplier}pretmult_{test_event_multiplier}testmult"
     cache_file = cache_dir / f"{dataset}_{multiplier_str}_{pattern_type}_fold{fold_number}_rs{random_state}.npz"
 
     STS_train_events = int(train_events_per_class*n_classes)*train_event_multiplier
-    STS_pret_events = STS_train_events*pret_event_multiplier
-    STS_test_events = STS_train_events*test_event_multiplier
+    STS_pret_events = int(train_events_per_class*n_classes)*pret_event_multiplier
+    STS_test_events = int(train_events_per_class*n_classes)*test_event_multiplier
 
     # If the cache file exists, load everything from there
     if use_cache and cache_file.exists():
@@ -262,9 +308,11 @@ def prepare_dm(
 
         # Generate the STSs
         STS_tra, SCS_tra = compute_STS(X_train, Y_train,        # Generate train STS  
-            shift_limits=True, STS_events=STS_train_events+1, mode="random", random_state=random_state)
+            shift_limits=True, STS_events=STS_train_events, mode="stratified", 
+            random_state=random_state, add_first_sample=True)
         STS_pre, SCS_pre = compute_STS(X_pretest, Y_pretest,    # Generate pretest STS 
-            shift_limits=True, STS_events=STS_pret_events+STS_test_events+1, mode="random", random_state=random_state)
+            shift_limits=True, STS_events=STS_pret_events+STS_test_events, mode="random", 
+            random_state=random_state, add_first_sample=True)
 
         # Generate the patterns for the DMs
         if pattern_type == "medoids":
@@ -313,6 +361,8 @@ def train_model(
         dm: DFDataModule, pretrain: bool, fold_number: int, 
         directory: Path, label: str,
         max_epoch_pre: int, max_epoch_tgt: int,
+        train_events_per_class: int, train_event_multiplier: int,
+        pret_event_multiplier: int, test_event_multiplier: int,
         learning_rate: float, random_state: int = 0, 
         ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
 
@@ -322,7 +372,8 @@ def train_model(
         # Create the callbacks
         checkpoint = ModelCheckpoint(monitor=stop_metric, mode=stop_mode)    
         lr_monitor = LearningRateMonitor(logging_interval='epoch')
-        callbacks = [lr_monitor, checkpoint]
+        #early_stop = EarlyStopping(monitor=stop_metric, mode=stop_mode, patience=20)
+        callbacks = [lr_monitor, checkpoint]#, early_stop]
         # Creathe the loggers
         tb_logger = TensorBoardLogger(save_dir=directory, name="logs", version=version)
         csv_logger = CSVLogger(save_dir=directory, name="logs", version=version)
@@ -330,7 +381,7 @@ def train_model(
         # Create the trainer
         return Trainer(default_root_dir=directory,  accelerator="auto", devices="auto",
         logger=loggers, callbacks=callbacks,
-        max_epochs=max_epochs,  deterministic=False, benchmark=True,
+        max_epochs=max_epochs,  benchmark=True, deterministic=False, 
         log_every_n_steps=1, check_val_every_n_epoch=1), checkpoint
 
     cls_metrics = ["acc", "f1", "auroc"]
@@ -380,11 +431,15 @@ def train_model(
     res["dataset"] = dataset
     res["arch"], res["repr"] = arch, repr
     res["pretrain"], res["fold_number"], res["random_state"] = pretrain, fold_number, random_state
-    res["batch_size"], res["window_length"] = dm.batch_size, dm.window_length
+    res["batch_size"], res["stride_series"], res["window_length"] = dm.batch_size, dm.stride_series, dm.window_length
     res["window_time_stride"], res["window_pattern_stride"] = dm.window_time_stride, dm.window_pattern_stride
-    res["nevents_train"] = dm.STS_train_events
-    res["nevents_pret"] = dm.STS_pret_events if pretrain else 0
-    res["nevents_test"] = dm.STS_test_events
+    res["train_events_per_class"] = train_events_per_class
+    res["train_event_multiplier"] = train_event_multiplier
+    res["nevents_train"] = dm.av_train_events
+    res["pret_event_multiplier"] = pret_event_multiplier
+    res["nevents_pret"] = dm.av_pret_events if pretrain else 0
+    res["test_event_multiplier"] = test_event_multiplier
+    res["nevents_test"] = dm.av_test_events
     res["tgt_best_model"] = tgt_ckpt.best_model_path
     res["tgt_train_csv"] = str(directory  / "logs" / label / "metrics.csv")
     res["tgt_nepochs"] = int(tgt_ckpt.best_model_path.split("/")[5][6:].split("-")[0])
@@ -394,9 +449,11 @@ def train_model(
         res[f"target_val_{m}"]  = train_res_val[0][f"val_{m}"]
         res[f"target_test_{m}"] = train_res_test[0][f"test_{m}"]
     if pretrain:
+        dm.pretrain = True
         pret_res = pre_trainer.validate(pre_model, datamodule=dm)
+        dm.pretrain = False
         for m in reg_metrics:
-            res[f"{label}_pretrain_{m}"] = pret_res[0][f"val_{m}"]
+            res[f"pre_val_{m}"] = pret_res[0][f"val_{m}"]
         res["pre_best_model"] = tgt_ckpt.best_model_path
         res["pre_train_csv"] = str(directory  / "logs" / label / "metrics.csv")
         res["pre_nepochs"] = int(pre_ckpt.best_model_path.split("/")[5][6:].split("-")[0])

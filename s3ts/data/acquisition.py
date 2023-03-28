@@ -16,7 +16,7 @@ from sktime.datasets import load_UCR_UEA_dataset
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def download_dataset(dataset: str, dir_cache: Path) -> tuple[np.ndarray, np.ndarray]:
+def download_dataset(dataset: str, cache_dir: Path) -> tuple[np.ndarray, np.ndarray]:
 
     """ Load dataset from UCR/UEA time series archive. 
     If the dataset is not already downloaded, it will be downloaded and cached.
@@ -36,11 +36,11 @@ def download_dataset(dataset: str, dir_cache: Path) -> tuple[np.ndarray, np.ndar
     """
 
     # Create cache directory if it does not exist
-    if not dir_cache.exists():
-        dir_cache.mkdir(parents=True)
+    if not cache_dir.exists():
+        cache_dir.mkdir(parents=True)
 
     # Define cache file
-    cache_file = dir_cache / f"{dataset}.npz"
+    cache_file = cache_dir / f"{dataset}.npz"
 
     # Check if dataset is already downloaded
     if cache_file.exists():

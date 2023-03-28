@@ -20,7 +20,8 @@ def EXP_ratio(
     Y_train: np.ndarray,  Y_pretest: np.ndarray,
     fold_number: int, total_folds: int, 
     rho_dfs: float,
-    batch_size: int, window_length: int,
+    batch_size: int, val_size: float,
+    window_length: int, stride_series: bool,
     window_time_stride: int, window_pattern_stride: int,
     train_events_per_class: int, train_event_multiplier: int,
     pret_event_multiplier: int, test_event_multiplier: int,
@@ -29,7 +30,7 @@ def EXP_ratio(
     learning_rate: float = 1e-4,
     random_state: int = 0,
     use_cache: bool = True,
-    pattern_type = "medoids",
+    pattern_type: str = "medoids",
     cache_dir: Path = Path("cache/"),
     train_dir: Path = Path("training/"),
     results_dir: Path = Path("results/")
@@ -50,16 +51,16 @@ def EXP_ratio(
     res_file = results_dir / f"EXP_{exp_name}_{repr}_{arch}_{dataset}_f{fold_number}.csv"
 
     # Experiment parameters    
-    EVENTS_PER_CLASS = [4, 8, 16]
-    PRET_MULTIPLIERS = [1, 2, 4, 8, 16]
+    EVENTS_PER_CLASS = [8, 16, 32]
+    PRET_MULTIPLIERS = [4, 8]
 
     # Create the data module
     dm : DFDataModule = prepare_dm(dataset=dataset, rho_dfs=rho_dfs,
         X_train=X_train, X_pretest=X_pretest, Y_train=Y_train, Y_pretest=Y_pretest,
         train_event_multiplier=train_event_multiplier, train_events_per_class=max(EVENTS_PER_CLASS), 
         pret_event_multiplier=max(PRET_MULTIPLIERS), test_event_multiplier=test_event_multiplier, 
-        pattern_type=pattern_type, batch_size=batch_size, val_size=0.4, 
-        window_length=window_length, stride_series=False,
+        pattern_type=pattern_type, batch_size=batch_size, val_size=val_size, 
+        window_length=window_length, stride_series=stride_series,
         window_time_stride=window_time_stride, window_pattern_stride=window_pattern_stride,
         fold_number=fold_number, random_state=random_state, cache_dir=cache_dir, use_cache=use_cache)
 
@@ -77,7 +78,9 @@ def EXP_ratio(
             dataset=dataset, repr=repr, arch=arch, dm=dm, pretrain=False, 
             fold_number=fold_number, directory=subdir_train, label=f"{exc}exc_base",
             max_epoch_pre = max_epoch_pre, max_epoch_tgt=max_epoch_tra,
-            learning_rate=learning_rate, random_state=random_state)
+            learning_rate=learning_rate, random_state=random_state,
+            train_events_per_class=exc, train_event_multiplier=train_event_multiplier,
+            pret_event_multiplier=0, test_event_multiplier=test_event_multiplier)
         
         # Update results file
         runs = update_results_file(res_list=runs, new_res=data, res_file=res_file)
@@ -89,14 +92,16 @@ def EXP_ratio(
 
             # Update the data module
             dm.update_sample_availability(av_train_events=exc*dm.n_classes*train_event_multiplier,
-                av_pret_events=exc*dm.n_classes*train_event_multiplier*pmult)
+                av_pret_events=max(EVENTS_PER_CLASS)*dm.n_classes*pmult)
 
             # Run the model with pretraining 
             data, _ = train_model(
                 dataset=dataset, repr=repr, arch=arch, dm=dm, pretrain=True, 
                 fold_number=fold_number, directory=subdir_train, label=f"{exc}exc_{pmult}pmult",
                 max_epoch_pre = max_epoch_pre, max_epoch_tgt=max_epoch_tra,
-                learning_rate=learning_rate, random_state=random_state)
+                learning_rate=learning_rate, random_state=random_state,
+                train_events_per_class=exc, train_event_multiplier=train_event_multiplier,
+                pret_event_multiplier=pmult, test_event_multiplier=test_event_multiplier)
             
             # Update results file
             runs = update_results_file(res_list=runs, new_res=data, res_file=res_file)
