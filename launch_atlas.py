@@ -9,7 +9,7 @@ import subprocess
 
 EXP = "ratio"
 ARCHS = {
-    "DF": ["CNN", "ResNet"],
+    "DF": ["CNN"],
     #"TS": ["RNN", "CNN", "ResNet"]
 }
 DATASETS = ["GunPoint", "Chinatown", "ECG200"]
@@ -22,7 +22,7 @@ partition   = "bcam-exclusive"
 email       = "rcoterillo@bcamath.org"
 env         = Path("/scratch/rcoterillo/s3ts/s3ts_env/bin/activate")
 script      = Path("/scratch/rcoterillo/s3ts/main_cli.py")
-dir_cache   = Path("/scratch/rcoterillo/s3ts/cache")
+cache_dir   = Path("/scratch/rcoterillo/s3ts/cache")
 
 outputs = Path("outputs/").absolute()
 outputs.mkdir(exist_ok=True)
@@ -70,6 +70,6 @@ for repr in ARCHS:
                     f.write(f"source {str(env)}\n")
                     f.write(f"python {str(script)} --dataset {dataset} " + \
                             f"--repr {repr} --arch {arch} --exp {EXP} " + \
-                            f"--log_file {str(log_file)} --fold {fold} " + \
-                            f"--cache_dir {str(dir_cache)}")
+                            f"--log_file {str(log_file)}  --rep {fold} " + \
+                            f"--cache_dir {str(cache_dir)}")
                 subprocess.run(["sbatch", str(job_file)], capture_output=True)

@@ -106,13 +106,13 @@ if __name__ == '__main__':
     parser.add_argument('--use_cache', type=bool, default=True,
                         help='Use cache to store DFs and TSs')
 
-    parser.add_argument('--dir_cache', type=str, default="cache/",
+    parser.add_argument('--cache_dir', type=str, default="cache/",
                         help='Directory for the cached data')
     
-    parser.add_argument('--dir_train', type=str, default="training/",
+    parser.add_argument('--train_dir', type=str, default="training/",
                         help='Directory for the training files')
     
-    parser.add_argument('--dir_results', type=str, default="results/",
+    parser.add_argument('--results_dir', type=str, default="results/",
                         help='Directory for the results (CSVs)')
     
     parser.add_argument('--log_file', type=str, default="debug.log",
@@ -165,9 +165,9 @@ if __name__ == '__main__':
     learning_rate: float = args.learning_rate
     # ~~~~~~~~~~~~~~~~~~~~~~~
     use_cache: bool = args.use_cache
-    cache_dir: Path = Path(args.dir_cache)
-    train_dir: Path = Path(args.dir_train)
-    results_dir: Path = Path(args.dir_results)
+    cache_dir: Path = Path(args.cache_dir)
+    train_dir: Path = Path(args.train_dir)
+    results_dir: Path = Path(args.results_dir)
     log_file: Path = Path(args.log_file)
     # ~~~~~~~~~~~~~~~~~~~~~~~
     rep: int = args.rep
