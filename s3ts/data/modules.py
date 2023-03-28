@@ -123,9 +123,14 @@ class DFDataModule(LightningDataModule):
             DM_tra: np.ndarray, DM_pre: np.ndarray,
             sample_length: int, patterns: np.ndarray, 
             val_size: float, batch_size: int, 
-            STS_train_events: int, STS_pret_events: int,STS_test_events: int, 
-            window_length: int, window_time_stride: int, window_pattern_stride: int, 
-            stride_series: bool, pretrain: bool, random_state: int = 0, 
+            STS_train_events: int, 
+            STS_pret_events: int,
+            STS_test_events: int, 
+            window_length: int, 
+            window_time_stride: int, 
+            window_patt_stride: int, 
+            stride_series: bool, 
+            pretrain: bool, random_state: int = 0, 
             num_workers: int = mp.cpu_count()//2
             ) -> None:
         
@@ -161,7 +166,7 @@ class DFDataModule(LightningDataModule):
             Length of the window for the frame
         window_time_stride : int
             Time stride of the frame window
-        window_pattern_stride : int
+        window_patt_stride : int
             Pattern stride of the frame window
         stride_series : bool
             Whether to stride the series
@@ -179,7 +184,7 @@ class DFDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.window_length = window_length
         self.window_time_stride = window_time_stride
-        self.window_pattern_stride = window_pattern_stride
+        self.window_patt_stride = window_patt_stride
         self.stride_series = stride_series
         self.random_state = random_state
         self.num_workers = num_workers

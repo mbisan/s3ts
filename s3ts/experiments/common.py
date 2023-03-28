@@ -255,7 +255,7 @@ def prepare_dm(
         test_event_multiplier: int,
         rho_dfs: float, batch_size: int, val_size: float,
         window_length: int, stride_series: bool,
-        window_time_stride: int, window_pattern_stride: int,
+        window_time_stride: int, window_patt_stride: int,
         fold_number: int, random_state: int,
         num_workers: int = 4,
         use_cache: bool = True,
@@ -351,7 +351,7 @@ def prepare_dm(
         pretrain = False, window_length=window_length,
         stride_series=stride_series,
         window_time_stride=window_time_stride, 
-        window_pattern_stride=window_pattern_stride,
+        window_patt_stride=window_patt_stride,
         random_state=random_state, num_workers=num_workers)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -393,8 +393,12 @@ def train_model(
         log.info("Pretraining the encoder...")
 
         # Create the model, trainer and checkpoint
-        pre_model = WrapperModel(repr=repr, arch=arch, target="reg", dm=dm, 
-            learning_rate=learning_rate, decoder_feats=64)
+        pre_model = WrapperModel(repr=repr, arch=arch, target="reg",
+            n_classes=dm.n_classes, window_length=dm.window_length, 
+            n_patterns=dm.n_patterns, l_patterns=dm.l_patterns,
+            window_time_stride=dm.window_time_stride, window_patt_stride=dm.window_patt_stride,
+            stride_series=dm.stride_series, encoder_feats=32, decoder_feats=64,
+            learning_rate=learning_rate)
         pre_trainer, pre_ckpt = _setup_trainer(max_epoch_pre, "val_mse", "min", True)
 
         # Configure the datamodule
@@ -404,8 +408,7 @@ def train_model(
         pre_trainer.fit(pre_model, datamodule=dm)
 
         # Load the best checkpoint
-        pre_model = pre_model.load_from_checkpoint(pre_ckpt.best_model_path, repr=repr, 
-            arch=arch, target="reg", dm=dm, learning_rate=learning_rate, decoder_feats=64)
+        pre_model = pre_model.load_from_checkpoint(pre_ckpt.best_model_paths)
 
     # Configure the datamodule
     dm.pretrain = False
@@ -413,8 +416,12 @@ def train_model(
     log.info("Training the target model...")
 
     # Create the model, trainer and checkpoint
-    tgt_model = WrapperModel(repr=repr, arch=arch, target="cls", dm=dm, 
-        learning_rate=learning_rate, decoder_feats=64)
+    tgt_model = WrapperModel(repr=repr, arch=arch, target="cls",
+        n_classes=dm.n_classes, window_length=dm.window_length, 
+        n_patterns=dm.n_patterns, l_patterns=dm.l_patterns,
+        window_time_stride=dm.window_time_stride, window_patt_stride=dm.window_patt_stride,
+        stride_series=dm.stride_series, encoder_feats=32, decoder_feats=64,
+        learning_rate=learning_rate)
     tgt_trainer, tgt_ckpt = _setup_trainer(max_epoch_tgt, "val_acc", "max", False)
 
     # Load encoder if needed
@@ -425,8 +432,7 @@ def train_model(
     tgt_trainer.fit(tgt_model, datamodule=dm)
 
     # Load the best checkpoint
-    tgt_model = tgt_model.load_from_checkpoint(tgt_ckpt.best_model_path, repr=repr, 
-        arch=arch, target="cls", dm=dm, learning_rate=learning_rate, decoder_feats=64)
+    tgt_model = tgt_model.load_from_checkpoint(tgt_ckpt.best_model_path)
 
     # Save the experiment settings and results
     res = pd.Series(dtype="object")

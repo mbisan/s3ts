@@ -40,10 +40,19 @@ import numpy as np
 class WrapperModel(LightningModule):
 
     def __init__(self,
-        repr: str, arch: str,
-        target: str, dm: DFDataModule,
+        repr: str, 
+        arch: str,
+        target: str,
+        n_classes: int,
+        n_patterns: int,
+        l_patterns: int,
+        window_length: int,
+        window_time_stride: int,
+        window_patt_stride: int,
+        stride_series: bool,
+        encoder_feats: int,
+        decoder_feats: int,
         learning_rate: float,
-        decoder_feats: int = 64,
         ):
 
         """ Wrapper for the PyTorch models used in the experiments. """
@@ -70,20 +79,19 @@ class WrapperModel(LightningModule):
         self.repr = repr
         self.arch = arch
         self.target = target
-        
-        self.n_classes = dm.n_classes
-        self.n_patterns = dm.n_patterns
-        self.l_patterns = dm.n_patterns
-        self.window_length = dm.window_length
-        self.window_time_stride = dm.window_time_stride
-        self.window_pattern_stride = dm.window_pattern_stride
-        self.stride_series = dm.stride_series
-
-        self.learning_rate = learning_rate
+        self.n_classes = n_classes
+        self.n_patterns = n_patterns
+        self.l_patterns = l_patterns
+        self.window_length = window_length
+        self.window_time_stride = window_time_stride
+        self.window_patt_stride = window_patt_stride
+        self.stride_series = stride_series
+        self.encoder_feats = encoder_feats
         self.decoder_feats = decoder_feats
+        self.learning_rate = learning_rate
 
         # Save hyperparameters
-        self.save_hyperparameters(ignore="dm")
+        self.save_hyperparameters()
         
         # Create the encoder
         self.encoder = nn.Sequential()

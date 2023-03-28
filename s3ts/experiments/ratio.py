@@ -22,7 +22,7 @@ def EXP_ratio(
     rho_dfs: float,
     batch_size: int, val_size: float,
     window_length: int, stride_series: bool,
-    window_time_stride: int, window_pattern_stride: int,
+    window_time_stride: int, window_patt_stride: int,
     train_events_per_class: int, train_event_multiplier: int,
     pret_event_multiplier: int, test_event_multiplier: int,
     max_epoch_pre: int = 60,
@@ -61,7 +61,7 @@ def EXP_ratio(
         pret_event_multiplier=max(PRET_MULTIPLIERS), test_event_multiplier=test_event_multiplier, 
         pattern_type=pattern_type, batch_size=batch_size, val_size=val_size, 
         window_length=window_length, stride_series=stride_series,
-        window_time_stride=window_time_stride, window_pattern_stride=window_pattern_stride,
+        window_time_stride=window_time_stride, window_patt_stride=window_patt_stride,
         fold_number=fold_number, random_state=random_state, cache_dir=cache_dir, use_cache=use_cache)
 
     runs: list[pd.DataFrame] = []

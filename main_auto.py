@@ -107,7 +107,7 @@ for repr in ARCHS:
                     rho_dfs=RHO_DFS, pattern_type=PATT_TYPE, 
                     batch_size=BATCH_SIZE, val_size=VAL_SIZE,
                     window_length=WINDOW_LENGTH, stride_series=STRIDE_SERIES,
-                    window_time_stride=WINDOW_TIME_STRIDE, window_pattern_stride=WINDOW_PATT_STRIDE,
+                    window_time_stride=WINDOW_TIME_STRIDE, window_patt_stride=WINDOW_PATT_STRIDE,
                     train_events_per_class=EXC, train_event_multiplier=TRAIN_EVENT_MULTIPLIER,
                     pret_event_multiplier=PRET_MULTIPLIER, test_event_multiplier=TEST_MULTIPLIER,
                     max_epoch_pre=PRE_MAXEPOCH, max_epoch_tra=TRA_MAXEPOCH,

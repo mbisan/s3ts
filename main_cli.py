@@ -203,7 +203,7 @@ if __name__ == '__main__':
             fold_number=j, total_folds=nreps, rho_dfs=rho_dfs,
             batch_size=batch_size, val_size=val_size,
             window_length=window_length, stride_series=stride_series,
-            window_time_stride=window_time_stride, window_pattern_stride=window_patt_stride,
+            window_time_stride=window_time_stride, window_patt_stride=window_patt_stride,
             train_events_per_class=exc, train_event_multiplier=train_mult,
             pret_event_multiplier=pret_mult, test_event_multiplier=test_mult,
             max_epoch_pre=max_epoch_pre, max_epoch_tra=max_epoch_tra,
