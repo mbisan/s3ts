@@ -15,10 +15,6 @@ def load_data(folder: Path) -> pd.DataFrame:
             dfs.append(pd.read_csv(file))
     df = pd.concat(dfs, ignore_index=True)
 
-    df["target_nepochs"] = df["target_best_model"].str.split("/").str[5].str[6:].str.split("-").str[0]
-    if "pretrain_best_model" in df.columns:
-        df["pretrain_nepochs"] = df["pretrain_best_model"].str.split("/").str[5].str[6:].str.split("-").str[0]
-        
     return df
 
 # ================================================= #

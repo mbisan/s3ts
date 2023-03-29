@@ -6,7 +6,7 @@
 # models / modules
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 
 # data processing stuff
 from sktime.clustering.k_medoids import TimeSeriesKMedoids
@@ -365,6 +365,9 @@ def train_model(
         pret_event_multiplier: int, test_event_multiplier: int,
         learning_rate: float, random_state: int = 0, 
         ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
+    
+    # Set the random seed
+    seed_everything(random_state, workers=True)
 
     def _setup_trainer(max_epochs: int, stop_metric: str, 
             stop_mode: str, pretrain: bool) -> tuple[Trainer, ModelCheckpoint]:

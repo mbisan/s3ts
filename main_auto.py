@@ -19,7 +19,8 @@ from s3ts.experiments.common import train_pretest_split
 from s3ts.data.acquisition import download_dataset
 
 # experiments
-from s3ts.experiments.ratio  import EXP_ratio
+from s3ts.experiments.ratio import EXP_ratio
+from s3ts.experiments.wdw   import EXP_wdw
 
 from pathlib import Path
 import logging as log
@@ -37,7 +38,7 @@ torch.set_float32_matmul_precision("medium")
 # Common settings
 # ~~~~~~~~~~~~~~~
 
-EXP = "ratio"                       # Experiment
+EXP = "wdw"                         # Experiment
 DATASETS = [                        # Datasets
     "GunPoint", "Chinatown", "ECG200", "Crop", "CBF", "FordA", "DiatomSizeReduction"
     ]             
@@ -56,7 +57,7 @@ PATT_TYPE: str = "medoids"          # Pattern type
 BATCH_SIZE: bool = 128              # Batch size
 VAL_SIZE: float = 0.4               # Validation size
 WINDOW_LENGTH: int = 5              # Window length
-STRIDE_SERIES: bool = False         # Stride the time series during pretrain
+STRIDE_SERIES: bool = True          # Stride the time series during pretrain
 WINDOW_TIME_STRIDE: int = 1         # Window time stride
 WINDOW_PATT_STRIDE: int = 1         # Window pattern stride
 # ~~~~~~~~~~~~~~~~~~~~~~~
@@ -76,7 +77,8 @@ RANDOM_STATE = 0                            # Random state
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 exp_dict = {
-    "ratio": EXP_ratio
+    "ratio": EXP_ratio,
+    "wdw":   EXP_wdw
 }
 EXP = exp_dict[EXP]
 

@@ -19,9 +19,6 @@ import torchmetrics as tm
 import torch.nn as nn
 import torch
 
-# datamodule
-from s3ts.data.modules import DFDataModule
-
 # architectures
 from s3ts.models.encoders.frames.ResNet import ResNet_DFS
 from s3ts.models.encoders.frames.CNN import CNN_DFS
@@ -96,7 +93,8 @@ class WrapperModel(LightningModule):
         # Create the encoder
         self.encoder = nn.Sequential()
         if repr == "DF":
-            ref_size, channels = self.l_patterns, self.n_patterns
+            ref_size = len(np.arange(self.l_patterns)[::self.window_patt_stride])
+            channels = self.n_patterns
         elif repr == "TS":
             ref_size, channels = 1, 1 
         self.encoder.add_module("encoder", encoder_arch(

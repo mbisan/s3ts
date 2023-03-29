@@ -91,7 +91,7 @@ class DFDataset(Dataset):
         idx = self.index[idx]
        
         # Grab the frame
-        frame = self.DM[:,:,idx - self.window_length*self.wts+1:idx+1:self.wts]
+        frame = self.DM[:,::self.wps,idx - self.window_length*self.wts+1:idx+1:self.wts]
         if self.DM_transform:
             frame = self.DM_transform(frame)
 
@@ -244,14 +244,40 @@ class DFDataModule(LightningDataModule):
         log.info(f"SCS memory usage: {self.SCS_mem/1e6} MB")
 
     def create_sample_index(self, 
+            window_length: int = None,
+            stride_series: int = None,
+            window_time_stride: int = None,
+            window_patt_stride: int = None,
             av_train_events: int = None,
             av_pret_events: int = None,
             av_test_events: int = None):
         
         """ Create the sample indeces for the datasets. """
 
+        # Check if the window length is set
+        if window_length is not None:
+            # Check if the window length is in the correct range
+            assert window_length > 0, "Window length must be larger than 0"
+            self.window_length = window_length
+
+        # Check if the stride series is set
+        if stride_series is not None:           
+            self.stride_series = stride_series
+
+        # Check if the window time stride is set
+        if window_time_stride is not None:
+            # Check if the window time stride is in the correct range
+            assert window_time_stride > 0, "Window time stride must be larger than 0"
+            self.window_time_stride = window_time_stride
+        
+        # Check if the window pattern stride is set
+        if window_patt_stride is not None:
+            # Check if the window pattern stride is in the correct range
+            assert window_patt_stride > 0, "Window pattern stride must be larger than 0"
+            self.window_patt_stride = window_patt_stride
+
         # Calculate the margin due to the window length
-        margin = self.window_length*self.window_patt_stride
+        margin = self.window_length*self.window_time_stride+1
 
         # Creathe the default indices
         self.train_indices = np.arange(margin, self.STS_train_events*self.sample_length)
@@ -279,7 +305,19 @@ class DFDataModule(LightningDataModule):
                 (self.STS_pret_events + av_test_events)*self.sample_length)
             self.av_test_events = av_test_events
 
-    def create_datasets(self):
+    def create_datasets(self, val_size: float = None) -> None:
+
+        """ Create/update the datasets for training, validation and testing. """
+
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+        # Check if the validation size is set
+        if val_size is not None:
+            # Check if the validation size is in the correct range
+            assert val_size > 0 and val_size < 1, "Validation size must be between 0 and 1"
+            self.val_size = val_size
+
+        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         # Normalization transform for the frames
         DM_transform = tv.transforms.Normalize(
@@ -321,15 +359,23 @@ class DFDataModule(LightningDataModule):
             window_time_stride=self.window_time_stride, window_patt_stride=self.window_patt_stride,
             DM_transform=DM_transform)
 
-    def update_sample_availability(self, 
+    def update_properties(self,
+            val_size: float = None, 
+            window_length: int = None,
+            stride_series: bool = None,
+            window_time_stride: int = None,
+            window_patt_stride: int = None,
             av_train_events: int = None,
             av_pret_events: int = None,
             av_test_events: int = None):
         
         """ Updates the samples index based on the available events. """
         
-        self.create_sample_index(av_train_events, av_pret_events, av_test_events)
-        self.create_datasets()
+        self.create_sample_index(window_length=window_length, stride_series=stride_series,
+            window_time_stride=window_time_stride, window_patt_stride=window_patt_stride,
+            av_train_events=av_train_events, av_pret_events=av_pret_events,
+            av_test_events=av_test_events)
+        self.create_datasets(val_size=val_size)
 
     def train_dataloader(self):
         """ Returns the training DataLoader. """

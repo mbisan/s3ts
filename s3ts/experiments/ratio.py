@@ -5,8 +5,6 @@
 from s3ts.experiments.common import prepare_dm, train_model, update_results_file 
 from s3ts.data.modules import DFDataModule
 
-from pytorch_lightning import seed_everything
-
 import pandas as pd
 import numpy as np
 
@@ -67,11 +65,8 @@ def EXP_ratio(
     runs: list[pd.DataFrame] = []
     for i, exc in enumerate(EVENTS_PER_CLASS):
 
-        # Set the random seed
-        seed_everything(random_state, workers=True)
-
         # Update the data module
-        dm.update_sample_availability(av_train_events=exc*dm.n_classes*train_event_multiplier)
+        dm.update_properties(av_train_events=exc*dm.n_classes*train_event_multiplier)
 
         # Run the model without pretraining
         data, _ = train_model(
@@ -86,12 +81,9 @@ def EXP_ratio(
         runs = update_results_file(res_list=runs, new_res=data, res_file=res_file)
 
         for j, pmult in enumerate(PRET_MULTIPLIERS):
-    
-            # Set the random seed
-            seed_everything(random_state, workers=True)
 
             # Update the data module
-            dm.update_sample_availability(av_train_events=exc*dm.n_classes*train_event_multiplier,
+            dm.update_properties(av_train_events=exc*dm.n_classes*train_event_multiplier,
                 av_pret_events=max(EVENTS_PER_CLASS)*dm.n_classes*pmult)
 
             # Run the model with pretraining 

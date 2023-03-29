@@ -21,6 +21,7 @@
 from s3ts.data.acquisition import download_dataset
 from s3ts.experiments.common import train_pretest_split
 from s3ts.experiments.ratio  import EXP_ratio
+from s3ts.experiments.wdw    import EXP_wdw
 
 # standard library
 from pathlib import Path
@@ -46,7 +47,7 @@ if __name__ == '__main__':
     parser.add_argument('--arch', type=str, required=True, choices=['RNN', 'CNN', 'ResNet'],
                         help='Name of the architecture from which create the model')
     
-    parser.add_argument('--exp', type=str, required=True, choices=['ratio'],
+    parser.add_argument('--exp', type=str, required=True, choices=['ratio', 'wdw'],
                         help='Name of the architecture from which create the model')
 
     parser.add_argument('--exc', type=int, default=32,
@@ -76,7 +77,7 @@ if __name__ == '__main__':
     parser.add_argument('--window_length', type=int, default=5,
                         help='Window size used for training')
     
-    parser.add_argument('--stride_series', type=bool, default=False,
+    parser.add_argument('--stride_series', type=bool, default=True,
                         help='Stride or use the whole time series during pretrain')
     
     parser.add_argument('--window_time_stride', type=int, default=1,
@@ -129,7 +130,7 @@ if __name__ == '__main__':
         raise ValueError(f"Architecture {args.arch} not available for representation {args.repr}.")
     
     # Check if the experiment is available
-    exp_dict = {"ratio": EXP_ratio}
+    exp_dict = {"ratio": EXP_ratio, "wdw": EXP_wdw}
     if args.exp not in exp_dict.keys():
         raise ValueError(f"Experiment {args.exp} not available.")
     

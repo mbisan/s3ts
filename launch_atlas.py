@@ -7,12 +7,12 @@ Script that automates the experiments in a SLURM queue.
 from pathlib import Path
 import subprocess
 
-EXP = "ratio"
+EXP = "wdw"
 ARCHS = {
     "DF": ["CNN"],
     #"TS": ["RNN", "CNN", "ResNet"]
 }
-DATASETS = ["GunPoint", "Chinatown", "ECG200"]
+DATASETS = ["GunPoint", "Chinatown", "CBF"]
 NREPS = 5
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -40,7 +40,7 @@ for repr in ARCHS:
         for dataset in DATASETS:
             for fold in range(NREPS):
             
-                job_name = f"{arch}_{repr}_{EXP}_{dataset}_f{fold}"
+                job_name = f"f{fold}_{repr}_{dataset}_{arch}_{EXP}"
                 job_file = jobs / (job_name + ".job")
                 log_file = logs / (job_name + ".log")
                 out_file = outputs / (job_name + ".out")
