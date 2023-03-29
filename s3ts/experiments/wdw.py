@@ -53,10 +53,6 @@ def EXP_wdw(
     TIME_STRIDES = [2, 3, 4, 5]
     PATT_STRIDES = [2, 3, 4, 5]
 
-    WINDOW_LENGTHS = [5]
-    TIME_STRIDES = [2]
-    PATT_STRIDES = [2]
-
     # Create the data module
     dm : DFDataModule = prepare_dm(dataset=dataset, rho_dfs=rho_dfs,
         X_train=X_train, X_pretest=X_pretest, Y_train=Y_train, Y_pretest=Y_pretest,
