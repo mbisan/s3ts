@@ -283,8 +283,8 @@ def prepare_dm(
         raise ValueError(f"The number of events per class in the train set must be at least {train_events_per_class}.")
 
     # Check the number of events per class in pretest
-    if np.unique(Y_pretest, return_counts=True)[1].min() < train_events_per_class*2:
-        raise ValueError(f"The number of events per class in the pretest set must be at least {train_events_per_class*2}.")
+    if np.unique(Y_pretest, return_counts=True)[1].min() < train_events_per_class:
+        raise ValueError(f"The number of events per class in the pretest set must be at least {train_events_per_class}.")
 
     # Generate filenames for the cache files using the parametersç
     multiplier_str = f"{train_events_per_class}sxc_{train_event_multiplier}tramult_{pret_event_multiplier}pretmult_{test_event_multiplier}testmult"
