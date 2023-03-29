@@ -61,10 +61,13 @@ def download_dataset(dataset: str, cache_dir: Path) -> tuple[np.ndarray, np.ndar
         X = (X - X.mean(axis=1, keepdims=True)) / X.std(axis=1, keepdims=True)
 
         # Ensure labels are integers
-        Yn = np.zeros_like(Y, dtype=int)
+        Yn = np.zeros_like(Y, dtype=np.int8)
         for i, y in enumerate(np.unique(Y)):
             Yn[Y == y] = i
         Y = Yn
+
+        # exceptions
+        X, Y = dset_exceptions(dataset, X, Y)
 
         # Cache dataset
         np.savez_compressed(cache_file, X=X, Y=Y)
@@ -84,4 +87,49 @@ def download_dataset(dataset: str, cache_dir: Path) -> tuple[np.ndarray, np.ndar
     log.info(f"Sample length: {s_length}")
 
     # Return dataset features and labels
+    return X, Y
+
+def dset_exceptions(dataset: str, X: np.ndarray, Y: np.ndarray):
+
+    """ Exceptions for datasets. """
+
+    if dataset == "Plane":
+
+        # remove class 4
+        for i in [4]:
+            X = X[Y != i]
+            Y = Y[Y != i]
+
+        # ensure label consistency
+        Yn = np.zeros_like(Y, dtype=np.int8)
+        for i, y in enumerate(np.unique(Y)):
+            Yn[Y == y] = i
+        Y = Yn
+
+    elif dataset == "Trace":
+        
+        # remove classes 2 and 3
+        X = X[Y != 2]
+        Y = Y[Y != 2]
+        X = X[Y != 3]
+        Y = Y[Y != 3]
+
+        # ensure label consistency
+        Yn = np.zeros_like(Y, dtype=np.int8)
+        for i, y in enumerate(np.unique(Y)):
+            Yn[Y == y] = i
+        Y = Yn
+    
+    elif dataset == "OSULeaf":
+        
+        # remove class 5
+        X = X[Y != 5]
+        Y = Y[Y != 5]
+
+        # ensure label consistency
+        Yn = np.zeros_like(Y, dtype=np.int8)
+        for i, y in enumerate(np.unique(Y)):
+            Yn[Y == y] = i
+        Y = Yn
+
     return X, Y
