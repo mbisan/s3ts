@@ -102,7 +102,7 @@ class WrapperModel(LightningModule):
             window_size=self.window_length))
 
         # Determine the number of decoder input features
-        in_feats = self.window_length if self.repr == "DF" else self.encoder.get_output_shape()
+        in_feats = self.window_length if self.repr == "DF" else self.encoder.encoder.get_output_shape()
       
         # Add the metrics depending on the target
         self.decoder = nn.Sequential()
@@ -163,7 +163,10 @@ class WrapperModel(LightningModule):
         frames, series, label = batch
 
         # Forward pass
-        output = self(frames)
+        if self.repr == "DF":
+            output = self(frames)
+        elif self.repr == "TS":
+            output = self(series)
 
         # Compute the loss and metrics
         if self.target == "cls":

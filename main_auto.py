@@ -19,6 +19,7 @@ from s3ts.experiments.common import train_pretest_split
 from s3ts.data.acquisition import download_dataset
 
 # experiments
+from s3ts.experiments.bline import EXP_bline
 from s3ts.experiments.ratio import EXP_ratio
 from s3ts.experiments.wdw   import EXP_wdw
 
@@ -43,8 +44,8 @@ DATASETS = [                        # Datasets
     "ArrowHead",
     ]             
 ARCHS = {                           # Architectures
-    "DF": ["CNN", "ResNet"],
-    #"TS": ["RNN", "CNN", "ResNet"])
+    #"DF": ["CNN", "ResNet"],
+    "TS": ["RNN", "CNN", "ResNet"]
     }
 # ~~~~~~~~~~~~~~~~~~~~~~~
 EXC: int = 32                       # Events per class (train)
@@ -62,10 +63,10 @@ WINDOW_TIME_STRIDE: int = 1         # Window time stride
 WINDOW_PATT_STRIDE: int = 1         # Window pattern stride
 # ~~~~~~~~~~~~~~~~~~~~~~~
 PRE_MAXEPOCH: int = 2               # Pre-training epochs
-TRA_MAXEPOCH: int = 2               # Training epochs
+TRA_MAXEPOCH: int = 120             # Training epochs
 LEARNING_RATE: float = 1E-4         # Learning rate
 # ~~~~~~~~~~~~~~~~~~~~~~~
-USE_CACHE = False                   # Use cache
+USE_CACHE = True                    # Use cache
 CACHE_DIR = Path("cache/")          # Cache folder
 TRAIN_DIR = Path("training/")       # Training folder
 RESULTS_DIR = Path("results/")      # Results folder
@@ -77,6 +78,7 @@ RANDOM_STATE = 0                            # Random state
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 exp_dict = {
+    "bline": EXP_bline,
     "ratio": EXP_ratio,
     "wdw":   EXP_wdw
 }
