@@ -20,6 +20,8 @@
 # package imports
 from s3ts.data.acquisition import download_dataset
 from s3ts.experiments.common import train_pretest_split
+
+from s3ts.experiments.bline  import EXP_bline
 from s3ts.experiments.ratio  import EXP_ratio
 from s3ts.experiments.wdw    import EXP_wdw
 
@@ -47,7 +49,7 @@ if __name__ == '__main__':
     parser.add_argument('--arch', type=str, required=True, choices=['RNN', 'CNN', 'ResNet'],
                         help='Name of the architecture from which create the model')
     
-    parser.add_argument('--exp', type=str, required=True, choices=['ratio', 'wdw'],
+    parser.add_argument('--exp', type=str, required=True, choices=['ratio', 'wdw', 'bline'],
                         help='Name of the architecture from which create the model')
 
     parser.add_argument('--exc', type=int, default=32,
@@ -130,7 +132,7 @@ if __name__ == '__main__':
         raise ValueError(f"Architecture {args.arch} not available for representation {args.repr}.")
     
     # Check if the experiment is available
-    exp_dict = {"ratio": EXP_ratio, "wdw": EXP_wdw}
+    exp_dict = {"ratio": EXP_ratio, "wdw": EXP_wdw, "bline": EXP_bline}
     if args.exp not in exp_dict.keys():
         raise ValueError(f"Experiment {args.exp} not available.")
     
