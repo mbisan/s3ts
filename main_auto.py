@@ -21,7 +21,8 @@ from s3ts.data.acquisition import download_dataset
 # experiments
 from s3ts.experiments.bline import EXP_bline
 from s3ts.experiments.ratio import EXP_ratio
-from s3ts.experiments.wdw   import EXP_wdw
+from s3ts.experiments.wlen  import EXP_wlen
+from s3ts.experiments.wtst  import EXP_wtst
 
 from pathlib import Path
 import logging as log
@@ -39,12 +40,12 @@ torch.set_float32_matmul_precision("medium")
 # Common settings
 # ~~~~~~~~~~~~~~~
 
-EXP = "ratio"                         # Experiment
+EXP = "wlen"                        # Experiment
 DATASETS = [                        # Datasets
-    "ArrowHead",
+    "GunPoint",
     ]             
 ARCHS = {                           # Architectures
-    #"DF": ["CNN", "ResNet"],
+    "DF": ["CNN", "ResNet"],
     "TS": ["RNN", "CNN", "ResNet"]
     }
 # ~~~~~~~~~~~~~~~~~~~~~~~
@@ -80,7 +81,8 @@ RANDOM_STATE = 0                            # Random state
 exp_dict = {
     "bline": EXP_bline,
     "ratio": EXP_ratio,
-    "wdw":   EXP_wdw
+    "wlen": EXP_wlen,
+    "wtst": EXP_wtst
 }
 EXP = exp_dict[EXP]
 

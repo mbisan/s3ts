@@ -7,12 +7,12 @@ Script that automates the experiments in a SLURM queue.
 from pathlib import Path
 import subprocess
 
-EXP = "wdw"
+EXP = "wlen"
 ARCHS = {
-    "DF": ["CNN"],
-    #"TS": ["RNN", "CNN", "ResNet"]
+    "DF": ["CNN", "ResNet"],
+    "TS": ["RNN", "CNN", "ResNet"]
 }
-DATASETS = ["GunPoint", "Chinatown", "CBF"]
+DATASETS = ["CBF"]
 NREPS = 5
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

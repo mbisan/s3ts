@@ -23,7 +23,8 @@ from s3ts.experiments.common import train_pretest_split
 
 from s3ts.experiments.bline  import EXP_bline
 from s3ts.experiments.ratio  import EXP_ratio
-from s3ts.experiments.wdw    import EXP_wdw
+from s3ts.experiments.wtst   import EXP_wtst
+from s3ts.experiments.wlen   import EXP_wlen
 
 # standard library
 from pathlib import Path
@@ -132,7 +133,7 @@ if __name__ == '__main__':
         raise ValueError(f"Architecture {args.arch} not available for representation {args.repr}.")
     
     # Check if the experiment is available
-    exp_dict = {"ratio": EXP_ratio, "wdw": EXP_wdw, "bline": EXP_bline}
+    exp_dict = {"ratio": EXP_ratio, "bline": EXP_bline, "wtst": EXP_wtst, "wlen": EXP_wlen}
     if args.exp not in exp_dict.keys():
         raise ValueError(f"Experiment {args.exp} not available.")
     
