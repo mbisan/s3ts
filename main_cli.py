@@ -50,7 +50,7 @@ if __name__ == '__main__':
     parser.add_argument('--arch', type=str, required=True, choices=['RNN', 'CNN', 'ResNet'],
                         help='Name of the architecture from which create the model')
     
-    parser.add_argument('--exp', type=str, required=True, choices=['ratio', 'wdw', 'bline'],
+    parser.add_argument('--exp', type=str, required=True, choices=['ratio', 'bline', 'wlen', 'wtst'],
                         help='Name of the architecture from which create the model')
 
     parser.add_argument('--exc', type=int, default=32,
