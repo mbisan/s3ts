@@ -7,6 +7,7 @@
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 from pytorch_lightning import Trainer, seed_everything
+import torch
 
 # data processing stuff
 from sktime.clustering.k_medoids import TimeSeriesKMedoids
@@ -18,6 +19,7 @@ from s3ts.data.modules import DFDataModule
 from s3ts.data.oesm import compute_DM_optim
 
 # standard library
+import multiprocessing as mp
 from pathlib import Path
 import logging as log
 
@@ -27,7 +29,7 @@ import numpy as np
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def train_pretest_split(X: np.ndarray, Y: np.ndarray, 
+def train_test_splits(X: np.ndarray, Y: np.ndarray, 
         exc: int, nreps: int, random_state: int):
 
     """ Splits the dataset into train and pretest sets.
@@ -68,9 +70,9 @@ def train_pretest_split(X: np.ndarray, Y: np.ndarray,
         for c in np.unique(Y):
             train_idx.append(rng.choice(idx, size=exc, p=(Y==c).astype(int)/sum(Y==c), replace=False))
         train_idx = np.concatenate(train_idx)
-        pretest_idx = np.setdiff1d(idx, train_idx)
+        test_idx = np.setdiff1d(idx, train_idx)
 
-        yield train_idx, pretest_idx
+        yield train_idx, test_idx
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
@@ -146,8 +148,8 @@ def compute_STS(
         shift_limits: bool,
         mode: str = "random",
         random_state: int = 0,
-        event_strat_size: int = 4,
-        add_first_sample: bool = False,
+        event_strat_size: int = 2,
+        add_first_event: bool = False,
         ) -> tuple[np.ndarray, np.ndarray]:
 
     """ Generates a Streaming Time Series (STS) from a given dataset. """
@@ -179,7 +181,7 @@ def compute_STS(
     log.info(f"Length of STS: {STS_length}")
 
     # Initialize the arrays
-    if add_first_sample:
+    if add_first_event:
         STS = np.empty(STS_length+s_length, dtype=np.float32)
         SCS = np.empty(STS_length+s_length, dtype=np.int8)
         random_idx = rng.integers(0, n_events)
@@ -194,7 +196,7 @@ def compute_STS(
         for s in range(STS_events):
 
             random_idx = rng.integers(0, n_events)
-            s = s+1 if add_first_sample else s
+            s = s+1 if add_first_event else s
 
             # Calculate shift so that sample ends match
             shift = STS[s-1] - X[random_idx,0] if shift_limits else 0
@@ -223,7 +225,7 @@ def compute_STS(
         strats = np.concatenate(clist, axis=1)
         n_repeats = STS_events // n_events
 
-        cidx = 1 if add_first_sample else 0
+        cidx = 1 if add_first_event else 0
         for strat in range(strats.shape[0]):
             for _ in range(n_repeats):
                 for s in rng.permutation(strats[strat,:]):
@@ -245,114 +247,220 @@ def compute_STS(
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def prepare_dm(
-        dataset: str, 
-        X_train: np.ndarray, X_pretest: np.ndarray, 
-        Y_train: np.ndarray, Y_pretest: np.ndarray,
-        train_events_per_class: int,
-        train_event_multiplier: int,
-        pret_event_multiplier: int,
-        test_event_multiplier: int,
-        rho_dfs: float, batch_size: int, val_size: float,
-        window_length: int, stride_series: bool,
-        window_time_stride: int, window_patt_stride: int,
-        fold_number: int, random_state: int,
-        num_workers: int = 4,
-        use_cache: bool = True,
-        pattern_type: str = "medoids",
-        cache_dir: Path = Path("cache"),
+def setup_train_dm(
+        X: np.ndarray, Y: np.ndarray, patterns: np.ndarray,
+        train_idx: np.ndarray, test_idx: np.ndarray, 
+        test_sts_length: int, 
+        train_strat_size: int,
+        train_event_multiplier: int, 
+        rho_dfs: float, 
+        batch_size: int, val_size: float,
+        window_length: int,
+        window_time_stride: int, 
+        window_patt_stride: int,
+        random_state: int,
+        num_workers: int = mp.cpu_count()//2,
         ) -> DFDataModule:
 
-    """ Prepare the data module for training/pretraining/testing. """
+    """ Sets up the training DataModule."""
+
+    # Get the train, test and medoid events
+    X_train, Y_train = X[train_idx,:], Y[train_idx]
+    X_test, Y_test = X[test_idx,:], Y[test_idx]
 
     # Validate the inputs
-    n_classes = len(np.unique(Y_train))     # Get the number of classes
-    s_length = X_train.shape[1]             # Get the length of the time series
-
-    # Check the pattern type is valid
-    valid_patterns = ["medoids"]
-    if pattern_type not in valid_patterns:
-        raise ValueError(f"patterns must be one of {valid_patterns}")
+    event_length = X_train.shape[1]     # Get the length of the time series
 
     # Check there is the same numbe of classes in train and test
-    if len(np.unique(Y_train)) != len(np.unique(Y_pretest)):
+    if len(np.unique(Y_train)) != len(np.unique(Y_test)):
         raise ValueError("The number of classes in train and test must be the same.")
+
+    # Check there is the same number of events in each class in train
+    if len(np.unique(Y_train, return_counts=True)[1]) != 1:
+        raise ValueError("The number of events in each class in train must be the same.")
+
+    # Check the number of events in each class in train is a multiple of the stratification size
+    if len(Y_train)%train_strat_size != 0:
+        raise ValueError("The number of events in each class in train must be a multiple of the stratification size.")
+
+    STS_nev_train = len(train_idx)*train_event_multiplier
+    STS_nev_test = test_sts_length
+
+    log.info("Generating the train STS")
+    STS_train, SCS_train = compute_STS(X_train, Y_train,        
+        shift_limits=True, STS_events=STS_nev_train, 
+        mode="stratified", event_strat_size=train_strat_size,
+        random_state=random_state, add_first_sample=True)
     
-    # Check the number of events per class in train
-    if np.unique(Y_train, return_counts=True)[1].min() < train_events_per_class:
-        raise ValueError(f"The number of events per class in the train set must be at least {train_events_per_class}.")
+    log.info("Generating the test STS")
+    STS_test, SCS_test = compute_STS(X_test, Y_test,                
+        shift_limits=True, STS_events=STS_nev_test, mode="random", 
+        random_state=random_state, add_first_sample=True)
 
-    # Check the number of events per class in pretest
-    if np.unique(Y_pretest, return_counts=True)[1].min() < train_events_per_class:
-        raise ValueError(f"The number of events per class in the pretest set must be at least {train_events_per_class}.")
+    log.info("Computing the train DM")
+    DM_train = compute_DM_optim(STS_train, patterns, rho_dfs)
 
-    # Generate filenames for the cache files using the parametersç
-    multiplier_str = f"{train_events_per_class}sxc_{train_event_multiplier}tramult_{pret_event_multiplier}pretmult_{test_event_multiplier}testmult"
-    cache_file = cache_dir / f"{dataset}_{multiplier_str}_{pattern_type}_fold{fold_number}_rs{random_state}.npz"
+    log.info("Computing the test DM")
+    DM_test = compute_DM_optim(STS_test, patterns, rho_dfs)
 
-    STS_train_events = int(train_events_per_class*n_classes)*train_event_multiplier
-    STS_pret_events = int(train_events_per_class*n_classes)*pret_event_multiplier
-    STS_test_events = int(train_events_per_class*n_classes)*test_event_multiplier
-
-    # If the cache file exists, load everything from there
-    if use_cache and cache_file.exists():
-
-        log.info(f"Loading data from cache file {cache_file}")
-        data = np.load(cache_file, allow_pickle=True)
-        STS_tra, SCS_tra = data["STS_tra"], data["SCS_tra"]
-        STS_pre, SCS_pre = data["STS_pre"], data["SCS_pre"]
-        DM_tra, DM_pre = data["DM_tra"], data["DM_pre"]
-        patterns = data["patterns"]
-
-    else:
-
-        # Generate the STSs
-        STS_tra, SCS_tra = compute_STS(X_train, Y_train,        # Generate train STS  
-            shift_limits=True, STS_events=STS_train_events, mode="stratified", 
-            random_state=random_state, add_first_sample=True)
-        STS_pre, SCS_pre = compute_STS(X_pretest, Y_pretest,    # Generate pretest STS 
-            shift_limits=True, STS_events=STS_pret_events+STS_test_events, mode="random", 
-            random_state=random_state, add_first_sample=True)
-
-        # Generate the patterns for the DMs
-        if pattern_type == "medoids":
-            log.info("Selecting the medoids from the train data")
-            medoids, medoid_ids = compute_medoids(X_train, Y_train, distance_type="dtw")
-            patterns = medoids
-  
-         # Generate the DMs
-        log.info("Computing the training DM")
-        DM_tra = compute_DM_optim(STS_tra, patterns, rho_dfs)
-        log.info("Computing the pretrain/test DM")
-        DM_pre = compute_DM_optim(STS_pre, patterns, rho_dfs)
-
-        # Remove the first sample from the STSs
-        STS_tra = STS_tra[s_length:]
-        STS_pre = STS_pre[s_length:]
-        SCS_tra = SCS_tra[s_length:]
-        SCS_pre = SCS_pre[s_length:]
-        DM_tra = DM_tra[:,:,s_length:]
-        DM_pre = DM_pre[:,:,s_length:]
-
-        # Save the data to the cache file
-        np.savez(cache_file, patterns=patterns,
-            STS_tra=STS_tra, SCS_tra=SCS_tra, DM_tra=DM_tra,
-            STS_pre=STS_pre, SCS_pre=SCS_pre, DM_pre=DM_pre)
+    # Remove the first sample from the STSs
+    STS_train, STS_test = STS_train[event_length:], STS_test[event_length:]
+    SCS_train, SCS_test = SCS_train[event_length:], SCS_test[event_length:]
+    DM_train, DM_test = DM_train[:,:,event_length:], DM_test[:,:,event_length:]
 
     # Return the DataModule
     return DFDataModule(
-        STS_tra=STS_tra, SCS_tra=SCS_tra, DM_tra=DM_tra,
-        STS_pre=STS_pre, SCS_pre=SCS_pre, DM_pre=DM_pre,
-        STS_train_events=STS_train_events, 
-        STS_pret_events=STS_pret_events,
-        STS_test_events=STS_test_events,
-        sample_length=s_length, patterns=patterns,
+        STS_train=STS_train, SCS_train=SCS_train, DM_train=DM_train,
+        STS_test=STS_test, SCS_test=SCS_test, DM_test=DM_test,
+        event_length=event_length, patterns=patterns,
         batch_size=batch_size, val_size=val_size, 
-        pretrain = False, window_length=window_length,
-        stride_series=stride_series,
+        stride_series=False, window_length=window_length,
         window_time_stride=window_time_stride, 
         window_patt_stride=window_patt_stride,
-        random_state=random_state, num_workers=num_workers)
+        random_state=random_state, 
+        num_workers=num_workers)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+def setup_pretrain_dm(
+        X: np.ndarray, Y: np.ndarray, patterns: np.ndarray, 
+        sts_length: int, rho_dfs: float, 
+        batch_size: int, val_size: float,
+        window_length: int,
+        window_time_stride: int, 
+        window_patt_stride: int,
+        random_state: int,
+        stride_series: bool = False,
+        num_workers: int = mp.cpu_count()//2,
+        ) -> DFDataModule:
+
+    """ Prepare the pretraining DataModule. """
+
+    # Get the length of the time series
+    event_length = X.shape[1]
+    
+    log.info("Generating the pretrain STS")
+    STS_pret, SCS_pret = compute_STS(X, Y,                
+        shift_limits=True, STS_events=sts_length, 
+        mode="random", random_state=random_state, 
+        add_first_event=True)
+
+    log.info("Computing the pretrain DM")
+    DM_pret = compute_DM_optim(STS_pret, patterns, rho_dfs)
+
+    # Remove the first sample from the STSs
+    STS_pret = STS_pret[event_length:]
+    SCS_pret = SCS_pret[event_length:]
+    DM_pret = DM_pret[:,:,event_length:]
+
+    # Return the DataModule
+    return DFDataModule(
+        STS_train=STS_pret, SCS_train=SCS_pret, DM_train=DM_pret,
+        STS_test=None, SCS_test=None, DM_test=None,
+        event_length=event_length, patterns=patterns,
+        batch_size=batch_size, val_size=val_size, 
+        stride_series=stride_series, 
+        window_length=window_length,
+        window_time_stride=window_time_stride, 
+        window_patt_stride=window_patt_stride,
+        random_state=random_state, 
+        num_workers=num_workers)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+CLS_METRICS = ["acc", "f1", "auroc"]
+
+
+def _setup_trainer(
+        label: str,
+        directory: Path,
+        pretrain: bool,
+        max_epochs: int, 
+        stop_metric: str, 
+        stop_mode: str, 
+        ) -> tuple[Trainer, ModelCheckpoint]:
+    
+    """ Setup the trainer. """
+    
+    # Create the callbacks
+    checkpoint = ModelCheckpoint(monitor=stop_metric, mode=stop_mode)    
+    lr_monitor = LearningRateMonitor(logging_interval='epoch')
+    #early_stop = EarlyStopping(monitor=stop_metric, mode=stop_mode, patience=20)
+    callbacks = [lr_monitor, checkpoint]#, early_stop]
+    # Create the loggers
+    tb_logger = TensorBoardLogger(save_dir=directory, name="logs", version=label)
+    csv_logger = CSVLogger(save_dir=directory, name="logs", version=label)
+    loggers = [tb_logger, csv_logger]
+    # Create the trainer
+    return Trainer(default_root_dir=directory,  accelerator="auto", devices="auto",
+    logger=loggers, callbacks=callbacks,
+    max_epochs=max_epochs,  benchmark=True, deterministic=False, 
+    log_every_n_steps=1, check_val_every_n_epoch=1), checkpoint
+
+def pretrain_encoder(dataset: str, repr: str, arch: str, dm: DFDataModule, 
+        directory: Path, max_epoch: int, learning_rate: float, 
+        cache_dir: Path, random_state: int = 0, 
+        ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
+    
+    # Set the random seed
+    seed_everything(random_state, workers=True)
+
+    # Encoder path
+    ss = 1 if dm.stride_series else 0
+    encoder_name = f"{dataset}_wl{dm.window_length}_ts{dm.window_time_stride}_ps{dm.window_patt_stride}_ss{ss}"
+    encoder_path = cache_dir / "encoders" / (encoder_name + ".pt")
+
+    # Check if the encoder is already trained
+    if encoder_path.exists():
+         # raise an error
+        raise FileExistsError(f"The encoder {encoder_name} already exists in {cache_dir}")
+
+    metrics = ["mse", "r2"]
+    trainer, ckpt = _setup_trainer(label=encoder_name, directory=directory,
+        pretrain=True, max_epochs=max_epoch, stop_metric="val_mse", stop_mode="min")
+
+    log.info("Pretraining the encoder...")
+    # Create the model, trainer and checkpoint
+    model = WrapperModel(repr=repr, arch=arch, target="reg",
+        n_classes=dm.n_classes, window_length=dm.window_length, 
+        n_patterns=dm.n_patterns, l_patterns=dm.l_patterns,
+        window_time_stride=dm.window_time_stride, window_patt_stride=dm.window_patt_stride,
+        stride_series=dm.stride_series, encoder_feats=32, decoder_feats=64,
+        learning_rate=learning_rate)
+    
+    # uncomment whenever they fix the bugs lol
+    # model: torch.Module = torch.compile(model, mode="reduce-overhead")
+        
+    # Perform the pretraining
+    trainer: Trainer
+    trainer.fit(model, datamodule=dm)
+
+    # Load the best checkpoint
+    ckpt: ModelCheckpoint
+    model = model.load_from_checkpoint(ckpt.best_model_path)
+    model.save_hyperparameters
+
+    # Save the pretrained encoder
+    torch.save(model.encoder, encoder_path)
+
+    # Save the experiment settings and results
+    res = pd.Series(dtype="object")
+    res["dataset"], res["arch"], res["repr"] = dataset, arch, repr
+    res["batch_size"], res["stride_series"], res["window_length"] = dm.batch_size, dm.stride_series, dm.window_length
+    res["window_time_stride"], res["window_patt_stride"] = dm.window_time_stride, dm.window_patt_stride
+    res["nevents_train"] = dm.av_train_events
+    res["best_model"] = ckpt.best_model_path
+    res["train_csv"] = str(directory  / "logs" / encoder_name / "metrics.csv")
+
+    #res["nepochs"] = int(ckpt.best_model_path.split("/")[5][6:].split("-")[0])
+    res_val  = trainer.validate(model, datamodule=dm)
+    for m in metrics:
+        res[f"target_val_{m}"]  = res_val[0][f"val_{m}"]
+
+    # Convert to DataFrame
+    res = res.to_frame().transpose().copy()
+
+    return res, model, ckpt
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -363,7 +471,7 @@ def train_model(
         max_epoch_pre: int, max_epoch_tgt: int,
         train_events_per_class: int, train_event_multiplier: int,
         pret_event_multiplier: int, test_event_multiplier: int,
-        learning_rate: float, random_state: int = 0, 
+        learning_rate: float, random_state: int = 0,
         ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
     
     # Set the random seed
@@ -377,7 +485,7 @@ def train_model(
         lr_monitor = LearningRateMonitor(logging_interval='epoch')
         #early_stop = EarlyStopping(monitor=stop_metric, mode=stop_mode, patience=20)
         callbacks = [lr_monitor, checkpoint]#, early_stop]
-        # Creathe the loggers
+        # Create the loggers
         tb_logger = TensorBoardLogger(save_dir=directory, name="logs", version=version)
         csv_logger = CSVLogger(save_dir=directory, name="logs", version=version)
         loggers = [tb_logger, csv_logger]
@@ -402,6 +510,7 @@ def train_model(
             window_time_stride=dm.window_time_stride, window_patt_stride=dm.window_patt_stride,
             stride_series=dm.stride_series, encoder_feats=32, decoder_feats=64,
             learning_rate=learning_rate)
+        torch.compile(pre_model, mode="reduce-overhead")
         pre_trainer, pre_ckpt = _setup_trainer(max_epoch_pre, "val_mse", "min", True)
 
         # Configure the datamodule

@@ -4,6 +4,7 @@
 """ File containing the function to download a dataset from UCR/UEA archive. """
 
 # standard library
+from s3ts.experiments.common import compute_medoids
 from pathlib import Path
 import logging as log
 
@@ -40,14 +41,15 @@ def download_dataset(dataset: str, cache_dir: Path) -> tuple[np.ndarray, np.ndar
         cache_dir.mkdir(parents=True)
 
     # Define cache file
-    cache_file = cache_dir / f"{dataset}.npz"
+    cache_file = cache_dir / "datasets" /f"{dataset}.npz"
 
     # Check if dataset is already downloaded
     if cache_file.exists():
         # Load dataset from cache
         log.info(f"Loading '{dataset}' from cache...")
         with np.load(cache_file) as data:
-            X, Y = data["X"], data["Y"]
+            X, Y = data["X"], data["Y"] 
+            medoids, medoid_idx = data["medoids"], data["medoid_idx"]
     else:
         # Download TS dataset from UCR UEA
         log.info(f"Downloading '{dataset}' from UCR/UEA...")
@@ -68,9 +70,10 @@ def download_dataset(dataset: str, cache_dir: Path) -> tuple[np.ndarray, np.ndar
 
         # exceptions
         X, Y = dset_exceptions(dataset, X, Y)
+        medoids, medoid_idx = compute_medoids(X, Y)
 
         # Cache dataset
-        np.savez_compressed(cache_file, X=X, Y=Y)
+        np.savez_compressed(cache_file, X=X, Y=Y, medoids=medoids, medoid_idx=medoid_idx)
 
     # Get the number of classes
     n_classes = len(np.unique(Y))
@@ -87,7 +90,7 @@ def download_dataset(dataset: str, cache_dir: Path) -> tuple[np.ndarray, np.ndar
     log.info(f"Sample length: {s_length}")
 
     # Return dataset features and labels
-    return X, Y
+    return X, Y, medoids, medoid_idx
 
 def dset_exceptions(dataset: str, X: np.ndarray, Y: np.ndarray):
 

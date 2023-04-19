@@ -118,19 +118,16 @@ class DFDataModule(LightningDataModule):
     """ Data module for the experiments. """
 
     def __init__(self,
-            STS_tra: np.ndarray, STS_pre: np.ndarray, 
-            SCS_tra: np.ndarray, SCS_pre: np.ndarray,
-            DM_tra: np.ndarray, DM_pre: np.ndarray,
-            sample_length: int, patterns: np.ndarray, 
-            val_size: float, batch_size: int, 
-            STS_train_events: int, 
-            STS_pret_events: int,
-            STS_test_events: int, 
+            STS_train: np.ndarray, STS_test: np.ndarray, 
+            SCS_train: np.ndarray, SCS_test: np.ndarray,
+            DM_train: np.ndarray, DM_test: np.ndarray,
+            event_length: int, patterns: np.ndarray, 
+            val_size: float, batch_size: int,
             window_length: int, 
             window_time_stride: int, 
             window_patt_stride: int, 
             stride_series: bool, 
-            pretrain: bool, random_state: int = 0, 
+            random_state: int = 0, 
             num_workers: int = mp.cpu_count()//2
             ) -> None:
         
@@ -179,7 +176,6 @@ class DFDataModule(LightningDataModule):
         super().__init__()
 
         # Register dataset parameters
-        self.pretrain = pretrain
         self.val_size = val_size
         self.batch_size = batch_size
         self.window_length = window_length
@@ -189,55 +185,53 @@ class DFDataModule(LightningDataModule):
         self.random_state = random_state
         self.num_workers = num_workers
 
+        self.test = ((STS_test is not None and SCS_test is not None) and DM_test is not None)
+
         # Gather dataset info
-        self.sample_length = sample_length
-        self.STS_train_events = STS_train_events
-        self.STS_pret_events = STS_pret_events
-        self.STS_test_events = STS_test_events
-        self.n_classes = len(np.unique(SCS_tra))
+        self.l_events = event_length    
+        self.n_classes = len(np.unique(SCS_train))
         self.n_patterns = patterns.shape[0]
         self.l_patterns = patterns.shape[1]
     
-        # Convert STS to tensors
-        self.STS_tra = torch.from_numpy(STS_tra).to(torch.float32)
-        self.STS_pre = torch.from_numpy(STS_pre).to(torch.float32)
-        
-        # Convert SCS to tensors
-        self.SCS_tra = torch.from_numpy(SCS_tra).to(torch.int64)
-        self.SCS_pre = torch.from_numpy(SCS_pre).to(torch.int64)
-        self.labels_tra = torch.nn.functional.one_hot(self.SCS_tra, num_classes=self.n_classes)
-        self.labels_pre = torch.nn.functional.one_hot(self.SCS_pre, num_classes=self.n_classes)
-
-        # Convert DM to tensors
-        self.DM_tra = torch.from_numpy(DM_tra).to(torch.float32)
-        self.DM_pre = torch.from_numpy(DM_pre).to(torch.float32)
-
-        # Convert patterns to tensors
         self.patterns = torch.from_numpy(patterns).to(torch.float32)
+
+        self.STS_train_events = len(STS_train) // self.l_events
+        self.STS_train = torch.from_numpy(STS_train).to(torch.float32)
+        self.SCS_train = torch.from_numpy(SCS_train).to(torch.int64)
+        self.labels_tra = torch.nn.functional.one_hot(self.SCS_train, num_classes=self.n_classes)
+        self.DM_train = torch.from_numpy(DM_train).to(torch.float32)
+
+        if self.test:
+            self.STS_test_events = len(STS_test) // self.l_events
+            self.STS_test = torch.from_numpy(STS_test).to(torch.float32)
+            self.SCS_test = torch.from_numpy(SCS_test).to(torch.int64)
+            self.labels_test = torch.nn.functional.one_hot(self.SCS_pre, num_classes=self.n_classes)
+            self.DM_test = torch.from_numpy(DM_test).to(torch.float32)
 
         # Create the indices
         self.create_sample_index()
+        self.create_datasets()
 
         # Do some logging
-        log.info(f"Events in training STS: {STS_train_events}")
+        log.info(f"Events in training STS: {self.STS_train_events}")
         log.info(f"Frames in training STS: {len(self.train_indices)} ")
-        self.tra_ratios = np.unique(SCS_tra[self.train_indices], return_counts=True)[1]/(STS_train_events*sample_length)
+        self.tra_ratios = np.unique(SCS_train[self.train_indices], return_counts=True)[1]/(self.STS_train_events*self.l_events)
         log.info(f"Train STS class ratios: {self.tra_ratios}")
 
-        log.info(f"Events in pretrain STS: {STS_pret_events}")
-        log.info(f"Frames in pretrain STS: {len(self.pret_indices)}")
-        self.pre_ratios = np.unique(SCS_pre[self.pret_indices], return_counts=True)[1]/(STS_pret_events*sample_length)
-        log.info(f"Pretrain STS class ratios: {self.pre_ratios}")
-
-        log.info(f"Events in testing STS: {STS_test_events}")
-        log.info(f"Frames in testing STS: {len(self.test_indices)}")
-        self.test_ratios = np.unique(SCS_pre[self.test_indices], return_counts=True)[1]/(STS_test_events*sample_length)
-        log.info(f"Test STS class ratios: {self.test_ratios}")
+        if self.test:
+            log.info(f"Events in testing STS: {self.STS_test_events}")
+            log.info(f"Frames in testing STS: {len(self.test_indices)}")
+            self.test_ratios = np.unique(SCS_test[self.test_indices], return_counts=True)[1]/(self.STS_test_events*self.l_events)
+            log.info(f"Test STS class ratios: {self.test_ratios}")
 
         # Calculate the memory usage of the datasets
-        self.DM_mem = self.DM_tra.element_size()*self.DM_tra.nelement() + self.DM_pre.element_size()*self.DM_pre.nelement()
-        self.STS_mem = self.STS_tra.element_size()*self.STS_tra.nelement() + self.STS_pre.element_size()*self.STS_pre.nelement()
-        self.SCS_mem = self.SCS_tra.element_size()*self.SCS_tra.nelement() + self.SCS_pre.element_size()*self.SCS_pre.nelement()
+        self.DM_mem = self.DM_train.element_size()*self.DM_train.nelement()
+        self.STS_mem = self.STS_train.element_size()*self.STS_train.nelement()
+        self.SCS_mem = self.SCS_train.element_size()*self.SCS_train.nelement()
+        if self.test:
+            self.DM_mem += self.DM_test.element_size()*self.DM_test.nelement()
+            self.STS_mem += self.STS_test.element_size()*self.STS_test.nelement()
+            self.SCS_mem += self.SCS_test.element_size()*self.SCS_test.nelement()
 
         log.info(f"DM  memory usage: {self.DM_mem/1e6} MB")
         log.info(f"STS memory usage: {self.STS_mem/1e6} MB")
@@ -248,9 +242,7 @@ class DFDataModule(LightningDataModule):
             stride_series: int = None,
             window_time_stride: int = None,
             window_patt_stride: int = None,
-            av_train_events: int = None,
-            av_pret_events: int = None,
-            av_test_events: int = None):
+            av_train_events: int = None):
         
         """ Create the sample indeces for the datasets. """
 
@@ -280,30 +272,18 @@ class DFDataModule(LightningDataModule):
         margin = self.window_length*self.window_time_stride+1
 
         # Creathe the default indices
-        self.train_indices = np.arange(margin, self.STS_train_events*self.sample_length)
-        self.pret_indices = np.arange(margin, self.STS_pret_events*self.sample_length)
-        self.test_indices = np.arange(self.STS_pret_events*self.sample_length + margin,
-            (self.STS_pret_events + self.STS_test_events)*self.sample_length)
+        self.train_indices = np.arange(margin, self.STS_train_events*self.l_events)
+        if self.test:
+            self.test_indices = np.arange(margin, self.STS_test_events*self.l_events)
         
         # Set the available samples by default
         self.av_train_events = self.STS_train_events
-        self.av_pret_events = self.STS_pret_events
-        self.av_test_events = self.STS_test_events
 
         # Check requested available samples are not larger than the actual ones
         if av_train_events is not None:
             assert av_train_events <= self.STS_train_events, "Requested available training events are larger than the actual ones"
-            self.train_indices = np.arange(margin, av_train_events*self.sample_length)
+            self.train_indices = np.arange(margin, av_train_events*self.l_events)
             self.av_train_events = av_train_events
-        if av_pret_events is not None:
-            assert av_pret_events <= self.STS_pret_events, "Requested available pretrain events are larger than the actual ones"
-            self.pret_indices = np.arange(margin, av_pret_events*self.sample_length)
-            self.av_pret_events = av_pret_events
-        if av_test_events is not None:
-            assert av_test_events <= self.STS_test_events, "Requested available test events are larger than the actual ones"
-            self.test_indices = np.arange(self.STS_pret_events*self.sample_length + margin,
-                (self.STS_pret_events + av_test_events)*self.sample_length)
-            self.av_test_events = av_test_events
 
     def create_datasets(self, val_size: float = None) -> None:
 
@@ -321,43 +301,30 @@ class DFDataModule(LightningDataModule):
 
         # Normalization transform for the frames
         DM_transform = tv.transforms.Normalize(
-            self.DM_tra.mean(axis=[1,2]),
-            self.DM_tra.std(axis=[1,2]))
+            self.DM_train.mean(axis=[1,2]),
+            self.DM_train.std(axis=[1,2]))
         
         # Create the training datasets
         tra_tot_samples = len(self.train_indices)
         tra_train_samples = tra_tot_samples-int(tra_tot_samples*self.val_size)
         self.ds_tra_train = DFDataset(index=self.train_indices[:tra_train_samples],
-            DM=self.DM_tra, STS=self.STS_tra, SCS=self.labels_tra,
+            DM=self.DM_train, STS=self.STS_train, SCS=self.labels_tra,
             window_length=self.window_length, stride_series=self.stride_series, 
             window_time_stride=self.window_time_stride, window_patt_stride=self.window_patt_stride, 
             DM_transform=DM_transform)
         self.ds_tra_val   = DFDataset(index=self.train_indices[tra_train_samples:],
-            DM=self.DM_tra, STS=self.STS_tra, SCS=self.labels_tra,
+            DM=self.DM_train, STS=self.STS_train, SCS=self.labels_tra,
             window_length=self.window_length, stride_series=self.stride_series, 
             window_time_stride=self.window_time_stride, window_patt_stride=self.window_patt_stride, 
             DM_transform=DM_transform)
 
-        # Create the pretraining datasets
-        pre_tot_samples = len(self.pret_indices)
-        pre_train_samples = pre_tot_samples-int(pre_tot_samples*self.val_size)
-        self.ds_pre_train = DFDataset(index=self.pret_indices[:pre_train_samples],
-            DM=self.DM_pre, STS=self.STS_pre, SCS=self.labels_pre,
-            window_length=self.window_length, stride_series=self.stride_series,
-            window_time_stride=self.window_time_stride, window_patt_stride=self.window_patt_stride,
-            DM_transform=DM_transform)
-        self.ds_pre_val   = DFDataset(index=self.pret_indices[pre_train_samples:],
-            DM=self.DM_pre, STS=self.STS_pre, SCS=self.labels_pre,
-            window_length=self.window_length, stride_series=self.stride_series,
-            window_time_stride=self.window_time_stride, window_patt_stride=self.window_patt_stride,
-            DM_transform=DM_transform)
-        
         # Create the testing dataset
-        self.ds_test = DFDataset(index=self.test_indices,
-            DM=self.DM_pre, STS=self.STS_pre, SCS=self.labels_pre,
-            window_length=self.window_length, stride_series=self.stride_series,
-            window_time_stride=self.window_time_stride, window_patt_stride=self.window_patt_stride,
-            DM_transform=DM_transform)
+        if self.test:
+            self.ds_test = DFDataset(index=self.test_indices,
+                DM=self.DM_test, STS=self.STS_test, SCS=self.labels_test,
+                window_length=self.window_length, stride_series=self.stride_series,
+                window_time_stride=self.window_time_stride, window_patt_stride=self.window_patt_stride,
+                DM_transform=DM_transform)
 
     def update_properties(self,
             val_size: float = None, 
@@ -365,38 +332,31 @@ class DFDataModule(LightningDataModule):
             stride_series: bool = None,
             window_time_stride: int = None,
             window_patt_stride: int = None,
-            av_train_events: int = None,
-            av_pret_events: int = None,
-            av_test_events: int = None):
+            av_train_events: int = None):
         
         """ Updates the samples index based on the available events. """
         
         self.create_sample_index(window_length=window_length, stride_series=stride_series,
             window_time_stride=window_time_stride, window_patt_stride=window_patt_stride,
-            av_train_events=av_train_events, av_pret_events=av_pret_events,
-            av_test_events=av_test_events)
+            av_train_events=av_train_events)
         self.create_datasets(val_size=val_size)
 
     def train_dataloader(self):
         """ Returns the training DataLoader. """
-        if self.pretrain:
-            return DataLoader(self.ds_pre_train, batch_size=self.batch_size, 
-                num_workers=self.num_workers, shuffle=False)
         return DataLoader(self.ds_tra_train, batch_size=self.batch_size, 
             num_workers=self.num_workers, shuffle=False)
 
     def val_dataloader(self):
         """ Returns the validation DataLoader. """
-        if self.pretrain:
-            return DataLoader(self.ds_pre_val, batch_size=self.batch_size, 
-                num_workers=self.num_workers, shuffle=False)
         return DataLoader(self.ds_tra_val, batch_size=self.batch_size, 
             num_workers=self.num_workers, shuffle=False)
 
     def test_dataloader(self):
         """ Returns the test DataLoader. """
-        return DataLoader(self.ds_test, batch_size=self.batch_size, 
-            num_workers=self.num_workers, shuffle=False)
+        if self.test:
+            return DataLoader(self.ds_test, batch_size=self.batch_size, 
+                num_workers=self.num_workers, shuffle=False)
+        raise ValueError("Test dataset not available")
 
     def predict_dataloader(self):
         """ Returns the predict DataLoader."""

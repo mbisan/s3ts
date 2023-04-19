@@ -102,8 +102,9 @@ class WrapperModel(LightningModule):
             window_size=self.window_length))
 
         # Determine the number of decoder input features
-        in_feats = self.window_length if self.repr == "DF" else self.encoder.encoder.get_output_shape()
-      
+        inp_feats = self.encoder[0].lat_channels if self.repr == "DF" else 1
+        inp_size = self.window_length if self.repr == "DF" else self.encoder.encoder.get_output_shape()
+        
         # Add the metrics depending on the target
         self.decoder = nn.Sequential()
         if self.target == "cls":
@@ -114,11 +115,13 @@ class WrapperModel(LightningModule):
             # Add the decoder modules
             if self.repr == "DF":
                 self.decoder.add_module("lstm", LSTMDecoder(
-                        in_features = in_feats,
+                        inp_size=inp_size,
+                        inp_features=inp_feats,
                         hid_features = decoder_feats,
                         out_features = out_feats))
             elif self.repr == "TS":
                 self.decoder.add_module("linear", LinearDecoder(
+                        in_features = inp_size,
                         hid_features = decoder_feats,
                         out_features = out_feats))
             self.decoder.add_module("softmax", nn.Softmax())
@@ -137,9 +140,10 @@ class WrapperModel(LightningModule):
             
             # Add the decoder modules
             self.decoder.add_module("lstm", LSTMDecoder(
-                    in_features = in_feats,
-                    hid_features = decoder_feats,
-                    out_features = out_feats))
+                        inp_size=inp_size,
+                        inp_features=inp_feats,
+                        hid_features = decoder_feats,
+                        out_features = out_feats))
 
             # Add the metrics
             for phase in ["train", "val", "test"]:
@@ -181,72 +185,34 @@ class WrapperModel(LightningModule):
             r2 = self.__getattr__(f"{stage}_r2")(output, series)
 
         # Log the loss and metrics
-        if stage == "train":
-            self.log(f"{stage}_loss", loss, sync_dist=True)
-            if self.target == "cls":
-                self.log(f"{stage}_acc", acc, prog_bar=True, sync_dist=True)
-                self.log(f"{stage}_f1", f1, prog_bar=True, sync_dist=True)
-            elif self.target == "reg":
-                self.log(f"{stage}_mse", mse, prog_bar=True, sync_dist=True)
-                self.log(f"{stage}_r2", r2, prog_bar=True, sync_dist=True)
+        on_step = True if stage == "train" else False
+
+        self.log(f"{stage}_loss", loss, on_epoch=True, on_step=on_step, prog_bar=True, sync_dist=True, logger=True)
+        if self.target == "cls":
+            self.log(f"{stage}_acc", acc, on_epoch=True, on_step=False, prog_bar=True, sync_dist=True, logger=True)
+            self.log(f"{stage}_f1", f1, on_epoch=True, on_step=False, prog_bar=True, sync_dist=True, logger=True)
+            self.log(f"{stage}_auroc", auroc, on_epoch=True, on_step=False, prog_bar=True, sync_dist=True, logger=True)
+        elif self.target == "reg":
+            self.log(f"{stage}_mse", mse, on_epoch=True, on_step=False, prog_bar=True, sync_dist=True, logger=True)
+            self.log(f"{stage}_r2", r2, on_epoch=True, on_step=False, prog_bar=True, sync_dist=True, logger=True)
 
         # Return the loss
         return loss.to(torch.float32)
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch: torch.Tensor, batch_idx: int):
         """ Training step. """
         return self._inner_step(batch, stage="train")
         
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch: torch.Tensor, batch_idx: int):
         """ Validation step. """
         return self._inner_step(batch, stage="val")
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch: torch.Tensor, batch_idx: int):
         """ Test step. """
         return self._inner_step(batch, stage="test")
 
-    # EPOCH END
+    # STEPS
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-
-    def _custom_epoch_end(self, step_outputs: list[torch.Tensor], stage: str):
-
-        """ Custom epoch end for the training, validation and testing. """
-
-        # Metrics to compute
-        if self.target == "cls":
-            metrics = ["acc", "f1"]
-            if stage != "train":
-                metrics.append("auroc")
-        elif self.target == "reg":
-            metrics = ["mse", "r2"]
-        
-        # Compute, log and print the metrics
-        if stage == "val":
-            print("")
-        print(f"\n\n  ~~ {stage} stats ~~")
-        for metric in metrics:
-            mstring = f"{stage}_{metric}"
-            val = self.__getattr__(mstring).compute()
-            if stage == "train":
-                self.log("epoch_" + mstring, val, sync_dist=True)
-            else:
-                self.log(mstring, val, sync_dist=True)
-            self.__getattr__(mstring).reset()
-            print(f"{mstring}: {val:.4f}")
-        print("")
-
-    def training_epoch_end(self, training_step_outputs):
-        """ Actions to carry out at the end of each training epoch. """
-        self._custom_epoch_end(training_step_outputs, "train")
-
-    def validation_epoch_end(self, validation_step_outputs):
-        """ Actions to carry out at the end of each validation epoch. """
-        self._custom_epoch_end(validation_step_outputs, "val")
-
-    def test_epoch_end(self, test_step_outputs):
-        """ Actions to carry out at the end of each test epoch. """
-        self._custom_epoch_end(test_step_outputs, "test")
-
 
     def configure_optimizers(self):
 
