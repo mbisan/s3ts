@@ -108,8 +108,6 @@ if __name__ == '__main__':
     train_dir: Path = Path(args.train_dir)
     storage_dir: Path = Path(args.storage_dir)
     # ~~~~~~~~~~~~~~~~~~~~~~~
-    rep: int = args.rep
-    nreps: int = args.nreps
     random_state: int = args.random_state
     
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
