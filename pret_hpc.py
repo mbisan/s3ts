@@ -10,7 +10,7 @@ import subprocess
 DATASETS = ["CBF"]                                  # Datasets             
 ARCHS = {"DF": ["CNN", "ResNet"]}                   # Architectures
 WINDOW_LENGTHS: list[int] = [5,10,15]               # Window length
-WINDOW_TIME_STRIDES: list[int] = [1, 2, 3, 4, 5]    # Window time stride
+WINDOW_TIME_STRIDES: list[int] = [1, 3, 5]          # Window time stride
 WINDOW_PATT_STRIDES: list[int] = [1, 2, 3, 5]       # Window pattern stride
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

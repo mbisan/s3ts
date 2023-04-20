@@ -35,10 +35,10 @@ torch.set_float32_matmul_precision("medium")
 # Common settings
 # ~~~~~~~~~~~~~~~
 
-DATASETS = ["ArrowHead", "Fish", "Car", "PowerCons", "Trace", "Chinatown"]                # Datasets             
-ARCHS = {"DF": ["CNN", "ResNet"]}   # Architectures
-WINDOW_LENGTHS: list[int] = [5, 10,15]              # Window length
-WINDOW_TIME_STRIDES: list[int] = [1, 2, 3, 4, 5]    # Window time stride
+DATASETS = ["CBF"]                                  # Datasets             
+ARCHS = {"DF": ["CNN", "ResNet"]}                   # Architectures
+WINDOW_LENGTHS: list[int] = [5,10,15]               # Window length
+WINDOW_TIME_STRIDES: list[int] = [1, 3, 5]          # Window time stride
 WINDOW_PATT_STRIDES: list[int] = [1, 2, 3, 5]       # Window pattern stride
 
 # ~~~~~~~~~~~~~~~~~~~~~~~
@@ -49,7 +49,7 @@ VAL_SIZE: float = 0.25              # Validation size
 STS_PRET_EVENTS = 1000              # Number of events for pretraining
 
 # ~~~~~~~~~~~~~~~~~~~~~~~
-MAXEPOCH: int = 50                  # Pre-training epochs
+MAXEPOCH: int = 60                  # Pre-training epochs
 LEARNING_RATE: float = 1E-4         # Learning rate
 
 # ~~~~~~~~~~~~~~~~~~~~~~~
@@ -57,8 +57,8 @@ USE_CACHE = True                    # Use cache
 TRAIN_DIR = Path("training/")       # Training folder
 STORAGE_DIR = Path("storage/")      # Cache folder
 # ~~~~~~~~~~~~~~~~~~~~~~~
-NREPS = 5                                   # Number of repetitions
-RANDOM_STATE = 0                            # Random state
+NREPS = 5                           # Number of repetitions
+RANDOM_STATE = 0                    # Random state
 
 # Iterate over all the combinations
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -70,42 +70,42 @@ for repr in ARCHS:
             # Download dataset
             X, Y, medoids, medoid_idx = download_dataset(dataset=dataset, storage_dir=STORAGE_DIR)
         
-            # log.info(f"Current dataset: {dataset}")
-            # log.info(f"Current decoder: {arch} ({repr})")
+            log.info(f"Current dataset: {dataset}")
+            log.info(f"Current decoder: {arch} ({repr})")
             
-            # train_dir = TRAIN_DIR / "pretrain" / f"{arch}_{dataset}"
+            train_dir = TRAIN_DIR / "pretrain" / f"{arch}_{dataset}"
     
-            # dm = setup_pretrain_dm(X, Y, patterns=medoids, sts_length=STS_PRET_EVENTS,
-            #     rho_dfs=RHO_DFS, batch_size=BATCH_SIZE, val_size=VAL_SIZE,
-            #     window_length=15, stride_series=False, window_time_stride=5, 
-            #     window_patt_stride=1, random_state=RANDOM_STATE)
+            dm = setup_pretrain_dm(X, Y, patterns=medoids, sts_length=STS_PRET_EVENTS,
+                rho_dfs=RHO_DFS, batch_size=BATCH_SIZE, val_size=VAL_SIZE,
+                window_length=15, stride_series=False, window_time_stride=5, 
+                window_patt_stride=1, random_state=RANDOM_STATE)
 
-            # for wlen in WINDOW_LENGTHS:
+            for wlen in WINDOW_LENGTHS:
 
-            #     dm.update_properties(window_length=wlen)
+                dm.update_properties(window_length=wlen)
 
-            #     for wts in WINDOW_TIME_STRIDES:
+                for wts in WINDOW_TIME_STRIDES:
 
-            #         dm.update_properties(window_time_stride=wts, stride_series=True)
+                    dm.update_properties(window_time_stride=wts, stride_series=True)
 
-            #         log.info(f"Current window length: {dm.window_length}")
-            #         log.info(f"Current window time stride: {dm.window_time_stride}")
-            #         log.info(f"Current window pattern stride: {dm.window_patt_stride}")
+                    log.info(f"Current window length: {dm.window_length}")
+                    log.info(f"Current window time stride: {dm.window_time_stride}")
+                    log.info(f"Current window pattern stride: {dm.window_patt_stride}")
 
-            #         # Pretrain encoder
-            #         pretrain_encoder(dataset=dataset, repr=repr, arch=arch, dm=dm, directory=train_dir, 
-            #             max_epoch=MAXEPOCH, learning_rate=LEARNING_RATE, storage_dir=STORAGE_DIR)
+                    # Pretrain encoder
+                    pretrain_encoder(dataset=dataset, repr=repr, arch=arch, dm=dm, directory=train_dir, 
+                        max_epoch=MAXEPOCH, learning_rate=LEARNING_RATE, storage_dir=STORAGE_DIR)
                 
-            #     for wps in WINDOW_PATT_STRIDES:
+                for wps in WINDOW_PATT_STRIDES:
 
-            #         dm.update_properties(window_patt_stride=wps)
+                    dm.update_properties(window_patt_stride=wps)
 
-            #         log.info(f"Current window length: {wlen}")
-            #         log.info(f"Current window time stride: {wts}")
-            #         log.info(f"Current window pattern stride: {wps}")
+                    log.info(f"Current window length: {wlen}")
+                    log.info(f"Current window time stride: {wts}")
+                    log.info(f"Current window pattern stride: {wps}")
 
-            #         # Pretrain encoder
-            #         pretrain_encoder(dataset=dataset, repr=repr, arch=arch, dm=dm, directory=train_dir, 
-            #             max_epoch=MAXEPOCH, learning_rate=LEARNING_RATE, storage_dir=STORAGE_DIR)
+                    # Pretrain encoder
+                    pretrain_encoder(dataset=dataset, repr=repr, arch=arch, dm=dm, directory=train_dir, 
+                        max_epoch=MAXEPOCH, learning_rate=LEARNING_RATE, storage_dir=STORAGE_DIR)
                     
 
