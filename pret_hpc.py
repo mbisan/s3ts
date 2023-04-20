@@ -20,6 +20,7 @@ partition   = "bcam-exclusive"
 email       = "rcoterillo@bcamath.org"
 env         = Path("/scratch/rcoterillo/s3ts/s3ts_env/bin/activate")
 script      = Path("/scratch/rcoterillo/s3ts/pret_cli.py")
+model_dir   = Path("/scratch/rcoterillo/s3ts/models")
 cache_dir   = Path("/scratch/rcoterillo/s3ts/cache")
 
 outputs = Path("outputs/").absolute()
@@ -92,9 +93,3 @@ for repr in ARCHS:
             for wlen in WINDOW_LENGTHS:
                 for wps in WINDOW_PATT_STRIDES:
                     launch_job(dataset, arch, wlen, True, 5, wps)
-
-
-
-
-            
-            

@@ -75,14 +75,14 @@ if __name__ == '__main__':
     parser.add_argument('--random_state', type=int, default=0,
                         help='Global seed for the random number generators')
 
-    parser.add_argument('--cache_dir', type=str, default="cache/",
-                        help='Directory for the cached data')
+    parser.add_argument('--log_file', type=str, default="debug.log",
+                        help='Directory for the results (CSVs)')
     
     parser.add_argument('--train_dir', type=str, default="training/",
                         help='Directory for the training files')
     
-    parser.add_argument('--log_file', type=str, default="debug.log",
-                        help='Directory for the results (CSVs)')
+    parser.add_argument('--storage_dir', type=str, default="storage/",
+                        help='Directory for the data storage')
 
     args = parser.parse_args()
 
@@ -104,9 +104,9 @@ if __name__ == '__main__':
     max_epoch: int = args.max_epoch
     learning_rate: float = args.learning_rate
     # ~~~~~~~~~~~~~~~~~~~~~~~
-    cache_dir: Path = Path(args.cache_dir)
-    train_dir: Path = Path(args.train_dir)
     log_file: Path = Path(args.log_file)
+    train_dir: Path = Path(args.train_dir)
+    storage_dir: Path = Path(args.storage_dir)
     # ~~~~~~~~~~~~~~~~~~~~~~~
     rep: int = args.rep
     nreps: int = args.nreps
@@ -120,7 +120,7 @@ if __name__ == '__main__':
         datefmt='%Y-%m-%d %H:%M:%S')
 
     # load dataset
-    X, Y, medoids, medoid_idx = download_dataset(dataset=dataset, cache_dir=cache_dir)
+    X, Y, medoids, medoid_idx = download_dataset(dataset=dataset, storage_dir=storage_dir)
 
     directory = train_dir / "pretrain" / f"{arch}_{dataset}"
 
@@ -141,6 +141,6 @@ if __name__ == '__main__':
         random_state=random_state)
     
     pretrain_encoder(dataset=dataset, repr="DF", arch=arch, dm=dm, directory=train_dir, 
-        max_epoch=max_epoch, learning_rate=learning_rate, cache_dir=cache_dir)
+        max_epoch=max_epoch, learning_rate=learning_rate, storage_dir=storage_dir)
                 
     log.info("DONE!")

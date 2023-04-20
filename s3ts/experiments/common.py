@@ -399,21 +399,23 @@ def _setup_trainer(
 
 def pretrain_encoder(dataset: str, repr: str, arch: str, dm: DFDataModule, 
         directory: Path, max_epoch: int, learning_rate: float, 
-        cache_dir: Path, random_state: int = 0, 
-        ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
+        storage_dir: Path, random_state: int = 0, 
+        ) -> tuple[WrapperModel, ModelCheckpoint]:
     
     # Set the random seed
     seed_everything(random_state, workers=True)
 
     # Encoder path
     ss = 1 if dm.stride_series else 0
-    encoder_name = f"{dataset}_wl{dm.window_length}_ts{dm.window_time_stride}_ps{dm.window_patt_stride}_ss{ss}"
-    encoder_path = cache_dir / "encoders" / (encoder_name + ".pt")
+    enc_name1 = f"{dataset}sl{dm.STS_train_events}_me{max_epoch}_rs{random_state}"
+    enc_name2 = f"_ss{ss}_wl{dm.window_length}_ts{dm.window_time_stride}_ps{dm.window_patt_stride}"
+    encoder_name = enc_name1 + enc_name2
+    encoder_path = storage_dir / "encoders" / (encoder_name + ".pt")
 
     # Check if the encoder is already trained
     if encoder_path.exists():
          # raise an error
-        raise FileExistsError(f"The encoder {encoder_name} already exists in {cache_dir}")
+        raise FileExistsError(f"The encoder '{encoder_name}' already exists in {storage_dir}")
 
     metrics = ["mse", "r2"]
     trainer, ckpt = _setup_trainer(label=encoder_name, directory=directory,
@@ -443,24 +445,7 @@ def pretrain_encoder(dataset: str, repr: str, arch: str, dm: DFDataModule,
     # Save the pretrained encoder
     torch.save(model.encoder, encoder_path)
 
-    # Save the experiment settings and results
-    res = pd.Series(dtype="object")
-    res["dataset"], res["arch"], res["repr"] = dataset, arch, repr
-    res["batch_size"], res["stride_series"], res["window_length"] = dm.batch_size, dm.stride_series, dm.window_length
-    res["window_time_stride"], res["window_patt_stride"] = dm.window_time_stride, dm.window_patt_stride
-    res["nevents_train"] = dm.av_train_events
-    res["best_model"] = ckpt.best_model_path
-    res["train_csv"] = str(directory  / "logs" / encoder_name / "metrics.csv")
-
-    #res["nepochs"] = int(ckpt.best_model_path.split("/")[5][6:].split("-")[0])
-    res_val  = trainer.validate(model, datamodule=dm)
-    for m in metrics:
-        res[f"target_val_{m}"]  = res_val[0][f"val_{m}"]
-
-    # Convert to DataFrame
-    res = res.to_frame().transpose().copy()
-
-    return res, model, ckpt
+    return model, ckpt
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

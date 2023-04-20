@@ -17,7 +17,7 @@ from sktime.datasets import load_UCR_UEA_dataset
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def download_dataset(dataset: str, cache_dir: Path) -> tuple[np.ndarray, np.ndarray]:
+def download_dataset(dataset: str, storage_dir: Path) -> tuple[np.ndarray, np.ndarray]:
 
     """ Load dataset from UCR/UEA time series archive. 
     If the dataset is not already downloaded, it will be downloaded and cached.
@@ -37,17 +37,19 @@ def download_dataset(dataset: str, cache_dir: Path) -> tuple[np.ndarray, np.ndar
     """
 
     # Create cache directory if it does not exist
-    if not cache_dir.exists():
-        cache_dir.mkdir(parents=True)
+    datasets_dir = storage_dir / "datasets"
+    
+    if not datasets_dir.exists():
+        datasets_dir.mkdir(parents=True)
 
     # Define cache file
-    cache_file = cache_dir / "datasets" /f"{dataset}.npz"
+    dset_file = datasets_dir /f"{dataset}.npz"
 
     # Check if dataset is already downloaded
-    if cache_file.exists():
+    if dset_file.exists():
         # Load dataset from cache
         log.info(f"Loading '{dataset}' from cache...")
-        with np.load(cache_file) as data:
+        with np.load(dset_file) as data:
             X, Y = data["X"], data["Y"] 
             medoids, medoid_idx = data["medoids"], data["medoid_idx"]
     else:
@@ -73,7 +75,7 @@ def download_dataset(dataset: str, cache_dir: Path) -> tuple[np.ndarray, np.ndar
         medoids, medoid_idx = compute_medoids(X, Y)
 
         # Cache dataset
-        np.savez_compressed(cache_file, X=X, Y=Y, medoids=medoids, medoid_idx=medoid_idx)
+        np.savez_compressed(dset_file, X=X, Y=Y, medoids=medoids, medoid_idx=medoid_idx)
 
     # Get the number of classes
     n_classes = len(np.unique(Y))
