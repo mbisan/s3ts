@@ -8,7 +8,7 @@ from pathlib import Path
 import subprocess
 
 DATASETS = ["CBF"]                                  # Datasets             
-ARCHS = {"DF": ["CNN"]}                             # Architectures
+ARCHS = ["CNN"]                                     # Architectures
 WINDOW_LENGTHS: list[int] = [10]                    # Window length
 WINDOW_TIME_STRIDES: list[int] = [1, 3, 5, 7]       # Window time stride
 WINDOW_PATT_STRIDES: list[int] = [2, 3, 5]          # Window pattern stride
@@ -39,7 +39,7 @@ def launch_job(dataset: str, arch: str,
             window_time_stride: int, 
             window_patt_stride: int   
             ) -> None: 
-    
+
     ss = 1 if stride_series else 0
  
     job_name = f"{dataset}_wl{window_length}_ts{window_time_stride}_ps{window_patt_stride}_ss{ss}_{arch}"
@@ -47,8 +47,6 @@ def launch_job(dataset: str, arch: str,
     log_file = logs / (job_name + ".log")
     out_file = outputs / (job_name + ".out")
     err_file = outputs / (job_name + ".err")
-    
-    gpu = (repr == "DF")
     gpu = False
 
     with job_file.open(mode="w") as f:
@@ -72,7 +70,7 @@ def launch_job(dataset: str, arch: str,
         f.write(f"source {str(env)}\n")
         f.write(f"python {str(script)} " +\
                 f"--dataset {dataset} " +\
-                f"--arch {arch}" +\
+                f"--arch {arch} " +\
                 f"--stride_series {str(stride_series)} " +\
                 f"--window_length {window_length} " +\
                 f"--window_time_stride {window_time_stride} " +\
@@ -82,13 +80,12 @@ def launch_job(dataset: str, arch: str,
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-for repr in ARCHS:
-    for dataset in DATASETS:
-        for arch in ARCHS:
-            for wlen in WINDOW_LENGTHS:
-                for wts in WINDOW_TIME_STRIDES:
-                    launch_job(dataset, arch, wlen, True, wts, 1)
-                    launch_job(dataset, arch, wlen, False, wts, 1)
-            for wlen in WINDOW_LENGTHS:
-                for wps in WINDOW_PATT_STRIDES:
-                    launch_job(dataset, arch, wlen, True, 7, wps)
+for dataset in DATASETS:
+    for arch in ARCHS:
+        for wlen in WINDOW_LENGTHS:
+            for wts in WINDOW_TIME_STRIDES:
+                launch_job(dataset, arch, wlen, True, wts, 1)
+                launch_job(dataset, arch, wlen, False, wts, 1)
+        for wlen in WINDOW_LENGTHS:
+            for wps in WINDOW_PATT_STRIDES:
+                launch_job(dataset, arch, wlen, True, 7, wps)
