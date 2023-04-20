@@ -20,8 +20,7 @@ partition   = "bcam-exclusive"
 email       = "rcoterillo@bcamath.org"
 env         = Path("/scratch/rcoterillo/s3ts/s3ts_env/bin/activate")
 script      = Path("/scratch/rcoterillo/s3ts/pret_cli.py")
-model_dir   = Path("/scratch/rcoterillo/s3ts/models")
-cache_dir   = Path("/scratch/rcoterillo/s3ts/cache")
+storage_dir = Path("/scratch/rcoterillo/s3ts/storage")
 
 outputs = Path("outputs/").absolute()
 outputs.mkdir(exist_ok=True)
@@ -78,7 +77,7 @@ def launch_job(dataset: str, arch: str,
                 f"--window_length {window_length} " +\
                 f"--window_time_stride {window_time_stride} " +\
                 f"--window_patt_stride {window_patt_stride} " +\
-                f"--log_file {log_file} --cache_dir {str(cache_dir)}")
+                f"--log_file {log_file} --storage_dir {str(storage_dir)}")
     subprocess.run(["sbatch", str(job_file)], capture_output=True)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
