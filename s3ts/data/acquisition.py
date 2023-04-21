@@ -4,7 +4,7 @@
 """ File containing the function to download a dataset from UCR/UEA archive. """
 
 # standard library
-from s3ts.experiments.common import compute_medoids
+from s3ts.hpc.common import compute_medoids
 from pathlib import Path
 import logging as log
 
