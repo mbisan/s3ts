@@ -8,10 +8,15 @@ from pathlib import Path
 import subprocess
 
 DATASETS = ["CBF"]                                  # Datasets             
-ARCHS = ["CNN"]                                     # Architectures
+ARCHS = ["ResNet"]                                  # Architectures
 WINDOW_LENGTHS: list[int] = [10]                    # Window length
 WINDOW_TIME_STRIDES: list[int] = [1, 3, 5, 7]       # Window time stride
 WINDOW_PATT_STRIDES: list[int] = [2, 3, 5]          # Window pattern stride
+
+RHO_DFS: float = 0.1                # Memory parameter for DF
+BATCH_SIZE: bool = 128              # Batch size
+VAL_SIZE: float = 0.25              # Validation size
+STS_PRET_EVENTS = 1000              # Number of events for pretraining
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

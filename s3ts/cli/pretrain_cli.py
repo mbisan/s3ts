@@ -18,8 +18,9 @@
 """
 
 # package imports
-from s3ts.experiments.common import setup_pretrain_dm, pretrain_encoder
 from s3ts.data.acquisition import download_dataset
+from s3ts.data.setup import setup_pretrain_dm 
+from s3ts.models.training import pretrain_encoder
 
 # standard library
 from pathlib import Path
