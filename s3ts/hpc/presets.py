@@ -13,6 +13,7 @@ BCAM_HIPATIA = {
     "jobs_dir"    : Path("jobs/").absolute(),
     "logs_dir"    : Path("logs/").absolute(),
     "outs_dir"    : Path("outputs/").absolute(),
+    "storage_dir" : Path("/scratch/rcoterillo/s3ts/storage"),
     "modules"     : [
         "CUDA/11.3.1",
         "cuDNN/cuDNN/8.2.1.32-CUDA-11.3.1",       

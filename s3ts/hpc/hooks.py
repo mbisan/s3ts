@@ -10,7 +10,7 @@ def launch_pret_sbatch(
         max_epoch: int, learning_rate: float,
         window_length: int, stride_series: bool,
         window_time_stride: int, window_patt_stride: int,  
-        log_file: Path, storage_dir: Path, random_state: int,
+        random_state: int,
         # sbatch / hpc settings
         job_name: str, email: str,
         cpu: int, mem: int,
@@ -20,6 +20,7 @@ def launch_pret_sbatch(
         jobs_dir: Path,
         logs_dir: Path,
         outs_dir: Path,
+        storage_dir: Path,
         modules: list[str]
         ) -> None: 
 

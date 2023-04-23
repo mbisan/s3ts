@@ -19,8 +19,8 @@
 
 # package imports
 from s3ts.data.acquisition import download_dataset
-from s3ts.data.setup import setup_pretrain_dm 
 from s3ts.models.training import pretrain_encoder
+from s3ts.data.setup import setup_pretrain_dm 
 
 # standard library
 from pathlib import Path
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     parser.add_argument('--window_patt_stride', type=int, required=True,
                         help='Window pattern stride used for the encoder')
     
-    parser.add_argument('--sts_length', type=int, default=1000,
+    parser.add_argument('--sts_length', type=int, required=True,
                         help='Length of the STS used for pretraining')
 
     parser.add_argument('--rho_dfs', type=float, default=0.1,
