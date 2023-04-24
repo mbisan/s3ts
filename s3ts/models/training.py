@@ -117,7 +117,6 @@ def train_model(pretrain_mode: bool,
     trainer.fit(model=model, datamodule=dm)
     model = model.load_from_checkpoint(ckpt.best_model_path)
 
-    
     # Save training results
     res["nepochs"] = trainer.current_epoch
     res["best_model"] = ckpt.best_model_path
@@ -139,7 +138,7 @@ def train_model(pretrain_mode: bool,
     return res, model
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# TODO improve results handling
+# TODO: improve results handling
 
 def update_results_file(res_list: list[pd.DataFrame], new_res: pd.DataFrame, res_file: Path):
 
