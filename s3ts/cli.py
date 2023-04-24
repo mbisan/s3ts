@@ -80,7 +80,7 @@ if __name__ == '__main__':
     parser.add_argument('--val_size', type=int, default=0.25,
                         help='Validation set size (as a fraction of the training set)')
     
-    parser.add_argument('--max_epoch', type=int, default=60,
+    parser.add_argument('--max_epochs', type=int, default=60,
                         help='Maximum number of epochs for the training')
     
     parser.add_argument('--learning_rate', type=float, default=1e-04,
@@ -124,13 +124,13 @@ if __name__ == '__main__':
 
     # Training parameters
     exc: int = args.exc
-    train_mult: int = args.train_mult
+    train_event_mult: int = args.train_event_mult
     train_strat_size: int = args.train_strat_size
     test_sts_length: int = args.test_sts_length
     pret_sts_length: int = args.pret_sts_length
     batch_size: int = args.batch_size
     val_size: float = args.val_size
-    max_epoch: int = args.max_epochs
+    max_epochs: int = args.max_epochs
     learning_rate: float = args.learning_rate
     random_state: int = args.random_state
     cv_rep: int = args.cv_rep
@@ -206,8 +206,11 @@ if __name__ == '__main__':
             random_state=random_state,
             num_workers=num_workers)
         
-        pretrain_encoder(dataset=dataset, repr="DF", arch=arch, dm=dm, directory=train_dir, 
-            max_epoch=max_epoch, learning_rate=learning_rate, storage_dir=storage_dir)
+        data, model, ckpt = train_model(pretrain_mode=pretrain_mode,
+            dataset=dataset, mode=mode, arch=arch, dm=dm, 
+            directory=directory, max_epochs=max_epochs,
+            learning_rate=learning_rate, encoder_path=encoder_path,
+            random_state=random_state, rep_number=cv_rep)
 
     else:
 
@@ -228,9 +231,11 @@ if __name__ == '__main__':
                        random_state=random_state,
                        num_workers=num_workers)
         
-        train_model(dataset=dataset, mode=mode, arch=arch,
-                    dm=dm, pretrain=use_pretrain, fold_number=cv_rep,
-                    max_epoch=max_epoch, learning_rate=learning_rate,)
-
-
-    log.info("DONE!")
+        data, model, ckpt = train_model(pretrain_mode=pretrain_mode,
+            dataset=dataset, mode=mode, arch=arch, dm=dm, 
+            directory=directory, max_epochs=max_epochs,
+            learning_rate=learning_rate, encoder_path=encoder_path,
+            random_state=random_state, rep_number=cv_rep)
+        
+        data["train_strat_size"] = train_strat_size
+        data["train_event_mult"] = train_event_mult
