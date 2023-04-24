@@ -5,17 +5,7 @@ import numpy as np
 
 # ================================================= #
 
-def load_data(folder: Path) -> pd.DataFrame:
 
-    """ Loads data form CSVs in a given folder. """
-
-    dfs = []
-    for file in folder.glob('*'):
-        if ".csv" in file.name:
-            dfs.append(pd.read_csv(file))
-    df = pd.concat(dfs, ignore_index=True)
-
-    return df
 
 # ================================================= #
 # ================================================= #

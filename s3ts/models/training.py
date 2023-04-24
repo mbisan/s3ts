@@ -143,6 +143,8 @@ def train_model(pretrain_mode: bool,
 
     return res, tgt_model
 
+# TODO improve results handling
+
 def update_results_file(res_list: list[pd.DataFrame], new_res: pd.DataFrame, res_file: Path):
 
     # update results file
@@ -152,3 +154,15 @@ def update_results_file(res_list: list[pd.DataFrame], new_res: pd.DataFrame, res
     res_df.to_csv(res_file, index=False)
 
     return res_list
+
+def load_data(folder: Path) -> pd.DataFrame:
+
+    """ Loads data form CSVs in a given folder. """
+
+    dfs = []
+    for file in folder.glob('*'):
+        if ".csv" in file.name:
+            dfs.append(pd.read_csv(file))
+    df = pd.concat(dfs, ignore_index=True)
+
+    return df
