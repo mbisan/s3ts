@@ -42,7 +42,7 @@ if __name__ == '__main__':
                         help='Use pretrained encoder or not (DF mode only)')
 
     parser.add_argument('--pretrain_mode', type=bool, default=False,
-                        help='Switch between traina and pretrain mode')
+                        help='Switch between train and pretrain mode')
 
     parser.add_argument('--rho_dfs', type=float, default=0.1,
                         help='Value of the forgetting parameter')
@@ -141,34 +141,64 @@ if __name__ == '__main__':
     storage_dir: Path = Path(args.storage_dir)
     num_workers: int = args.num_workers
 
+    # Print the arguments in a nice way for debugging
+    log.info("Input Parameters:")
+    for arg in vars(args):
+        log.info(f"{arg}: {getattr(args, arg)}")
+
     # ~~~~~~~~~~~~ Sanity checks ~~~~~~~~~~~~
 
-    # TODO check settings make sense
+    # Check all window parameters are positive integers
+    for val in [window_length, window_time_stride, window_patt_stride]:
+        if val < 1 or not isinstance(val, int):
+            raise ValueError("Window paramters must be positive integers.")
     
+    # Check mode is 'DF' if use_pretrain is True
+    if use_pretrain and mode != "DF" or pretrain_mode and mode != "DF":
+        raise ValueError("Pretraining is only available for DF mode.")
+
+    # Check pretrain_mode and use_pretrain are not both True
+    if use_pretrain and pretrain_mode:
+        raise ValueError("'pretrain_mode' is a previous step to 'use_pretrain', so they cannot be both True.")
+
+    # Get the path to the encoder
+    ss = 1 if stride_series else 0
+    enc_name1 = f"{dataset}_sl{pret_sts_length}_me{max_epoch}_rs{random_state}"
+    enc_name2 = f"_ss{ss}_wl{window_length}_ts{window_time_stride}_ps{window_patt_stride}"
+    encoder_path = storage_dir / "encoders" / (enc_name1 + enc_name2 + ".pt")
+
+    if use_pretrain or pretrain_mode:
+        log.info(f"encoder_path: {encoder_path}")
+
+    # If not in pretrain_mode and use_pretrain, check the encoder exists
+    if use_pretrain and not pretrain_mode:
+        if not encoder_path.exists():
+            raise ValueError("Encoder not found. Please run pretrain mode first.")
+    
+    # If pretrain_mode, check the encoder does not exist already
+    if pretrain_mode:
+        if encoder_path.exists():
+            raise ValueError("Encoder already exists. Please delete it before running pretrain mode.")
+    
+    # If use_pretrain is False, set encoder_path to None
+    if not use_pretrain:
+        encoder_path = None
+
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    # logging setup
+    # Logging setup
     log.basicConfig(filename=log_file, level=log.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
         datefmt='%Y-%m-%d %H:%M:%S')
 
-    # load dataset
+    # Download the dataset or load it from storage
     X, Y, medoids, medoid_idx = download_dataset(dataset=dataset, storage_dir=storage_dir)
 
     if pretrain_mode:
 
         directory = train_dir / "pretrain" / f"{arch}_{dataset}"
 
-        log.info("Pretraining the encoder for:")
-        log.info(f"Dataset: {dataset}")
-        log.info(f"Achitecture: {arch}")
-        log.info(f"Stride series: {stride_series}")
-        log.info(f"Window length: {window_length}")
-        log.info(f"Window time stride: {window_time_stride}")
-        log.info(f"Window pattern stride: {window_patt_stride}")
-        log.info(f"Stored in: {directory}")
-
-        dm = setup_pretrain_dm(X, Y, patterns=medoids, sts_length=sts_length,
+        dm = setup_pretrain_dm(X, Y, patterns=medoids, sts_length=pret_sts_length,
             rho_dfs=rho_dfs, batch_size=batch_size, val_size=val_size,
             window_length=window_length, stride_series=stride_series, 
             window_time_stride=window_time_stride, 

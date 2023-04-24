@@ -20,10 +20,6 @@ import logging as log
 # basics
 import pandas as pd
 
-
-CLS_METRICS = ["acc", "f1", "auroc"]
-
-
 def setup_trainer(
         label: str,
         directory: Path,
@@ -50,136 +46,62 @@ def setup_trainer(
     max_epochs=max_epochs,  benchmark=True, deterministic=False, 
     log_every_n_steps=1, check_val_every_n_epoch=1), checkpoint
 
-def pretrain_encoder(dataset: str, repr: str, arch: str, dm: DFDataModule, 
-        directory: Path, max_epoch: int, learning_rate: float, 
-        storage_dir: Path, random_state: int = 0, 
-        ) -> tuple[WrapperModel, ModelCheckpoint]:
-    
-    # Set the random seed
-    seed_everything(random_state, workers=True)
-
-    # Encoder path
-    ss = 1 if dm.stride_series else 0
-    enc_name1 = f"{dataset}sl{dm.STS_train_events}_me{max_epoch}_rs{random_state}"
-    enc_name2 = f"_ss{ss}_wl{dm.window_length}_ts{dm.window_time_stride}_ps{dm.window_patt_stride}"
-    encoder_name = enc_name1 + enc_name2
-    encoder_path = storage_dir / "encoders" / (encoder_name + ".pt")
-
-    # Check if the encoder is already trained
-    if encoder_path.exists():
-         # raise an error
-        raise FileExistsError(f"The encoder '{encoder_name}' already exists in {storage_dir}")
-
-    metrics = ["mse", "r2"]
-    trainer, ckpt = setup_trainer(label=encoder_name, directory=directory,
-        pretrain=True, max_epochs=max_epoch, stop_metric="val_mse", stop_mode="min")
-
-    log.info("Pretraining the encoder...")
-    # Create the model, trainer and checkpoint
-    model = WrapperModel(repr=repr, arch=arch, target="reg",
-        n_classes=dm.n_classes, window_length=dm.window_length, 
-        n_patterns=dm.n_patterns, l_patterns=dm.l_patterns,
-        window_time_stride=dm.window_time_stride, window_patt_stride=dm.window_patt_stride,
-        stride_series=dm.stride_series, encoder_feats=32, decoder_feats=64,
-        learning_rate=learning_rate)
-    
-    # uncomment whenever they fix the bugs lol
-    # model: torch.Module = torch.compile(model, mode="reduce-overhead")
-        
-    # Perform the pretraining
-    trainer: Trainer
-    trainer.fit(model, datamodule=dm)
-
-    # Load the best checkpoint
-    ckpt: ModelCheckpoint
-    model = model.load_from_checkpoint(ckpt.best_model_path)
-    model.save_hyperparameters
-
-    # Save the pretrained encoder
-    torch.save(model.encoder, encoder_path)
-
-    return model, ckpt
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-def train_model(
-        dataset: str, repr: str, arch: str,
-        dm: DFDataModule, pretrain: bool, fold_number: int, 
-        directory: Path, label: str,
-        max_epoch_pre: int, max_epoch_tgt: int,
-        train_events_per_class: int, train_event_multiplier: int,
-        pret_event_multiplier: int, test_event_multiplier: int,
-        learning_rate: float, random_state: int = 0,
+def train_model(pretrain_mode: bool,
+        dataset: str, mode: str, arch: str, dm: DFDataModule, 
+        directory: Path, max_epochs: int, learning_rate: float,
+        encoder_path: Path, rep_number: int, random_state: int,
         ) -> tuple[pd.DataFrame, WrapperModel, ModelCheckpoint]:
     
     # Set the random seed
     seed_everything(random_state, workers=True)
 
-    def _setup_trainer(max_epochs: int, stop_metric: str, 
-            stop_mode: str, pretrain: bool) -> tuple[Trainer, ModelCheckpoint]:
-        version = f"{label}_pretrain" if pretrain else label
-        # Create the callbacks
-        checkpoint = ModelCheckpoint(monitor=stop_metric, mode=stop_mode)    
-        lr_monitor = LearningRateMonitor(logging_interval='epoch')
-        #early_stop = EarlyStopping(monitor=stop_metric, mode=stop_mode, patience=20)
-        callbacks = [lr_monitor, checkpoint]#, early_stop]
-        # Create the loggers
-        tb_logger = TensorBoardLogger(save_dir=directory, name="logs", version=version)
-        csv_logger = CSVLogger(save_dir=directory, name="logs", version=version)
-        loggers = [tb_logger, csv_logger]
-        # Create the trainer
-        return Trainer(default_root_dir=directory,  accelerator="auto", devices="auto",
-        logger=loggers, callbacks=callbacks,
-        max_epochs=max_epochs,  benchmark=True, deterministic=False, 
-        log_every_n_steps=1, check_val_every_n_epoch=1), checkpoint
+    # Save common parameters
+    res = pd.Series(dtype="object")
+    res["dataset"] = dataset
+    res["mode"], res["arch"] = mode, arch
 
-    cls_metrics = ["acc", "f1", "auroc"]
-    reg_metrics = ["mse", "r2"]
+    if pretrain_mode:
 
-    # Pretrain the model if needed
-    if pretrain:
-        
-        log.info("Pretraining the encoder...")
-
-        # Create the model, trainer and checkpoint
-        pre_model = WrapperModel(repr=repr, arch=arch, target="reg",
+        metrics = ["mse", "r2"]
+        trainer, ckpt = setup_trainer(label=encoder_name, directory=directory,
+        pretrain=True, max_epochs=max_epochs, stop_metric="val_mse", stop_mode="min")
+        model = WrapperModel(mode="DF", arch=arch, target="reg",
             n_classes=dm.n_classes, window_length=dm.window_length, 
             n_patterns=dm.n_patterns, l_patterns=dm.l_patterns,
             window_time_stride=dm.window_time_stride, window_patt_stride=dm.window_patt_stride,
             stride_series=dm.stride_series, encoder_feats=32, decoder_feats=64,
             learning_rate=learning_rate)
-        torch.compile(pre_model, mode="reduce-overhead")
-        pre_trainer, pre_ckpt = _setup_trainer(max_epoch_pre, "val_mse", "min", True)
 
-        # Configure the datamodule
-        dm.pretrain = True
+    else:
 
-        # Perform the pretraining
-        pre_trainer.fit(pre_model, datamodule=dm)
+        metrics = ["acc", "f1", "auroc"]
+        trainer, ckpt = setup_trainer(label=encoder_name, directory=directory,
+        pretrain=False, max_epochs=max_epochs, stop_metric="val_acc", stop_mode="max")
+        model = WrapperModel(mode=mode, arch=arch, target="cls",
+            n_classes=dm.n_classes, window_length=dm.window_length, 
+            n_patterns=dm.n_patterns, l_patterns=dm.l_patterns,
+            window_time_stride=dm.window_time_stride, window_patt_stride=dm.window_patt_stride,
+            stride_series=dm.stride_series, encoder_feats=32, decoder_feats=64,
+            learning_rate=learning_rate)
 
-        # Load the best checkpoint
-        pre_model = pre_model.load_from_checkpoint(pre_ckpt.best_model_path)
+        # Load the encoder if needed
+        if encoder_path is not None:
+            model.encoder = torch.load(encoder_path)
 
-    # Configure the datamodule
-    dm.pretrain = False
+    # TODO: uncomment when its not so buggy, supposed to improve performance
+    # model: torch.Module = torch.compile(model, mode="reduce-overhead")
 
-    log.info("Training the target model...")
+    trainer.fit(model=model, datamodule=dm)
+    model = model.load_from_checkpoint(ckpt.best_model_path)
 
-    # Create the model, trainer and checkpoint
-    tgt_model = WrapperModel(repr=repr, arch=arch, target="cls",
-        n_classes=dm.n_classes, window_length=dm.window_length, 
-        n_patterns=dm.n_patterns, l_patterns=dm.l_patterns,
-        window_time_stride=dm.window_time_stride, window_patt_stride=dm.window_patt_stride,
-        stride_series=dm.stride_series, encoder_feats=32, decoder_feats=64,
-        learning_rate=learning_rate)
-    tgt_trainer, tgt_ckpt = _setup_trainer(max_epoch_tgt, "val_acc", "max", False)
+    if pretrain_mode:
+        # Save the pretrained encoder
+        torch.save(model.encoder, encoder_path)
 
-    # Load encoder if needed
-    if pretrain:
-        tgt_model.encoder = pre_model.encoder
 
-    # Train the model
-    tgt_trainer.fit(tgt_model, datamodule=dm)
+    # 
 
     # Load the best checkpoint
     tgt_model = tgt_model.load_from_checkpoint(tgt_ckpt.best_model_path)

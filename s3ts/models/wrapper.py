@@ -37,7 +37,7 @@ import numpy as np
 class WrapperModel(LightningModule):
 
     def __init__(self,
-        repr: str, 
+        mode: str, 
         arch: str,
         target: str,
         n_classes: int,
@@ -60,20 +60,20 @@ class WrapperModel(LightningModule):
                         "DF": {"CNN": CNN_DFS, "ResNet": ResNet_DFS}}
         
         # Check encoder parameters
-        if repr not in ["DF", "TS"]:
-            raise ValueError(f"Invalid representation: {repr}")
+        if mode not in ["DF", "TS"]:
+            raise ValueError(f"Invalid reprsentation: {mode}")
         if arch not in ["RNN", "CNN", "ResNet"]:
             raise ValueError(f"Invalid architecture: {arch}")
-        if arch not in self.encoder_dict[repr]:
-            raise ValueError(f"Architecture {arch} not available for representation {repr}.")
-        encoder_arch = self.encoder_dict[repr][arch]
+        if arch not in self.encoder_dict[mode]:
+            raise ValueError(f"Architecture {arch} not available for representation {mode}.")
+        encoder_arch = self.encoder_dict[mode][arch]
 
         # Check decoder parameters
         if target not in ["cls", "reg"]:
             raise ValueError(f"Invalid target: {target}")
         
         # Gather model parameters
-        self.repr = repr
+        self.mode = mode
         self.arch = arch
         self.target = target
         self.n_classes = n_classes
@@ -88,22 +88,22 @@ class WrapperModel(LightningModule):
         self.learning_rate = learning_rate
 
         # Save hyperparameters
-        self.save_hyperparameters()
+        self.save_hyperparameters(*self.__dict__.keys())
         
         # Create the encoder
         self.encoder = nn.Sequential()
-        if repr == "DF":
+        if mode == "DF":
             ref_size = len(np.arange(self.l_patterns)[::self.window_patt_stride])
             channels = self.n_patterns
-        elif repr == "TS":
+        elif mode == "TS":
             ref_size, channels = 1, 1 
         self.encoder.add_module("encoder", encoder_arch(
             ref_size=ref_size, channels=channels, 
             window_size=self.window_length))
 
         # Determine the number of decoder input features
-        inp_feats = self.encoder[0].lat_channels if self.repr == "DF" else 1
-        inp_size = self.window_length if self.repr == "DF" else self.encoder.encoder.get_output_shape()
+        inp_feats = self.encoder[0].lat_channels if self.mode == "DF" else 1
+        inp_size = self.window_length if self.mode == "DF" else self.encoder.encoder.get_output_shape()
         
         # Add the metrics depending on the target
         self.decoder = nn.Sequential()
@@ -113,13 +113,13 @@ class WrapperModel(LightningModule):
             out_feats = self.n_classes
 
             # Add the decoder modules
-            if self.repr == "DF":
+            if self.mode == "DF":
                 self.decoder.add_module("lstm", LSTMDecoder(
                         inp_size=inp_size,
                         inp_features=inp_feats,
                         hid_features = decoder_feats,
                         out_features = out_feats))
-            elif self.repr == "TS":
+            elif self.mode == "TS":
                 self.decoder.add_module("linear", LinearDecoder(
                         in_features = inp_size,
                         hid_features = decoder_feats,
@@ -167,9 +167,9 @@ class WrapperModel(LightningModule):
         frames, series, label = batch
 
         # Forward pass
-        if self.repr == "DF":
+        if self.mode == "DF":
             output = self(frames)
-        elif self.repr == "TS":
+        elif self.mode == "TS":
             output = self(series)
 
         # Compute the loss and metrics
