@@ -7,8 +7,8 @@
 
 # package imports
 from s3ts.data.acquisition import download_dataset
-from s3ts.models.training import pretrain_encoder
 from s3ts.models.training import train_model
+
 from s3ts.data.setup import setup_pretrain_dm
 from s3ts.data.setup import setup_train_dm 
 from s3ts.data.setup import train_test_splits
@@ -58,6 +58,12 @@ if __name__ == '__main__':
     
     parser.add_argument('--window_patt_stride', type=int, default=1,
                         help='Window pattern stride used for the encoder')
+    
+    parser.add_argument('--number_encoder_feats', type=int, default=32,
+                        help='Number of features used for the encoder.')
+    
+    parser.add_argument('--number_decoder_feats', type=int, default=64,
+                        help='Number of features used for the encoder.')
     
     parser.add_argument('--exc', type=int, default=16,
                         help='Number of samples per class')
@@ -121,6 +127,8 @@ if __name__ == '__main__':
     stride_series: bool = args.stride_series
     window_time_stride: int = args.window_time_stride
     window_patt_stride: int = args.window_patt_stride
+    num_encoder_feats: int = args.number_encoder_feats
+    num_decoder_feats: int = args.number_decoder_feats
 
     # Training parameters
     exc: int = args.exc
@@ -163,9 +171,8 @@ if __name__ == '__main__':
 
     # Get the path to the encoder
     ss = 1 if stride_series else 0
-    enc_name1 = f"{dataset}_sl{pret_sts_length}_me{max_epoch}_rs{random_state}"
-    enc_name2 = f"_ss{ss}_wl{window_length}_ts{window_time_stride}_ps{window_patt_stride}"
-    encoder_path = storage_dir / "encoders" / (enc_name1 + enc_name2 + ".pt")
+    enc_name = f"{dataset}_ss{ss}_wl{window_length}_ts{window_time_stride}_ps{window_patt_stride}"
+    encoder_path = storage_dir / "encoders" / (enc_name + ".pt")
 
     if use_pretrain or pretrain_mode:
         log.info(f"encoder_path: {encoder_path}")
@@ -198,9 +205,11 @@ if __name__ == '__main__':
 
         directory = train_dir / "pretrain" / f"{arch}_{dataset}"
 
-        dm = setup_pretrain_dm(X, Y, patterns=medoids, sts_length=pret_sts_length,
-            rho_dfs=rho_dfs, batch_size=batch_size, val_size=val_size,
-            window_length=window_length, stride_series=stride_series, 
+        dm = setup_pretrain_dm(X, Y, patterns=medoids, 
+            sts_length=pret_sts_length,rho_dfs=rho_dfs, 
+            batch_size=batch_size, val_size=val_size,
+            window_length=window_length, 
+            stride_series=stride_series, 
             window_time_stride=window_time_stride, 
             window_patt_stride=window_patt_stride, 
             random_state=random_state,
@@ -210,31 +219,38 @@ if __name__ == '__main__':
             dataset=dataset, mode=mode, arch=arch, dm=dm, 
             directory=directory, max_epochs=max_epochs,
             learning_rate=learning_rate, encoder_path=encoder_path,
+            num_encoder_feats=num_encoder_feats,
+            num_decoder_feats=num_decoder_feats,
             random_state=random_state, rep_number=cv_rep)
 
     else:
 
+        # Get the train and test idx for the current CV repetition
         for j, (train_idx, test_idx) in enumerate(train_test_splits(X, Y, exc=exc, nreps=cv_rep+1, random_state=random_state)):
             if j == cv_rep:
                 break
 
+        directory = train_dir / "finetune" / f"{mode}_{arch}_{dataset}"
+
         dm = setup_train_dm(X=X, Y=Y, patterns=medoids,
-                       train_idx=train_idx, test_idx=test_idx,
-                       test_sts_length=test_sts_length,
-                       train_strat_size=train_strat_size,
-                       batch_size=batch_size, val_size=val_size,
-                       train_mult=train_mult, rho_dfs=rho_dfs,
-                       window_length=window_length, 
-                       stride_series=stride_series,
-                       window_time_stride=window_time_stride,
-                       window_patt_stride=window_patt_stride,
-                       random_state=random_state,
-                       num_workers=num_workers)
+            train_idx=train_idx, test_idx=test_idx,
+            test_sts_length=test_sts_length,
+            train_event_mult=train_event_mult,
+            train_strat_size=train_strat_size,
+            batch_size=batch_size, val_size=val_size,               
+            rho_dfs=rho_dfs, window_length=window_length, 
+            stride_series=stride_series,
+            window_time_stride=window_time_stride,
+            window_patt_stride=window_patt_stride,
+            random_state=random_state,
+            num_workers=num_workers)
         
         data, model, ckpt = train_model(pretrain_mode=pretrain_mode,
             dataset=dataset, mode=mode, arch=arch, dm=dm, 
             directory=directory, max_epochs=max_epochs,
             learning_rate=learning_rate, encoder_path=encoder_path,
+            num_encoder_feats=num_encoder_feats,
+            num_decoder_feats=num_decoder_feats,
             random_state=random_state, rep_number=cv_rep)
         
         data["train_strat_size"] = train_strat_size
