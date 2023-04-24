@@ -4,8 +4,8 @@
 Script that automates pretraining in a SBATCH queue.
 """
 
-from s3ts.hpc.hooks import launch_pret_sbatch
-from s3ts.hpc.presets import BCAM_HIPATIA
+from s3ts.hooks import launch_pret_sbatch
+from s3ts.presets import BCAM_HIPATIA
 
 DATASETS = ["CBF"]                                  # Datasets             
 ARCHS = ["ResNet"]                                  # Architectures

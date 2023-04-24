@@ -4,36 +4,35 @@
 Script that automates the experiments in a SLURM queue.
 """
 
-from pathlib import Path
-import subprocess
+from s3ts.hooks import launch_pret_sbatch
+from s3ts.presets import BCAM_HIPATIA
 
-EXP = "wlen"
 ARCHS = {
     "DF": ["CNN", "ResNet"],
     "TS": ["RNN", "CNN", "ResNet"]
 }
-DATASETS = ["CBF"]
-NREPS = 5
+DATASETS = [
+    "CBF"
+]
+   
+# Parameter to study  
+WINDOW_LENGTHS: list[int] = [10]                    # Window length (Section 4.1)
+WINDOW_TIME_STRIDES: list[int] = [1, 3, 5, 7]       # Window time stride (Section ...)
+WINDOW_PATT_STRIDES: list[int] = [2, 3, 5]          # Window pattern stride
+EVENTS_PER_CLASS: list[int] = [8, 16, 24, 32]       # Number of events per class
+
+# Fixed parameters
+RHO_DFS: float = 0.1                # Memory parameter for DF
+BATCH_SIZE: bool = 128              # Batch size
+VAL_SIZE: float = 0.25              # Validation size
+STS_LENGTH      = 1000              # Number of events for pretraining
+MAX_EPOCH       = 60                # Number of epochs for pretraining 
+LEARNING_RATE   = 1e-04             # Learning rate
+RANDOM_STATE    = 0                 # Random state
+NREPS = 5                           # Number of CV repetitions
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-account     = "bcam-exclusive"
-partition   = "bcam-exclusive"
-email       = "rcoterillo@bcamath.org"
-env         = Path("/scratch/rcoterillo/s3ts/s3ts_env/bin/activate")
-script      = Path("/scratch/rcoterillo/s3ts/main_cli.py")
-cache_dir   = Path("/scratch/rcoterillo/s3ts/cache")
-
-outputs = Path("outputs/").absolute()
-outputs.mkdir(exist_ok=True)
-
-logs = Path("logs/").absolute()
-logs.mkdir(exist_ok=True)
-
-jobs = Path("jobs/").absolute()
-jobs.mkdir(exist_ok=True)
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 for repr in ARCHS:
     for arch in ARCHS[repr]:
@@ -73,3 +72,39 @@ for repr in ARCHS:
                             f"--log_file {str(log_file)}  --rep {fold} " + \
                             f"--cache_dir {str(cache_dir)}")
                 subprocess.run(["sbatch", str(job_file)], capture_output=True)
+
+
+
+    #             for dataset in DATASETS:
+    # for arch in ARCHS:
+    #     for wlen in WINDOW_LENGTHS:
+    #         for wts in WINDOW_TIME_STRIDES:
+
+    #             launch_pret_sbatch(
+    #                 dataset=dataset, arch=arch, 
+    #                 sts_length=STS_LENGTH, rho_dfs=RHO_DFS,
+    #                 batch_size=BATCH_SIZE, val_size=VAL_SIZE,
+    #                 max_epoch=MAX_EPOCH, learning_rate=LEARNING_RATE,
+    #                 window_length=wlen, stride_series=True,
+    #                 window_time_stride=wts, window_patt_stride=1,
+    #                 random_state=RANDOM_STATE, **BCAM_HIPATIA)
+                
+    #             launch_pret_sbatch(
+    #                 dataset=dataset, arch=arch, 
+    #                 sts_length=STS_LENGTH, rho_dfs=RHO_DFS,
+    #                 batch_size=BATCH_SIZE, val_size=VAL_SIZE,
+    #                 max_epoch=MAX_EPOCH, learning_rate=LEARNING_RATE,
+    #                 window_length=wlen, stride_series=False,
+    #                 window_time_stride=wts, window_patt_stride=1,
+    #                 random_state=RANDOM_STATE, **BCAM_HIPATIA)
+                        
+    #         for wps in WINDOW_PATT_STRIDES:
+
+    #             launch_pret_sbatch(
+    #                 dataset=dataset, arch=arch, 
+    #                 sts_length=STS_LENGTH, rho_dfs=RHO_DFS,
+    #                 batch_size=BATCH_SIZE, val_size=VAL_SIZE,
+    #                 max_epoch=MAX_EPOCH, learning_rate=LEARNING_RATE,
+    #                 window_length=wlen, stride_series=False,
+    #                 window_time_stride=7, window_patt_stride=wps,
+    #                 random_state=RANDOM_STATE, **BCAM_HIPATIA)
