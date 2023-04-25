@@ -205,7 +205,7 @@ class DFDataModule(LightningDataModule):
             self.STS_test_events = len(STS_test) // self.l_events
             self.STS_test = torch.from_numpy(STS_test).to(torch.float32)
             self.SCS_test = torch.from_numpy(SCS_test).to(torch.int64)
-            self.labels_test = torch.nn.functional.one_hot(self.SCS_pre, num_classes=self.n_classes)
+            self.labels_test = torch.nn.functional.one_hot(self.SCS_test, num_classes=self.n_classes)
             self.DM_test = torch.from_numpy(DM_test).to(torch.float32)
 
         # Create the indices

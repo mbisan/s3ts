@@ -58,17 +58,16 @@ class ResNet_DFS(LightningModule):
             ResidualBlock(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 2),
             ResidualBlock(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 4),
             #nn.AvgPool2d((ref_size, window_size))
-            nn.AvgPool2d((5, 1))
+            #nn.AvgPool2d((5, 1))
         )
-        #self.flatten = nn.Flatten()
+        self.calculate_output_shape(ref_size, channels, window_size)
 
-    @staticmethod
-    def __str__() -> str:
-        return "ResNet_DFS"
-
-    @staticmethod
-    def __frames__() -> bool:
-        return True
+    def calculate_output_shape(self, ref_size:int, channels:int, window_size:int):
+        x = torch.rand((1, channels, ref_size, window_size))
+        shp: torch.Size = self(x).shape
+        self.lat_channels = shp[1]
+        self.lat_patt_length = shp[2]
+        self.lat_time_length = shp[3]
 
     def get_output_shape(self):
         return (len(self.model._modules) -1) * self.n_feature_maps

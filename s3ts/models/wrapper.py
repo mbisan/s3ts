@@ -88,7 +88,11 @@ class WrapperModel(LightningModule):
         self.learning_rate = learning_rate
 
         # Save hyperparameters
-        self.save_hyperparameters(*self.__dict__.keys())
+        self.save_hyperparameters({"mode": mode, "arch": arch, "target": target,
+            "n_classes": n_classes, "n_patterns": n_patterns, "l_patterns": l_patterns,
+            "window_length": window_length, "stride_series": stride_series,
+            "window_time_stride": window_time_stride, "window_patt_stride": window_patt_stride,
+            "encoder_feats": encoder_feats, "decoder_feats": decoder_feats, "learning_rate": learning_rate})
         
         # Create the encoder
         self.encoder = nn.Sequential()
@@ -130,8 +134,7 @@ class WrapperModel(LightningModule):
             for phase in ["train", "val", "test"]: 
                 self.__setattr__(f"{phase}_acc", tm.Accuracy(num_classes=out_feats, task="multiclass"))
                 self.__setattr__(f"{phase}_f1",  tm.F1Score(num_classes=out_feats, task="multiclass"))
-                if phase != "train":
-                    self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=out_feats, task="multiclass"))
+                self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=out_feats, task="multiclass"))
 
         elif self.target == "reg":
 
@@ -177,8 +180,7 @@ class WrapperModel(LightningModule):
             loss = F.cross_entropy(output, label.to(torch.float32))
             acc = self.__getattr__(f"{stage}_acc")(output, torch.argmax(label, dim=1))
             f1  = self.__getattr__(f"{stage}_f1")(output, torch.argmax(label, dim=1))
-            if stage != "train":
-                auroc = self.__getattr__(f"{stage}_auroc")(output, torch.argmax(label, dim=1))  
+            auroc = self.__getattr__(f"{stage}_auroc")(output, torch.argmax(label, dim=1))  
         elif self.target == "reg":
             loss = F.mse_loss(output, series)
             mse = self.__getattr__(f"{stage}_mse")(output, series)

@@ -70,7 +70,7 @@ def setup_train_dm(
         train_idx: np.ndarray, test_idx: np.ndarray, 
         test_sts_length: int, 
         train_strat_size: int,
-        train_event_multiplier: int, 
+        train_event_mult: int, 
         rho_dfs: float, 
         batch_size: int, val_size: float,
         window_length: int,
@@ -94,26 +94,26 @@ def setup_train_dm(
         raise ValueError("The number of classes in train and test must be the same.")
 
     # Check there is the same number of events in each class in train
-    if len(np.unique(Y_train, return_counts=True)[1]) != 1:
+    if len(np.unique(np.unique(Y_train, return_counts=True)[1])) != 1:
         raise ValueError("The number of events in each class in train must be the same.")
 
     # Check the number of events in each class in train is a multiple of the stratification size
     if len(Y_train)%train_strat_size != 0:
         raise ValueError("The number of events in each class in train must be a multiple of the stratification size.")
 
-    STS_nev_train = len(train_idx)*train_event_multiplier
+    STS_nev_train = len(train_idx)*train_event_mult
     STS_nev_test = test_sts_length
 
     log.info("Generating the train STS")
     STS_train, SCS_train = compute_STS(X_train, Y_train,        
         shift_limits=True, STS_events=STS_nev_train, 
         mode="stratified", event_strat_size=train_strat_size,
-        random_state=random_state, add_first_sample=True)
+        random_state=random_state, add_first_event=True)
     
     log.info("Generating the test STS")
     STS_test, SCS_test = compute_STS(X_test, Y_test,                
         shift_limits=True, STS_events=STS_nev_test, mode="random", 
-        random_state=random_state, add_first_sample=True)
+        random_state=random_state, add_first_event=True)
 
     log.info("Computing the train DM")
     DM_train = compute_DM_optim(STS_train, patterns, rho_dfs)

@@ -1,6 +1,13 @@
+# package imports
+from s3ts.data.acquisition import download_dataset
+from s3ts.models.training import train_model
+
+from s3ts.data.setup import setup_pretrain_dm
+from s3ts.data.setup import setup_train_dm 
+from s3ts.data.setup import train_test_splits
+
 from pathlib import Path
 import subprocess
-import sys
 
 ATLAS_PRESET = {
     "account"     : "bcam-exclusive",
@@ -25,60 +32,6 @@ ATLAS_PRESET = {
     ]
 }
 
-def python_hook(
-        # ~~~~~~~~~~~~~ Compulsory CLI Parameters ~~~~~~~~~~~~~
-        dataset: str,
-        mode: str,
-        arch: str,
-        # ~~~~~~~~~~~~~ Optional CLI Parameters ~~~~~~~~~~~~~
-        use_pretrain: bool = None,
-        pretrain_mode: bool = None,
-        rho_dfs: float = None,
-        window_length: int = None,
-        stride_series: bool = None,
-        window_time_stride: int = None,
-        window_patt_stride: int = None,
-        num_encoder_feats: int = None,
-        num_decoder_feats: int = None,
-        exc: int = None, 
-        train_event_mult: int = None,
-        train_strat_size: int = None,
-        test_sts_length: int = None,
-        pret_sts_length: int = None,
-        batch_size: int = None,
-        val_size: float = None,
-        max_epochs: int = None,
-        learning_rate: float = None,
-        random_state: int = None,
-        cv_rep: int = None,
-        log_file: Path = None,
-        train_dir: Path = None,
-        storage_dir: Path = None,
-        num_workers: int = None,
-        ) -> None:
-
-    params = locals()
-    cli_params = ["dataset", "mode", "arch", 
-        "use_pretrain", "pretrain_mode", 
-        "rho_dfs", "window_length", "stride_series", 
-        "window_time_stride", "window_patt_stride", 
-        "num_encoder_feats", "num_decoder_feats", 
-        "exc", "train_event_mult", "train_strat_size", 
-        "test_sts_length", "pret_sts_length", 
-        "batch_size", "val_size", "max_epochs", 
-        "learning_rate", "random_state", "cv_rep", 
-        "log_file", "train_dir", "storage_dir", "num_workers"]
-    
-    cli_args = [f"--{p} {params[p]} " for p in cli_params]
-    cli_command = f"python {str(cli_command)} "
-    for var in params:
-        if var in cli_params and params[var] is not None:
-            cli_command += f"--{var} {str(params[var])} "
-    cli_command += f"--log_file {log_file} "
-    subprocess.run(cli_command, capture_output=True,
-                   stderr=sys.stderr, stdout=sys.stdout, 
-                   shell=True)
-
 def sbatch_hook(
         # ~~~~~~~~~~~~~ Compulsory CLI Parameters ~~~~~~~~~~~~~
         dataset: str,
@@ -93,8 +46,7 @@ def sbatch_hook(
         account: str,           # Account to charge
         partition: str,         # Partition to use
         venv_path: Path,        # Path to the virtual environment
-        train_cli_script: Path, # Path to the CLI script for training
-        pret_cli_script: Path,  # Path to the CLI script for pretraining
+        cli_script: Path,       # Path to the CLI script
         jobs_dir: Path,         # Path to the directory for the job files
         logs_dir: Path,         # Path to the directory for the log files
         outs_dir: Path,         # Path to the directory for the output files
