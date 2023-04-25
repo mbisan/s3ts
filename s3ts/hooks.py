@@ -18,13 +18,13 @@ ATLAS_PRESET = {
     "gres"        : None,
     # "email"       : "rcoterillo@bcamath.org",
     "email"       : None,
-    "venv"        : Path("/scratch/rcoterillo/s3ts/s3ts_env/bin/activate"),
-    "script"      : Path("/scratch/rcoterillo/s3ts/pret_cli.py"),
+    "venv_path"   : Path("/scratch/rcoterillo/s3ts/s3ts_env/bin/activate"),
+    "cli_script"  : Path("/scratch/rcoterillo/s3ts/cli.py"),
     "storage_dir" : Path("/scratch/rcoterillo/s3ts/storage"),
     "jobs_dir"    : Path("jobs/").absolute(),
     "logs_dir"    : Path("logs/").absolute(),
     "outs_dir"    : Path("outputs/").absolute(),
-    "storage_dir" : Path("/scratch/rcoterillo/s3ts/storage"),
+    "train_dir"   : Path("training/").absolute(),
     "modules"     : [
         "CUDA/11.3.1",
         "cuDNN/cuDNN/8.2.1.32-CUDA-11.3.1",       
@@ -38,7 +38,6 @@ def sbatch_hook(
         mode: str,
         arch: str,
         # ~~~~~~~~~~~~~ HPC Profile Settings ~~~~~~~~~~~~~
-        job_name: str,          # Name of the job
         email: str,             # Email to send notifications
         cpu: int,               # Number of CPUs 
         mem: int,               # GB of RAM memory
@@ -51,6 +50,8 @@ def sbatch_hook(
         logs_dir: Path,         # Path to the directory for the log files
         outs_dir: Path,         # Path to the directory for the output files
         modules: list[str],     # List of modules to load
+        # ~~~~~~~~~~~~~ HPC Optional Settings ~~~~~~~~~~~~~
+        job_name: str = None,   # Name of the job
         # ~~~~~~~~~~~~~ Optional CLI Parameters ~~~~~~~~~~~~~
         use_pretrain: bool = None,
         pretrain_mode: bool = None,
@@ -73,6 +74,7 @@ def sbatch_hook(
         random_state: int = None,
         cv_rep: int = None,
         log_file: Path = None,
+        res_fname: str = None,
         train_dir: Path = None,
         storage_dir: Path = None,
         num_workers: int = None,
@@ -83,6 +85,11 @@ def sbatch_hook(
     if job_name is None:
         job_name = f"{dataset}_wl{window_length}_ts{window_time_stride}_ps{window_patt_stride}_ss{ss}_{arch}"
     
+    # Ensure folders exist
+    for folder in [jobs_dir, logs_dir, outs_dir]:
+        if not folder.exists():
+            folder.mkdir(parents=True)
+
     job_file = jobs_dir / (job_name + ".job")
     log_file = logs_dir / (job_name + ".log")
     out_file = outs_dir / (job_name + ".out")
@@ -99,9 +106,10 @@ def sbatch_hook(
         "test_sts_length", "pret_sts_length", 
         "batch_size", "val_size", "max_epochs", 
         "learning_rate", "random_state", "cv_rep", 
-        "log_file", "train_dir", "storage_dir", "num_workers"]
+        "log_file", "res_fname", "train_dir", 
+        "storage_dir", "num_workers"]
 
-    cli_command = f"python {str(cli_command)} "
+    cli_command = f"python {str(cli_script)} "
     for var in params:
         if var in cli_params and params[var] is not None:
             cli_command += f"--{var} {str(params[var])} "
@@ -128,4 +136,4 @@ def sbatch_hook(
         f.write(f"source {str(venv_path)}\n")
         f.write(cli_command)
 
-    subprocess.run(["sbatch", str(job_file)], capture_output=True)
+    #subprocess.run(["sbatch", str(job_file)], capture_output=True)
