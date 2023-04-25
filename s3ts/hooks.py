@@ -136,4 +136,4 @@ def sbatch_hook(
         f.write(f"source {str(venv_path)}\n")
         f.write(cli_command)
 
-    #subprocess.run(["sbatch", str(job_file)], capture_output=True)
+    subprocess.run(["sbatch", str(job_file)], capture_output=True)
