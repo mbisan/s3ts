@@ -1,11 +1,4 @@
 # package imports
-from s3ts.data.acquisition import download_dataset
-from s3ts.models.training import train_model
-
-from s3ts.data.setup import setup_pretrain_dm
-from s3ts.data.setup import setup_train_dm 
-from s3ts.data.setup import train_test_splits
-
 from pathlib import Path
 import subprocess
 

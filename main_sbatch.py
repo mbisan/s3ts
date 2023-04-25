@@ -5,7 +5,6 @@ Script that automates pretraining in a SBATCH queue.
 """
 
 from s3ts.hooks import ATLAS_PRESET, sbatch_hook
-from pathlib import Path
 
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
