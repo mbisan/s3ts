@@ -344,18 +344,21 @@ class DFDataModule(LightningDataModule):
     def train_dataloader(self):
         """ Returns the training DataLoader. """
         return DataLoader(self.ds_tra_train, batch_size=self.batch_size, 
-            num_workers=self.num_workers, shuffle=False)
+            num_workers=self.num_workers, shuffle=False,
+            pin_memory=True, persistent_workers=True)
 
     def val_dataloader(self):
         """ Returns the validation DataLoader. """
         return DataLoader(self.ds_tra_val, batch_size=self.batch_size, 
-            num_workers=self.num_workers, shuffle=False)
+            num_workers=self.num_workers, shuffle=False,
+            pin_memory=True, persistent_workers=True)
 
     def test_dataloader(self):
         """ Returns the test DataLoader. """
         if self.test:
             return DataLoader(self.ds_test, batch_size=self.batch_size, 
-                num_workers=self.num_workers, shuffle=False)
+                num_workers=self.num_workers, shuffle=False,
+                pin_memory=True, persistent_workers=True)
         raise ValueError("Test dataset not available")
 
     def predict_dataloader(self):

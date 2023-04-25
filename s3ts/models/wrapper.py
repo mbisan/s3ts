@@ -134,7 +134,8 @@ class WrapperModel(LightningModule):
             for phase in ["train", "val", "test"]: 
                 self.__setattr__(f"{phase}_acc", tm.Accuracy(num_classes=out_feats, task="multiclass"))
                 self.__setattr__(f"{phase}_f1",  tm.F1Score(num_classes=out_feats, task="multiclass"))
-                self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=out_feats, task="multiclass"))
+                if phase == "train":
+                    self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=out_feats, task="multiclass"))
 
         elif self.target == "reg":
 
@@ -162,7 +163,8 @@ class WrapperModel(LightningModule):
     # STEPS
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-    def _inner_step(self, batch: tuple[torch.Tensor, torch.Tensor, torch.Tensor], stage: str = None):
+    def _inner_step(self, batch: tuple[torch.Tensor, torch.Tensor, torch.Tensor], 
+            stage: str = None):
 
         """ Inner step for the training, validation and testing. """
 
@@ -180,7 +182,8 @@ class WrapperModel(LightningModule):
             loss = F.cross_entropy(output, label.to(torch.float32))
             acc = self.__getattr__(f"{stage}_acc")(output, torch.argmax(label, dim=1))
             f1  = self.__getattr__(f"{stage}_f1")(output, torch.argmax(label, dim=1))
-            auroc = self.__getattr__(f"{stage}_auroc")(output, torch.argmax(label, dim=1))  
+            if stage != "train":
+                auroc = self.__getattr__(f"{stage}_auroc")(output, torch.argmax(label, dim=1))  
         elif self.target == "reg":
             loss = F.mse_loss(output, series)
             mse = self.__getattr__(f"{stage}_mse")(output, series)
@@ -188,15 +191,15 @@ class WrapperModel(LightningModule):
 
         # Log the loss and metrics
         on_step = True if stage == "train" else False
-
-        self.log(f"{stage}_loss", loss, on_epoch=True, on_step=on_step, prog_bar=True, sync_dist=True, logger=True)
+        self.log(f"{stage}_loss", loss, on_epoch=True, on_step=on_step, prog_bar=True, logger=True)
         if self.target == "cls":
-            self.log(f"{stage}_acc", acc, on_epoch=True, on_step=False, prog_bar=True, sync_dist=True, logger=True)
-            self.log(f"{stage}_f1", f1, on_epoch=True, on_step=False, prog_bar=True, sync_dist=True, logger=True)
-            self.log(f"{stage}_auroc", auroc, on_epoch=True, on_step=False, prog_bar=True, sync_dist=True, logger=True)
+            self.log(f"{stage}_acc", acc, on_epoch=True, on_step=False, prog_bar=True, logger=True)
+            self.log(f"{stage}_f1", f1, on_epoch=True, on_step=False, prog_bar=True, logger=True)
+            if stage != "train":
+                self.log(f"{stage}_auroc", auroc, on_epoch=True, on_step=False, prog_bar=True, logger=True)
         elif self.target == "reg":
-            self.log(f"{stage}_mse", mse, on_epoch=True, on_step=False, prog_bar=True, sync_dist=True, logger=True)
-            self.log(f"{stage}_r2", r2, on_epoch=True, on_step=False, prog_bar=True, sync_dist=True, logger=True)
+            self.log(f"{stage}_mse", mse, on_epoch=True, on_step=False, prog_bar=True, logger=True)
+            self.log(f"{stage}_r2", r2, on_epoch=True, on_step=False, prog_bar=True, logger=True)
 
         # Return the loss
         return loss.to(torch.float32)

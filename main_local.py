@@ -29,8 +29,8 @@ torch.set_float32_matmul_precision("medium")
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
 PRETRAIN_DF = True                  # Pretrain DF
-TRAIN_DF = True                     # Train DF
-TRAIN_TS = True                     # Train TS
+TRAIN_DF = False                    # Train DF
+TRAIN_TS = False                    # Train TS
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DATASETS = [ # Datasets
     "CBF", "GunPoint", "Plane", "SyntheticControl"                                           
@@ -42,7 +42,7 @@ ARCHS = { # Architectures
 # ~~~~~~~~~~~~~~~~~~~~~~~
 WINDOW_LENGTHS_TS: list[int] = [10, 30, 50, 70]     # Window length for TS                   
 WINDOW_LENGTHS_DF: list[int] = [10]                 # Window length for DF
-WINDOW_TIME_STRIDES: list[int] = [1, 3, 5, 7]       # Window time stride
+WINDOW_TIME_STRIDES: list[int] = [5, 7]       # Window time stride
 WINDOW_PATT_STRIDES: list[int] = [1, 3, 5]          # Window pattern stride
 # ~~~~~~~~~~~~~~~~~~~~~~~
 RHO_DFS: float = 0.1                # Memory parameter for DF
