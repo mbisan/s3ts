@@ -12,7 +12,7 @@ def sbatch_hook(
         cpu: int,               # Number of CPUs 
         mem: int,               # GB of RAM memory
         gres: str,              # Resources to use
-        account: str,           # Account to charge
+        
         partition: str,         # Partition to use
         venv_path: Path,        # Path to the virtual environment
         cli_script: Path,       # Path to the CLI script
@@ -22,6 +22,8 @@ def sbatch_hook(
         modules: list[str],     # List of modules to load
         # ~~~~~~~~~~~~~ HPC Optional Settings ~~~~~~~~~~~~~
         job_name: str = None,   # Name of the job
+        account: str = None,    # Account to charge
+        time: str = None,       # Time limit for the job
         # ~~~~~~~~~~~~~ Optional CLI Parameters ~~~~~~~~~~~~~
         use_pretrain: bool = None,
         pretrain_mode: bool = None,
@@ -88,7 +90,10 @@ def sbatch_hook(
     with job_file.open(mode="w") as f:
         f.write(f"#!/bin/bash\n")
         f.write(f"#SBATCH --job-name={job_name}\n")
-        f.write(f"#SBATCH --account={account}\n")
+        if account is not None:
+            f.write(f"#SBATCH --account={account}\n")
+        if time is not None:
+            f.write(f"#SBATCH --time={time}\n")
         f.write(f"#SBATCH --partition={partition}\n")
         if gres is not None:
             f.write(f"#SBATCH --gres={gres}\n")
