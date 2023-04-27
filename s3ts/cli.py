@@ -217,10 +217,10 @@ if __name__ == '__main__':
     parser.add_argument('--window_patt_stride', type=int, default=1,
                         help='Window pattern stride used for the encoder')
     
-    parser.add_argument('--number_encoder_feats', type=int, default=32,
+    parser.add_argument('--num_encoder_feats', type=int, default=32,
                         help='Number of features used for the encoder.')
     
-    parser.add_argument('--number_decoder_feats', type=int, default=64,
+    parser.add_argument('--num_decoder_feats', type=int, default=64,
                         help='Number of features used for the encoder.')
     
     parser.add_argument('--exc', type=int, default=16,
@@ -288,8 +288,8 @@ if __name__ == '__main__':
     stride_series: bool = args.stride_series
     window_time_stride: int = args.window_time_stride
     window_patt_stride: int = args.window_patt_stride
-    num_encoder_feats: int = args.number_encoder_feats
-    num_decoder_feats: int = args.number_decoder_feats
+    num_encoder_feats: int = args.num_encoder_feats
+    num_decoder_feats: int = args.num_decoder_feats
 
     # Training parameters
     exc: int = args.exc
