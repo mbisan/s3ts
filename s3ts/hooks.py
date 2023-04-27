@@ -68,8 +68,7 @@ def sbatch_hook(
     
     # CLI command
     params = locals()
-    cli_params = ["dataset", "mode", "arch", 
-        "use_pretrain", "pretrain_mode", 
+    cli_params1 = ["dataset", "mode", "arch", 
         "rho_dfs", "window_length", "stride_series", 
         "window_time_stride", "window_patt_stride", 
         "num_encoder_feats", "num_decoder_feats", 
@@ -79,11 +78,15 @@ def sbatch_hook(
         "learning_rate", "random_state", "cv_rep", 
         "log_file", "res_fname", "train_dir", 
         "storage_dir", "num_workers"]
+    
+    cli_params2 = ["use_pretrain", "pretrain_mode"]
 
     cli_command = f"python {str(cli_script)} "
     for var in params:
-        if var in cli_params and params[var] is not None:
+        if var in cli_params1 and params[var] is not None:
             cli_command += f"--{var} {str(params[var])} "
+        if var in cli_params2 and params[var] is not None and params[var]:
+            cli_command += f"--{var}"
    
     # Write job file
     with job_file.open(mode="w") as f:

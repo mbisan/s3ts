@@ -196,11 +196,11 @@ if __name__ == '__main__':
     parser.add_argument('--arch', type=str, required=True, choices=['CNN', 'ResNet'],
         help='Name of the architecture from which create the model')
     
-    parser.add_argument('--use_pretrain', type=bool, default=False,
-                        help='Use pretrained encoder or not (DF mode only)')
+    parser.add_argument('--use_pretrain', type=bool, action=argparse.BooleanOptionalAction, 
+                        default=False, help='Use pretrained encoder or not (DF mode only)')
 
-    parser.add_argument('--pretrain_mode', type=bool, default=False,
-                        help='Switch between train and pretrain mode')
+    parser.add_argument('--pretrain_mode', type=bool, action=argparse.BooleanOptionalAction,  
+                        default=False, help='Switch between train and pretrain mode')
 
     parser.add_argument('--rho_dfs', type=float, default=0.1,
                         help='Value of the forgetting parameter')
