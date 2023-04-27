@@ -78,9 +78,7 @@ def sbatch_hook(
         "learning_rate", "random_state", "cv_rep", 
         "log_file", "res_fname", "train_dir", 
         "storage_dir", "num_workers"]
-    
     cli_params2 = ["use_pretrain", "pretrain_mode"]
-
     cli_command = f"python {str(cli_script)} "
     for var in params:
         if var in cli_params1 and params[var] is not None:
