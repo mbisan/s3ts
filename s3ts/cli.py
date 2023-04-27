@@ -241,7 +241,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=128,
                         help='Batch size used during training')
     
-    parser.add_argument('--val_size', type=int, default=0.25,
+    parser.add_argument('--val_size', type=float, default=0.25,
                         help='Validation set size (as a fraction of the training set)')
     
     parser.add_argument('--max_epochs', type=int, default=60,
