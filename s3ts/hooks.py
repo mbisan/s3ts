@@ -86,7 +86,7 @@ def sbatch_hook(
         if var in cli_params1 and params[var] is not None:
             cli_command += f"--{var} {str(params[var])} "
         if var in cli_params2 and params[var] is not None and params[var]:
-            cli_command += f"--{var}"
+            cli_command += f"--{var} "
    
     # Write job file
     with job_file.open(mode="w") as f:
