@@ -12,7 +12,6 @@ def sbatch_hook(
         cpu: int,               # Number of CPUs 
         mem: int,               # GB of RAM memory
         gres: str,              # Resources to use
-        
         partition: str,         # Partition to use
         venv_path: Path,        # Path to the virtual environment
         cli_script: Path,       # Path to the CLI script
