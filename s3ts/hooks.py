@@ -58,8 +58,7 @@ def sbatch_hook(
     
     # Ensure folders exist
     for folder in [jobs_dir, logs_dir, outs_dir]:
-        if not folder.exists():
-            folder.mkdir(parents=True)
+        folder.mkdir(parents=True, exist_ok=True)
 
     job_file = jobs_dir / (job_name + ".job")
     log_file = logs_dir / (job_name + ".log")

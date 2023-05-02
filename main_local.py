@@ -42,7 +42,7 @@ ARCHS = { # Architectures
 # ~~~~~~~~~~~~~~~~~~~~~~~
 WINDOW_LENGTHS_TS: list[int] = [10, 30, 50, 70]     # Window length for TS                   
 WINDOW_LENGTHS_DF: list[int] = [10]                 # Window length for DF
-WINDOW_TIME_STRIDES: list[int] = [5, 7]       # Window time stride
+WINDOW_TIME_STRIDES: list[int] = [1, 3, 5, 7]       # Window time stride
 WINDOW_PATT_STRIDES: list[int] = [1, 3, 5]          # Window pattern stride
 # ~~~~~~~~~~~~~~~~~~~~~~~
 RHO_DFS: float = 0.1                # Memory parameter for DF
@@ -61,7 +61,7 @@ MAX_EPOCHS_PRE: int = 60            # Pre-training epochs
 MAX_EPOCHS_TRA: int = 120           # Training epochs
 LEARNING_RATE: float = 1E-4         # Learning rate
 # ~~~~~~~~~~~~~~~~~~~~~~~
-LOG_FILE = None                     # Log file
+LOG_FILE = "debug.log"              # Log file
 RES_FNAME = "results.csv"           # Results filename
 TRAIN_DIR = Path("training/")       # Training folder
 STORAGE_DIR = Path("storage/")      # Cache folder
@@ -70,9 +70,9 @@ NUM_WORKERS = mp.cpu_count()//2     # Number of workers for the dataloaders
 RANDOM_STATE = 0                    # Random state
 CV_REPS = 5                         # Number of cross-validation repetitions
 # ~~~~~~~~~~~~~~~~~~~~~~~
-log.basicConfig(stream=sys.stdout, #filename="debug.log", 
-    format="%(asctime)s [%(levelname)s] %(message)s", 
-    level=log.INFO, datefmt='%Y-%m-%d %H:%M:%S')
+# log.basicConfig(stream=sys.stdout, #filename="debug.log", 
+#     format="%(asctime)s [%(levelname)s] %(message)s", 
+#     level=log.INFO, datefmt='%Y-%m-%d %H:%M:%S')
 # ~~~~~~~~~~~~~~~~~~~~~~~
 SHARED_ARGS = {"rho_dfs": RHO_DFS, "batch_size": BATCH_SIZE, "val_size": VAL_SIZE,
     "num_encoder_feats": NUM_ENCODER_FEATS, "num_decoder_feats": NUM_DECODER_FEATS,

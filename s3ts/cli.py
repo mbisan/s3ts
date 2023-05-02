@@ -64,6 +64,18 @@ def main_loop(
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
 
+    # Logging setup
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    
+    if log_file is not None:
+        log.basicConfig(filename=log_file, level=log.INFO,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            datefmt='%Y-%m-%d %H:%M:%S')
+    else:
+        log.basicConfig(stream=sys.stdout, level=log.INFO,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            datefmt='%Y-%m-%d %H:%M:%S')
+
     # ~~~~~~~~~~~~ Sanity checks ~~~~~~~~~~~~
 
     log.info("Performing sanity checks...")
@@ -102,18 +114,6 @@ def main_loop(
     # If use_pretrain is False, set encoder_path to None
     if not use_pretrain and not pretrain_mode:
         encoder_path = None
-
-    # Logging setup
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    
-    if log_file is None:
-        log.basicConfig(stream=sys.stdout, level=log.INFO,
-            format="%(asctime)s [%(levelname)s] %(message)s",
-            datefmt='%Y-%m-%d %H:%M:%S')
-    else:
-        log.basicConfig(filename=log_file, level=log.INFO,
-            format="%(asctime)s [%(levelname)s] %(message)s",
-            datefmt='%Y-%m-%d %H:%M:%S')
         
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -123,7 +123,7 @@ def main_loop(
     if pretrain_mode:
         # Get directory and version
         directory = train_dir / "pretrain" / f"{dataset}_{arch}"
-        version = f"_wlen{window_length}_stride{ss}" +\
+        version = f"wlen{window_length}_stride{ss}" +\
             f"_wtst{window_time_stride}_wpst{window_patt_stride}" +\
             f"_val{val_size}_me{max_epochs}_bs{batch_size}" +\
             f"_stsl{pret_sts_length}_lr{learning_rate}_rs{random_state}"
@@ -146,10 +146,17 @@ def main_loop(
         directory = train_dir / "finetune" / f"{dataset}_{mode}_{arch}"
         # TODO: redo this version
         # TODO: add option to reduce dm available events (ratio)
-        version = f"_wlen{window_length}_stride{ss}" +\
-            f"_wtst{window_time_stride}_wpst{window_patt_stride}" +\
-            f"_val{val_size}_me{max_epochs}_bs{batch_size}" +\
-            f"_stsl{pret_sts_length}_lr{learning_rate}_rs{random_state}"
+
+        if mode == "DF":
+            version = f"wlen{window_length}_stride{ss}" +\
+                f"_wtst{window_time_stride}_wpst{window_patt_stride}" +\
+                f"_val{val_size}_me{max_epochs}_bs{batch_size}" +\
+                f"_lr{learning_rate}_rs{random_state}"
+        else:
+            version = f"wlen{window_length}" +\
+                f"_val{val_size}_me{max_epochs}_bs{batch_size}" +\
+                f"_lr{learning_rate}_rs{random_state}"
+            
         # Setup the data module
         dm = setup_train_dm(X=X, Y=Y, patterns=medoids,
             train_idx=train_idx, test_idx=test_idx,
