@@ -241,8 +241,7 @@ class DFDataModule(LightningDataModule):
             window_length: int = None,
             stride_series: int = None,
             window_time_stride: int = None,
-            window_patt_stride: int = None,
-            av_train_events: int = None):
+            window_patt_stride: int = None):
         
         """ Create the sample indeces for the datasets. """
 
@@ -275,29 +274,16 @@ class DFDataModule(LightningDataModule):
         self.train_indices = np.arange(margin, self.STS_train_events*self.l_events)
         if self.test:
             self.test_indices = np.arange(margin, self.STS_test_events*self.l_events)
-        
-        # Set the available samples by default
-        self.av_train_events = self.STS_train_events
-
-        # Check requested available samples are not larger than the actual ones
-        if av_train_events is not None:
-            assert av_train_events <= self.STS_train_events, "Requested available training events are larger than the actual ones"
-            self.train_indices = np.arange(margin, av_train_events*self.l_events)
-            self.av_train_events = av_train_events
 
     def create_datasets(self, val_size: float = None) -> None:
 
         """ Create/update the datasets for training, validation and testing. """
-
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         # Check if the validation size is set
         if val_size is not None:
             # Check if the validation size is in the correct range
             assert val_size > 0 and val_size < 1, "Validation size must be between 0 and 1"
             self.val_size = val_size
-
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         # Normalization transform for the frames
         DM_transform = tv.transforms.Normalize(
@@ -331,14 +317,12 @@ class DFDataModule(LightningDataModule):
             window_length: int = None,
             stride_series: bool = None,
             window_time_stride: int = None,
-            window_patt_stride: int = None,
-            av_train_events: int = None):
+            window_patt_stride: int = None):
         
         """ Updates the samples index based on the available events. """
         
         self.create_sample_index(window_length=window_length, stride_series=stride_series,
-            window_time_stride=window_time_stride, window_patt_stride=window_patt_stride,
-            av_train_events=av_train_events)
+            window_time_stride=window_time_stride, window_patt_stride=window_patt_stride)
         self.create_datasets(val_size=val_size)
 
     def train_dataloader(self):

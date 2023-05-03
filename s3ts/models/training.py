@@ -69,9 +69,6 @@ def train_model(pretrain_mode: bool, version: str,
     res["pretrain_mode"] = pretrain_mode
     res["window_length"] = dm.window_length
     res["stride_series"] = dm.stride_series
-    res["nevents_train"] = dm.av_train_events
-    if dm.test:
-        res["nevents_test"] = dm.STS_test_events
     res["window_time_stride"] = dm.window_time_stride
     res["window_patt_stride"] = dm.window_patt_stride
     res["learning_rate"] = learning_rate

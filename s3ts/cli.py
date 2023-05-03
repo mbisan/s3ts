@@ -16,6 +16,7 @@ from s3ts.data.setup import train_test_splits
 import multiprocessing as mp
 from pathlib import Path
 import logging as log
+import numpy as np
 import argparse
 import time, sys
 
@@ -39,6 +40,7 @@ def main_loop(
         num_decoder_feats: int,
         # Training parameters
         exc: int,
+        train_exc_limit: int,
         train_event_mult: int,
         train_strat_size: int,
         test_sts_length: int,
@@ -96,6 +98,7 @@ def main_loop(
         raise ValueError("'pretrain_mode' is a previous step to 'use_pretrain', so they cannot be both True.")
 
     # Get the path to the encoder
+    assert isinstance(stride_series, bool)
     ss = 1 if stride_series else 0
     enc_name = f"{dataset}_{arch}_wl{window_length}_ts{window_time_stride}_ps{window_patt_stride}_ss{ss}"
     encoder_path = storage_dir / "encoders" / (enc_name + ".pt")
@@ -113,6 +116,16 @@ def main_loop(
         if encoder_path.exists():
             raise ValueError("Encoder already exists. Please delete it before running pretrain mode.")
     
+    # If train_exc_limit is None, set it to exc
+    if train_exc_limit is None:
+        train_exc_limit = exc
+
+    # Check the train_exc_limit is positive and not greater than exc
+    if train_exc_limit > exc:
+        raise ValueError("The train event limit cannot be greater than the number of events per class.")
+    if train_exc_limit < 1:
+        raise ValueError("The train event limit must be positive.")
+
     # If use_pretrain is False, set encoder_path to None
     if not pretrain_mode and not use_pretrain:
         encoder_path = None
@@ -146,23 +159,31 @@ def main_loop(
                 break
         # Get directory and version
         directory = train_dir / "finetune" / f"{dataset}_{mode}_{arch}"
-        # TODO: add option to reduce dm available events (ratio)
         if mode == "DF":
-            version = f"wlen{window_length}_stride{ss}" +\
+            version = f"exc{exc}_avev{train_exc_limit}_tstrat{train_strat_size}" +\
+                f"_tmult{train_event_mult}_ststest{test_sts_length}" +\
+                f"_wlen{window_length}_stride{ss}" +\
                 f"_wtst{window_time_stride}_wpst{window_patt_stride}" +\
                 f"_val{val_size}_me{max_epochs}_bs{batch_size}" +\
                 f"_lr{learning_rate}_rs{random_state}"
         else:
-            version = f"wlen{window_length}" +\
+            version = f"exc{exc}_avev{train_exc_limit}_tstrat{train_strat_size}" +\
+                f"_tmult{train_event_mult}_ststest{test_sts_length}" +\
+                f"_wlen{window_length}" +\
                 f"_val{val_size}_me{max_epochs}_bs{batch_size}" +\
                 f"_lr{learning_rate}_rs{random_state}"
             
+        # Calculate event limits
+        train_event_total = int(exc*np.unique(Y[train_idx])*train_event_mult)
+        train_event_limit = int(train_exc_limit*np.unique(Y[train_idx])*train_event_mult)
+
         # Setup the data module
         dm = setup_train_dm(X=X, Y=Y, patterns=medoids,
             train_idx=train_idx, test_idx=test_idx,
             test_sts_length=test_sts_length,
             train_event_mult=train_event_mult,
             train_strat_size=train_strat_size,
+            train_event_limit=train_event_limit,
             batch_size=batch_size, val_size=val_size,               
             rho_dfs=rho_dfs, window_length=window_length, 
             window_time_stride=window_time_stride,
@@ -185,8 +206,13 @@ def main_loop(
     train_time = time.perf_counter()
     
     if not pretrain_mode:
+        data["exc"] = exc 
+        data["train_exc_limit"] = train_exc_limit
         data["train_strat_size"] = train_strat_size
         data["train_event_mult"] = train_event_mult
+        data["nevents_test"] = dm.STS_test_events
+        data["nevents_train_lim"] = train_event_limit
+        data["nevents_train_tot"] = train_event_total
 
     # Log times
     data["time_dm"] = dm_time - start_time
@@ -240,13 +266,16 @@ if __name__ == '__main__':
                         help='Number of features used for the encoder.')
     
     parser.add_argument('--exc', type=int, default=16,
-                        help='Number of samples per class')
+                        help='Number of events per class')
 
     parser.add_argument('--train_strat_size', type=int, default=2,
-                        help='Stratification size for the training set')
+                        help='Stratification size for the training STS')
 
     parser.add_argument('--train_event_mult', type=int, default=4,
-                        help='Number of samples per class')
+                        help='Event multiplier for the training STS')
+    
+    parser.add_argument('--train_exc_limit', type=int, default=None,
+                        help='Limit the number of available events per class (experimentation purposes)')
 
     parser.add_argument('--test_sts_length', type=int, default=200,
                         help='Length of the STS used for testing')
@@ -310,6 +339,7 @@ if __name__ == '__main__':
     # Training parameters
     exc: int = args.exc
     train_event_mult: int = args.train_event_mult
+    train_exc_limit: int = args.train_exc_limit
     train_strat_size: int = args.train_strat_size
     test_sts_length: int = args.test_sts_length
     pret_sts_length: int = args.pret_sts_length
@@ -349,6 +379,7 @@ if __name__ == '__main__':
         exc=exc,
         train_event_mult=train_event_mult,
         train_strat_size=train_strat_size,
+        train_exc_limit=train_exc_limit,
         test_sts_length=test_sts_length,
         pret_sts_length=pret_sts_length,
         batch_size=batch_size,

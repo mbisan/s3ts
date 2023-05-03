@@ -69,6 +69,7 @@ def setup_train_dm(
         X: np.ndarray, Y: np.ndarray, patterns: np.ndarray,
         train_idx: np.ndarray, test_idx: np.ndarray, 
         test_sts_length: int, 
+        train_event_limit: int,
         train_strat_size: int,
         train_event_mult: int, 
         rho_dfs: float, 
@@ -126,6 +127,13 @@ def setup_train_dm(
     SCS_train, SCS_test = SCS_train[event_length:], SCS_test[event_length:]
     DM_train, DM_test = DM_train[:,:,event_length:], DM_test[:,:,event_length:]
 
+    # Remove events according to train_event_limit
+    limit_idx = event_length*train_event_limit
+    STS_train, STS_test = STS_train[:limit_idx], STS_test[:limit_idx]
+    SCS_train, SCS_test = SCS_train[:limit_idx], SCS_test[:limit_idx]
+    DM_train, DM_test = DM_train[:,:,:limit_idx], DM_test[:,:,:limit_idx]
+
+
     # Return the DataModule
     return DFDataModule(
         STS_train=STS_train, SCS_train=SCS_train, DM_train=DM_train,
@@ -176,7 +184,7 @@ def setup_pretrain_dm(
         STS_train=STS_pret, SCS_train=SCS_pret, DM_train=DM_pret,
         STS_test=None, SCS_test=None, DM_test=None,
         event_length=event_length, patterns=patterns,
-        batch_size=batch_size, val_size=val_size, 
+        batch_size=batch_size, val_size=val_size,
         stride_series=stride_series, 
         window_length=window_length,
         window_time_stride=window_time_stride, 
