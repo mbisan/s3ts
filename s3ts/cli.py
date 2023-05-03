@@ -40,7 +40,6 @@ def main_loop(
         num_decoder_feats: int,
         # Training parameters
         exc: int,
-        train_exc_limit: int,
         train_event_mult: int,
         train_strat_size: int,
         test_sts_length: int,
@@ -57,6 +56,7 @@ def main_loop(
         train_dir: Path,
         storage_dir: Path,
         num_workers: int,
+        train_exc_limit: int = None,
         ):
     
     # ~~~~~~~~~~~ Create folders ~~~~~~~~~~~~

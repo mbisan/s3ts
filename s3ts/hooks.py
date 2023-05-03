@@ -12,6 +12,7 @@ def sbatch_hook(
         cpu: int,               # Number of CPUs 
         mem: int,               # GB of RAM memory
         gres: str,              # Resources to use
+        constraint: str,        # Constraint to use
         partition: str,         # Partition to use
         venv_path: Path,        # Path to the virtual environment
         cli_script: Path,       # Path to the CLI script
@@ -99,6 +100,8 @@ def sbatch_hook(
         f.write(f"#SBATCH --partition={partition}\n")
         if gres is not None:
             f.write(f"#SBATCH --gres={gres}\n")
+        if constraint is not None:
+            f.write(f"#SBATCH --constraint={constraint}\n")
         f.write(f"#SBATCH --nodes=1\n")
         f.write(f"#SBATCH --ntasks-per-node=1\n")
         f.write(f"#SBATCH --cpus-per-task={str(cpu)}\n")
