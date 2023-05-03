@@ -20,8 +20,6 @@ from s3ts.cli import main_loop
 # standard library
 import multiprocessing as mp
 from pathlib import Path
-import logging as log
-import sys
 
 import torch
 torch.set_float32_matmul_precision("medium")
@@ -111,7 +109,7 @@ if PRETRAIN_DF:
                     main_loop(dataset=dataset, mode="DF", arch=arch,
                         use_pretrain=False, pretrain_mode=True,
                         window_length=wlen, stride_series=False,
-                        window_time_stride=1, window_patt_stride=wps,
+                        window_time_stride=7, window_patt_stride=wps,
                         max_epochs=MAX_EPOCHS_PRE, cv_rep=0, 
                         **SHARED_ARGS)
 

@@ -88,7 +88,7 @@ if PRETRAIN_DF:
                     sbatch_hook(dataset=dataset, mode="DF", arch=arch,
                         use_pretrain=False, pretrain_mode=True,
                         window_length=wlen, stride_series=False,
-                        window_time_stride=1, window_patt_stride=wps,
+                        window_time_stride=7, window_patt_stride=wps,
                         max_epochs=MAX_EPOCHS_PRE, cv_rep=0, 
                         res_fname=res_fname, **SHARED_ARGS)
 

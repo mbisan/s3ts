@@ -112,7 +112,7 @@ def main_loop(
             raise ValueError("Encoder already exists. Please delete it before running pretrain mode.")
     
     # If use_pretrain is False, set encoder_path to None
-    if not use_pretrain and not pretrain_mode:
+    if not pretrain_mode and not use_pretrain:
         encoder_path = None
         
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -144,9 +144,7 @@ def main_loop(
                 break
         # Get directory and version
         directory = train_dir / "finetune" / f"{dataset}_{mode}_{arch}"
-        # TODO: redo this version
         # TODO: add option to reduce dm available events (ratio)
-
         if mode == "DF":
             version = f"wlen{window_length}_stride{ss}" +\
                 f"_wtst{window_time_stride}_wpst{window_patt_stride}" +\
@@ -215,9 +213,9 @@ if __name__ == '__main__':
     parser.add_argument('--window_length', type=int, default=10,
                         help='Window legth for the encoder')
     
-    parser.add_argument('--stride_series', type=bool, default=False,
-                        help='Stride or use the whole time series during pretrain')
-    
+    parser.add_argument('--stride_series', type=bool, action=argparse.BooleanOptionalAction,  
+                        default=False, help='Stride the time series during pretrain')
+
     parser.add_argument('--window_time_stride', type=int, default=1,
                         help='Window time stride used for the encoder')
     
@@ -263,7 +261,7 @@ if __name__ == '__main__':
     parser.add_argument('--random_state', type=int, default=0,
                         help='Global seed for the random number generators')
     
-    parser.add_argument('--log_file', type=str, default=None,
+    parser.add_argument('--log_file', type=str, default="debug.log",
                         help='Log file for the training')
     
     parser.add_argument('--res_fname', type=str, default="results.csv",

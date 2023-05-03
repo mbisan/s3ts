@@ -135,7 +135,7 @@ def train_model(pretrain_mode: bool, version: str,
 
     if pretrain_mode:
         # Save the pretrained encoder
-        print(encoder_path)
+        log.info(f"Saving encoder at: '{str(encoder_path)}'")
         torch.save(model.encoder, encoder_path)
 
     return res, model

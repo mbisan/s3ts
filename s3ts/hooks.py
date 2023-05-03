@@ -68,7 +68,7 @@ def sbatch_hook(
     # CLI command
     params = locals()
     cli_params1 = ["dataset", "mode", "arch", 
-        "rho_dfs", "window_length", "stride_series", 
+        "rho_dfs", "window_length", 
         "window_time_stride", "window_patt_stride", 
         "num_encoder_feats", "num_decoder_feats", 
         "exc", "train_event_mult", "train_strat_size", 
@@ -77,7 +77,7 @@ def sbatch_hook(
         "learning_rate", "random_state", "cv_rep", 
         "log_file", "res_fname", "train_dir", 
         "storage_dir", "num_workers"]
-    cli_params2 = ["use_pretrain", "pretrain_mode"]
+    cli_params2 = ["use_pretrain", "pretrain_mode", "stride_series"]
     cli_command = f"python {str(cli_script)} "
     for var in params:
         if var in cli_params1 and params[var] is not None:
@@ -110,4 +110,4 @@ def sbatch_hook(
         f.write(f"source {str(venv_path)}\n")
         f.write(cli_command)
 
-    subprocess.run(["sbatch", str(job_file)], capture_output=True)
+    subprocess.run(["sbatch", str(job_file)])
