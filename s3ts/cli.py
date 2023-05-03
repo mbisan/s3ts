@@ -17,7 +17,7 @@ import multiprocessing as mp
 from pathlib import Path
 import logging as log
 import argparse
-import sys
+import time, sys
 
 # torch configuration
 import torch
@@ -58,6 +58,8 @@ def main_loop(
         ):
     
     # ~~~~~~~~~~~ Create folders ~~~~~~~~~~~~
+
+    start_time = time.perf_counter()
 
     for fold in ["datasets", "results", "encoders"]:
         path = storage_dir / fold
@@ -168,6 +170,8 @@ def main_loop(
             random_state=random_state,
             num_workers=num_workers)
     
+    dm_time =time.perf_counter()
+    
     # Train the model
     data, model = train_model(
         pretrain_mode=pretrain_mode, version=version,
@@ -178,9 +182,16 @@ def main_loop(
         num_decoder_feats=num_decoder_feats,
         random_state=random_state, cv_rep=cv_rep)
     
+    train_time = time.perf_counter()
+    
     if not pretrain_mode:
         data["train_strat_size"] = train_strat_size
         data["train_event_mult"] = train_event_mult
+
+    # Log times
+    data["time_dm"] = dm_time - start_time
+    data["time_train"] = train_time - dm_time
+    data["time_total"] = train_time - start_time
 
     # Save the results
     save_results(data, res_fname=res_fname, storage_dir=storage_dir)
