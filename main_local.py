@@ -41,7 +41,7 @@ ARCHS = { # Architectures
 WINDOW_LENGTHS_TS: list[int] = [10, 30, 50, 70]     # Window length for TS                   
 WINDOW_LENGTHS_DF: list[int] = [10]                 # Window length for DF
 WINDOW_TIME_STRIDES: list[int] = [1, 3, 5, 7]       # Window time stride
-WINDOW_PATT_STRIDES: list[int] = [1, 3, 5]          # Window pattern stride
+WINDOW_PATT_STRIDES: list[int] = [2, 3, 5]          # Window pattern stride
 # ~~~~~~~~~~~~~~~~~~~~~~~
 RHO_DFS: float = 0.1                # Memory parameter for DF
 BATCH_SIZE: bool = 128              # Batch size
