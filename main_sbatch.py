@@ -15,7 +15,7 @@ TRAIN_TS = False                    # Train TS
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DATASETS = [ # Datasets
     "CBF", #"GunPoint", "Plane", "SyntheticControl"                                           
-]                      
+]
 ARCHS = { # Architectures
     "DF": ["CNN"],#, "ResNet"],
     "TS": ["RNN", "CNN", "ResNet"],
