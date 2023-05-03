@@ -169,25 +169,25 @@ class WrapperModel(LightningModule):
         """ Inner step for the training, validation and testing. """
 
         # Unpack the batch from the dataloader
-        frames, series, label = batch
+        # frames, series, label = batch
 
         # Forward pass
         if self.mode == "DF":
-            output = self(frames)
+            output = self(batch[0])
         elif self.mode == "TS":
-            output = self(series)
+            output = self(batch[1])
 
         # Compute the loss and metrics
         if self.target == "cls":
-            loss = F.cross_entropy(output, label.to(torch.float32))
-            acc = self.__getattr__(f"{stage}_acc")(output, torch.argmax(label, dim=1))
-            f1  = self.__getattr__(f"{stage}_f1")(output, torch.argmax(label, dim=1))
+            loss = F.cross_entropy(output, batch[2].to(torch.float32))
+            acc = self.__getattr__(f"{stage}_acc")(output, torch.argmax(batch[2], dim=1))
+            f1  = self.__getattr__(f"{stage}_f1")(output, torch.argmax(batch[2], dim=1))
             if stage != "train":
-                auroc = self.__getattr__(f"{stage}_auroc")(output, torch.argmax(label, dim=1))  
+                auroc = self.__getattr__(f"{stage}_auroc")(output, torch.argmax(batch[2], dim=1))  
         elif self.target == "reg":
-            loss = F.mse_loss(output, series)
-            mse = self.__getattr__(f"{stage}_mse")(output, series)
-            r2 = self.__getattr__(f"{stage}_r2")(output, series)
+            loss = F.mse_loss(output, batch[1])
+            mse = self.__getattr__(f"{stage}_mse")(output,  batch[1])
+            r2 = self.__getattr__(f"{stage}_r2")(output,  batch[1])
 
         # Log the loss and metrics
         on_step = True if stage == "train" else False
