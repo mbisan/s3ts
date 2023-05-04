@@ -26,9 +26,9 @@ torch.set_float32_matmul_precision("medium")
 
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
-PRETRAIN_DF = True                  # Pretrain DF
-TRAIN_DF = False                    # Train DF
-TRAIN_TS = False                    # Train TS
+PRETRAIN_DF = False                  # Pretrain DF
+TRAIN_DF = True                    # Train DF
+TRAIN_TS = False                     # Train TS
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DATASETS = [ # Datasets
     "CBF"#, "GunPoint", "Plane", "SyntheticControl"                                           

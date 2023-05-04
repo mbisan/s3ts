@@ -174,8 +174,8 @@ def main_loop(
                 f"_lr{learning_rate}_rs{random_state}"
             
         # Calculate event limits
-        train_event_total = int(exc*np.unique(Y[train_idx])*train_event_mult)
-        train_event_limit = int(train_exc_limit*np.unique(Y[train_idx])*train_event_mult)
+        train_event_total = int(exc*len(np.unique(Y[train_idx]))*train_event_mult)
+        train_event_limit = int(train_exc_limit*len(np.unique(Y[train_idx]))*train_event_mult)
 
         # Setup the data module
         dm = setup_train_dm(X=X, Y=Y, patterns=medoids,
