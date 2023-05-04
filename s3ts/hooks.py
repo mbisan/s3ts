@@ -56,8 +56,12 @@ def sbatch_hook(
     # Job name and output files
     ss = 1 if stride_series else 0
     if job_name is None:
-        job_name = f"{dataset}_wl{window_length}_ts{window_time_stride}_ps{window_patt_stride}_ss{ss}_{arch}"
-    
+        if mode == "DF":
+            job_name = f"{dataset}_{mode}_{arch}_wl{window_length}_ts{window_time_stride}_ps{window_patt_stride}_ss{ss}"
+        else:
+            job_name = f"{dataset}_{mode}_{arch}_wl{window_length}"
+
+
     # Ensure folders exist
     for folder in [jobs_dir, logs_dir, outs_dir]:
         folder.mkdir(parents=True, exist_ok=True)

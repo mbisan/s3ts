@@ -31,10 +31,10 @@ TRAIN_DF = False                    # Train DF
 TRAIN_TS = False                    # Train TS
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DATASETS = [ # Datasets
-    "CBF", "GunPoint", "Plane", "SyntheticControl"                                           
+    "CBF"#, "GunPoint", "Plane", "SyntheticControl"                                           
 ]                      
 ARCHS = { # Architectures
-    "DF": ["CNN", "ResNet"],
+    "DF": ["CNN"],# "ResNet"],
     "TS": ["RNN", "CNN", "ResNet"],
 }
 # ~~~~~~~~~~~~~~~~~~~~~~~
@@ -49,17 +49,17 @@ VAL_SIZE: float = 0.25              # Validation size
 NUM_ENCODER_FEATS: int = 32         # Number of encoder features
 NUM_DECODER_FEATS: int = 64         # Number of decoder features
 # ~~~~~~~~~~~~~~~~~~~~~~~
-EVENTS_PER_CLASS = 16               # Number of events per class
+EVENTS_PER_CLASS = 32               # Number of events per class
 TRAIN_EVENT_MULT = 4                # Training events multiplier
 TRAIN_STRAT_SIZE = 2                # Training stratification size
 TEST_STS_LENGTH = 200               # Number of events for testing
-PRET_STS_LENGTH = 1000              # Number of events for pretraining
+PRET_STS_LENGTH = 100               # Number of events for pretraining
 # ~~~~~~~~~~~~~~~~~~~~~~~
-MAX_EPOCHS_PRE: int = 60            # Pre-training epochs
+MAX_EPOCHS_PRE: int = 20            # Pre-training epochs
 MAX_EPOCHS_TRA: int = 120           # Training epochs
 LEARNING_RATE: float = 1E-4         # Learning rate
 # ~~~~~~~~~~~~~~~~~~~~~~~
-LOG_FILE = "debug.log"              # Log file
+LOG_FILE = None                     # Log file
 RES_FNAME = "results.csv"           # Results filename
 TRAIN_DIR = Path("training/")       # Training folder
 STORAGE_DIR = Path("storage/")      # Cache folder
@@ -67,10 +67,6 @@ STORAGE_DIR = Path("storage/")      # Cache folder
 NUM_WORKERS = mp.cpu_count()//2     # Number of workers for the dataloaders
 RANDOM_STATE = 0                    # Random state
 CV_REPS = 5                         # Number of cross-validation repetitions
-# ~~~~~~~~~~~~~~~~~~~~~~~
-# log.basicConfig(stream=sys.stdout, #filename="debug.log", 
-#     format="%(asctime)s [%(levelname)s] %(message)s", 
-#     level=log.INFO, datefmt='%Y-%m-%d %H:%M:%S')
 # ~~~~~~~~~~~~~~~~~~~~~~~
 SHARED_ARGS = {"rho_dfs": RHO_DFS, "batch_size": BATCH_SIZE, "val_size": VAL_SIZE,
     "num_encoder_feats": NUM_ENCODER_FEATS, "num_decoder_feats": NUM_DECODER_FEATS,
@@ -80,6 +76,8 @@ SHARED_ARGS = {"rho_dfs": RHO_DFS, "batch_size": BATCH_SIZE, "val_size": VAL_SIZ
     "log_file": LOG_FILE, "res_fname": RES_FNAME, 
     "train_dir": TRAIN_DIR, "storage_dir": STORAGE_DIR,
     "num_workers": NUM_WORKERS, "random_state": RANDOM_STATE}
+
+
 
 # Pretrain Loop
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -121,6 +119,8 @@ if TRAIN_TS:
     for cv_rep in range(CV_REPS):
         for arch in ARCHS[mode]:
             for dataset in DATASETS:
+
+                # Check different window lengths
                 for wlen in WINDOW_LENGTHS_TS:
                     main_loop(dataset=dataset, mode=mode, arch=arch,
                         use_pretrain=False, pretrain_mode=False,
@@ -128,7 +128,15 @@ if TRAIN_TS:
                         window_time_stride=1, window_patt_stride=1,
                         max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
                         **SHARED_ARGS)
-
+                    
+                # Check different event limits
+                for exc in EVENTS_PER_CLASS:
+                    main_loop(dataset=dataset, mode=mode, arch=arch,
+                        use_pretrain=False, pretrain_mode=False,
+                        window_length=WINDOW_LENGTHS_TS[0], stride_series=False,
+                        window_time_stride=1, window_patt_stride=1,
+                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+                        exc=exc, **SHARED_ARGS)
 
 # Training Loop for DF 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
