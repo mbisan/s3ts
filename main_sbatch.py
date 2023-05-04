@@ -32,7 +32,7 @@ VAL_SIZE: float = 0.25              # Validation size
 NUM_ENCODER_FEATS: int = 32         # Number of encoder features
 NUM_DECODER_FEATS: int = 64         # Number of decoder features
 # ~~~~~~~~~~~~~~~~~~~~~~~
-EVENTS_PER_CLASS = 16               # Number of events per class
+EVENTS_PER_CLASS = 32               # Number of events per class
 TRAIN_EVENT_MULT = 4                # Training events multiplier
 TRAIN_STRAT_SIZE = 2                # Training stratification size
 TEST_STS_LENGTH = 200               # Number of events for testing
