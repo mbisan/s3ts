@@ -235,7 +235,7 @@ if __name__ == '__main__':
     parser.add_argument('--mode', type=str, required=True, choices=['DF', 'TS'],
         help='Data representation (DF: Dissimilarity Frame, TS: Time Series)')
 
-    parser.add_argument('--arch', type=str, required=True, choices=['CNN', 'ResNet'],
+    parser.add_argument('--arch', type=str, required=True, choices=['RNN', 'CNN', 'ResNet'],
         help='Name of the architecture from which create the model')
     
     parser.add_argument('--use_pretrain', type=bool, action=argparse.BooleanOptionalAction, 

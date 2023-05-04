@@ -77,8 +77,6 @@ SHARED_ARGS = {"rho_dfs": RHO_DFS, "batch_size": BATCH_SIZE, "val_size": VAL_SIZ
     "train_dir": TRAIN_DIR, "storage_dir": STORAGE_DIR,
     "num_workers": NUM_WORKERS, "random_state": RANDOM_STATE}
 
-
-
 # Pretrain Loop
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
