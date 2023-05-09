@@ -54,7 +54,7 @@ def sbatch_hook(
         ) -> None: 
     
     # Job name and output files
-    ss = 1 if stride_series else 0
+    ss = 0 if stride_series is None else int(stride_series)
     cv = 0 if cv_rep is None else cv_rep
     if job_name is None:
         if mode == "DF":
