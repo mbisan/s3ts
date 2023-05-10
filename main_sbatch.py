@@ -35,6 +35,7 @@ NUM_ENCODER_FEATS: int = 32         # Number of encoder features
 NUM_DECODER_FEATS: int = 64         # Number of decoder features
 # ~~~~~~~~~~~~~~~~~~~~~~~
 EVENTS_PER_CLASS = 32               # Number of events per class
+EVENT_LIMITERS = [8, 16, 32]        # Event limiters
 TRAIN_EVENT_MULT = 4                # Training events multiplier
 TRAIN_STRAT_SIZE = 2                # Training stratification size
 TEST_STS_LENGTH = 200               # Number of events for testing
@@ -171,24 +172,34 @@ if SELF_SUP:
 
                 res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
                 
-                wlen = WINDOW_LENGTH_DF
-                wts  = 7
-                wps  = 2 
+                for ev_lim in EVENT_LIMITERS:
 
-                # Full series
-                sbatch_hook(dataset=dataset, mode=mode, arch=arch,
-                    use_pretrain=True, pretrain_mode=False,
-                    window_length=wlen, stride_series=False,
-                    window_time_stride=wts, window_patt_stride=wps, 
-                    max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-                    res_fname=res_fname, **SHARED_ARGS)
-                
-                # Strided series
-                sbatch_hook(dataset=dataset, mode=mode, arch=arch,
-                    use_pretrain=True, pretrain_mode=False,
-                    window_length=wlen, stride_series=False,
-                    window_time_stride=wts, window_patt_stride=wps, 
-                    max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-                    res_fname=res_fname, **SHARED_ARGS)
+                    wlen = WINDOW_LENGTH_DF
+                    wts  = 7
+                    wps  = 2 
+
+                    # Full series
+                    sbatch_hook(dataset=dataset, mode=mode, arch=arch,
+                        use_pretrain=True, pretrain_mode=False,
+                        window_length=wlen, stride_series=False,
+                        window_time_stride=wts, window_patt_stride=wps, 
+                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+                        res_fname=res_fname, **SHARED_ARGS)
+
+                    # Full series
+                    sbatch_hook(dataset=dataset, mode=mode, arch=arch,
+                        use_pretrain=True, pretrain_mode=False,
+                        window_length=wlen, stride_series=False,
+                        window_time_stride=wts, window_patt_stride=wps, 
+                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+                        res_fname=res_fname, **SHARED_ARGS)
+                    
+                    # Strided series
+                    sbatch_hook(dataset=dataset, mode=mode, arch=arch,
+                        use_pretrain=True, pretrain_mode=False,
+                        window_length=wlen, stride_series=True,
+                        window_time_stride=wts, window_patt_stride=wps, 
+                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+                        res_fname=res_fname, **SHARED_ARGS)
 
 
