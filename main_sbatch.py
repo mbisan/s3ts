@@ -10,7 +10,7 @@ from s3ts.hooks import sbatch_hook
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
 PRETRAIN_ENCODERS = False         # Pretrain the DF encoders
-TIME_DIL = True                   # Time dilation
+TIME_DIL = False                  # Time dilation
 PATT_STR = False                  # Pattern stride
 SELF_SUP = False                  # Self-supervised pretraining
 # ~~~~~~~~~~~~~~~~~~~~~~~
