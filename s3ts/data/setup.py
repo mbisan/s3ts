@@ -75,6 +75,7 @@ def setup_train_dm(
         rho_dfs: float, 
         batch_size: int, val_size: float,
         window_length: int,
+        stride_series: bool,
         window_time_stride: int, 
         window_patt_stride: int,
         random_state: int,
@@ -133,14 +134,13 @@ def setup_train_dm(
     SCS_train, SCS_test = SCS_train[:limit_idx], SCS_test[:limit_idx]
     DM_train, DM_test = DM_train[:,:,:limit_idx], DM_test[:,:,:limit_idx]
 
-
     # Return the DataModule
     return DFDataModule(
         STS_train=STS_train, SCS_train=SCS_train, DM_train=DM_train,
         STS_test=STS_test, SCS_test=SCS_test, DM_test=DM_test,
         event_length=event_length, patterns=patterns,
         batch_size=batch_size, val_size=val_size, 
-        stride_series=False, window_length=window_length,
+        stride_series=stride_series, window_length=window_length,
         window_time_stride=window_time_stride, 
         window_patt_stride=window_patt_stride,
         random_state=random_state, 

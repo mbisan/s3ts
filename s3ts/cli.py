@@ -84,6 +84,10 @@ def main_loop(
 
     log.info("Performing sanity checks...")
 
+    # Check stride_series is false if mode is TS
+    if mode == "TS" and stride_series:
+        raise ValueError("Stride series must be False for TS mode.")
+
     # Check all window parameters are positive integers
     for val in [window_length, window_time_stride, window_patt_stride]:
         if val < 1 or not isinstance(val, int):
@@ -165,13 +169,13 @@ def main_loop(
                 f"_wlen{window_length}_stride{ss}" +\
                 f"_wtst{window_time_stride}_wpst{window_patt_stride}" +\
                 f"_val{val_size}_me{max_epochs}_bs{batch_size}" +\
-                f"_lr{learning_rate}_rs{random_state}"
+                f"_lr{learning_rate}_rs{random_state}_cv{cv_rep}"
         else:
             version = f"exc{exc}_avev{train_exc_limit}_tstrat{train_strat_size}" +\
                 f"_tmult{train_event_mult}_ststest{test_sts_length}" +\
                 f"_wlen{window_length}" +\
                 f"_val{val_size}_me{max_epochs}_bs{batch_size}" +\
-                f"_lr{learning_rate}_rs{random_state}"
+                f"_lr{learning_rate}_rs{random_state}_cv{cv_rep}"
             
         # Calculate event limits
         train_event_total = int(exc*len(np.unique(Y[train_idx]))*train_event_mult)
@@ -188,6 +192,7 @@ def main_loop(
             rho_dfs=rho_dfs, window_length=window_length, 
             window_time_stride=window_time_stride,
             window_patt_stride=window_patt_stride,
+            stride_series=stride_series,
             random_state=random_state,
             num_workers=num_workers)
     
