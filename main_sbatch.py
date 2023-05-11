@@ -24,7 +24,6 @@ ARCHS = { # Architectures
 # ~~~~~~~~~~~~~~~~~~~~~~~
 WINDOW_LENGTH_DF: int = 10                          # Window length for DF
 WINDOW_LENGTHS_TS: list[int] = [10, 30, 50, 70]     # Window length for TS                   
-
 WINDOW_TIME_STRIDES: list[int] = [1, 3, 5, 7]       # Window time stride
 WINDOW_PATT_STRIDES: list[int] = [2, 3, 5]          # Window pattern stride
 # ~~~~~~~~~~~~~~~~~~~~~~~
@@ -35,7 +34,7 @@ NUM_ENCODER_FEATS: int = 32         # Number of encoder features
 NUM_DECODER_FEATS: int = 64         # Number of decoder features
 # ~~~~~~~~~~~~~~~~~~~~~~~
 EVENTS_PER_CLASS = 32               # Number of events per class
-EVENT_LIMITERS = [8, 16, 32]        # Event limiters
+EVENT_LIMITERS = [8, 16, ]#32]      # Event limiters
 TRAIN_EVENT_MULT = 4                # Training events multiplier
 TRAIN_STRAT_SIZE = 2                # Training stratification size
 TEST_STS_LENGTH = 200               # Number of events for testing
@@ -60,7 +59,7 @@ SHARED_ARGS = {"rho_dfs": RHO_DFS, "exc": EVENTS_PER_CLASS,
     "test_sts_length": TEST_STS_LENGTH, 
     "pret_sts_length": PRET_STS_LENGTH,
     "random_state": RANDOM_STATE}
-SHARED_ARGS = {**SHARED_ARGS, **HIPATIA_MEDIUM}
+SHARED_ARGS = {**SHARED_ARGS, **HIPATIA_LARGE}
 
 # Pretrain Loop
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -161,7 +160,6 @@ if PATT_STR:
 # Training Loop for Section 5.3: Self-Supervised Pretraining
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-#TODO
 if SELF_SUP:
     for cv_rep in range(CV_REPS):
                     
@@ -176,28 +174,29 @@ if SELF_SUP:
 
                     wlen = WINDOW_LENGTH_DF
                     wts  = 7
-                    wps  = 2 
+                    wps  = 1 
 
-                    # Full series
-                    sbatch_hook(dataset=dataset, mode=mode, arch=arch,
-                        use_pretrain=True, pretrain_mode=False,
-                        window_length=wlen, stride_series=False,
-                        window_time_stride=wts, window_patt_stride=wps, 
-                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-                        res_fname=res_fname, **SHARED_ARGS)
+                    # No pretraining
+                    if ev_lim != EVENTS_PER_CLASS:
+                        sbatch_hook(dataset=dataset, mode=mode, arch=arch,
+                            train_exc_limit=ev_lim, use_pretrain=False, stride_series=False,
+                            pretrain_mode=False, window_length=wlen, 
+                            window_time_stride=wts, window_patt_stride=wps, 
+                            max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+                            res_fname=res_fname, **SHARED_ARGS)
 
-                    # Full series
+                    # Full series pretrain
                     sbatch_hook(dataset=dataset, mode=mode, arch=arch,
-                        use_pretrain=True, pretrain_mode=False,
-                        window_length=wlen, stride_series=False,
+                        train_exc_limit=ev_lim, use_pretrain=True, stride_series=False,
+                        pretrain_mode=False, window_length=wlen, 
                         window_time_stride=wts, window_patt_stride=wps, 
                         max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
                         res_fname=res_fname, **SHARED_ARGS)
                     
-                    # Strided series
+                    # Strided series pretrain
                     sbatch_hook(dataset=dataset, mode=mode, arch=arch,
-                        use_pretrain=True, pretrain_mode=False,
-                        window_length=wlen, stride_series=True,
+                        train_exc_limit=ev_lim, use_pretrain=True, stride_series=True,
+                        pretrain_mode=False, window_length=wlen, 
                         window_time_stride=wts, window_patt_stride=wps, 
                         max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
                         res_fname=res_fname, **SHARED_ARGS)
