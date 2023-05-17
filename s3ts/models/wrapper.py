@@ -57,8 +57,8 @@ class WrapperModel(LightningModule):
 
         super().__init__()
         
-        self.encoder_dict = {"TS": {"RNN": RNN_TS, "CNN": CNN_TS, "RES": RES_TS}, 
-                        "DF": {"CNN": CNN_DF, "RES": RES_DF}}
+        self.encoder_dict = {"ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS}, 
+                        "df": {"cnn": CNN_DF, "res": RES_DF}}
         
         # Check encoder parameters
         if mode not in ["DF", "TS"]:
@@ -96,19 +96,19 @@ class WrapperModel(LightningModule):
             "encoder_feats": encoder_feats, "decoder_feats": decoder_feats, "learning_rate": learning_rate})
         
         # Create the encoder
-        if mode == "DF":
+        if mode == "df":
             ref_size = len(np.arange(self.l_patterns)[::self.window_patt_stride])
             channels = self.n_patterns
-        elif mode == "TS":
+        elif mode == "ts":
             ref_size, channels = 1, 1 
         self.encoder = encoder_arch(channels=channels, ref_size=ref_size, wdw_size=window_length,
             n_feature_maps=encoder_feats)
         
         # Determine the input size of the decoder
         shape: torch.Size = self.encoder.get_output_shape()
-        if mode == "DF":
+        if mode == "df":
             inp_feats = shape[1]*shape[2]
-        elif mode == "TS":
+        elif mode == "ts":
             inp_feats = shape[1]
         self.flatten = nn.Flatten(start_dim=1)
 
@@ -166,9 +166,9 @@ class WrapperModel(LightningModule):
         # frames, series, label = batch
 
         # Forward pass
-        if self.mode == "DF":
+        if self.mode == "df":
             output = self(batch[0])
-        elif self.mode == "TS":
+        elif self.mode == "ts":
             output = self(batch[1])
 
         # Compute the loss and metrics
