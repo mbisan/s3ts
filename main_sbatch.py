@@ -44,8 +44,6 @@ MAX_EPOCHS_PRE: int = 60            # Pre-training epochs
 MAX_EPOCHS_TRA: int = 120           # Training epochs
 LEARNING_RATE: float = 1E-4         # Learning rate
 # ~~~~~~~~~~~~~~~~~~~~~~~
-RES_FNAME = "results.csv"           # Results filename
-# ~~~~~~~~~~~~~~~~~~~~~~~
 RANDOM_STATE = 0                    # Random state
 CV_REPS = 5                         # Number of cross-validation repetitions
 # ~~~~~~~~~~~~~~~~~~~~~~~
@@ -94,8 +92,8 @@ if PRETRAIN_ENCODERS:
                     max_epochs=MAX_EPOCHS_PRE, cv_rep=0, 
                     res_fname=res_fname, **SHARED_ARGS)
 
-# Training Loop for Section 5.1: Time Dilation
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Training Loop for Ablation Study: Time Dilation
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if TIME_DIL:
     for cv_rep in range(CV_REPS):
@@ -131,8 +129,8 @@ if TIME_DIL:
                         max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
                         res_fname=res_fname, **SHARED_ARGS)
 
-# Training Loop for Section 5.2: Pattern Stride
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Training Loop for Ablation Study: Pattern Stride
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if PATT_STR:
     for cv_rep in range(CV_REPS):
@@ -157,8 +155,8 @@ if PATT_STR:
                         res_fname=res_fname, **SHARED_ARGS)
 
 
-# Training Loop for Section 5.3: Self-Supervised Pretraining
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Training Loop for Ablation Study: Pretraining
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if SELF_SUP:
     for cv_rep in range(CV_REPS):
