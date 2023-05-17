@@ -20,11 +20,12 @@ import torch.nn as nn
 import torch
 
 # architectures
-from s3ts.models.encoders.frames.ResNet import ResNet_DFS
-from s3ts.models.encoders.frames.CNN import CNN_DFS
-from s3ts.models.encoders.series.ResNet import ResNet_TS
-from s3ts.models.encoders.series.CNN import CNN_TS
+from s3ts.models.encoders.frames.CNN import CNN_DF
+from s3ts.models.encoders.frames.RES import RES_DF
+
 from s3ts.models.encoders.series.RNN import RNN_TS
+from s3ts.models.encoders.series.CNN import CNN_TS
+from s3ts.models.encoders.series.RES import RES_TS
 
 # numpy
 import logging as log
@@ -56,13 +57,13 @@ class WrapperModel(LightningModule):
 
         super().__init__()
         
-        self.encoder_dict = {"TS": {"RNN": RNN_TS, "CNN": CNN_TS, "ResNet": ResNet_TS}, 
-                        "DF": {"CNN": CNN_DFS, "ResNet": ResNet_DFS}}
+        self.encoder_dict = {"TS": {"RNN": RNN_TS, "CNN": CNN_TS, "RES": RES_TS}, 
+                        "DF": {"CNN": CNN_DF, "RES": RES_DF}}
         
         # Check encoder parameters
         if mode not in ["DF", "TS"]:
             raise ValueError(f"Invalid reprsentation: {mode}")
-        if arch not in ["RNN", "CNN", "ResNet"]:
+        if arch not in ["RNN", "CNN", "RES"]:
             raise ValueError(f"Invalid architecture: {arch}")
         if arch not in self.encoder_dict[mode]:
             raise ValueError(f"Architecture {arch} not available for representation {mode}.")
@@ -95,70 +96,63 @@ class WrapperModel(LightningModule):
             "encoder_feats": encoder_feats, "decoder_feats": decoder_feats, "learning_rate": learning_rate})
         
         # Create the encoder
-        self.encoder = nn.Sequential()
         if mode == "DF":
             ref_size = len(np.arange(self.l_patterns)[::self.window_patt_stride])
             channels = self.n_patterns
         elif mode == "TS":
             ref_size, channels = 1, 1 
-        self.encoder.add_module("encoder", encoder_arch(
-            ref_size=ref_size, channels=channels, 
-            window_size=self.window_length))
-
-        # Determine the number of decoder input features
-        inp_feats = self.encoder[0].lat_channels if self.mode == "DF" else 1
-        inp_size = self.window_length if self.mode == "DF" else self.encoder.encoder.get_output_shape()
+        self.encoder = encoder_arch(channels=channels, ref_size=ref_size, wdw_size=window_length,
+            n_feature_maps=encoder_feats)
         
-        # Add the metrics depending on the target
-        self.decoder = nn.Sequential()
-        if self.target == "cls":
-            
-            # Determine the number of output features
-            out_feats = self.n_classes
+        # Determine the input size of the decoder
+        shape: torch.Size = self.encoder.get_output_shape()
+        if mode == "DF":
+            inp_feats = shape[1]*shape[2]
+        elif mode == "TS":
+            inp_feats = shape[1]
+        self.flatten = nn.Flatten(start_dim=1)
 
-            # Add the decoder modules
-            if self.mode == "DF":
-                self.decoder.add_module("lstm", LSTMDecoder(
-                        inp_size=inp_size,
-                        inp_features=inp_feats,
-                        hid_features = decoder_feats,
-                        out_features = out_feats))
-            elif self.mode == "TS":
-                self.decoder.add_module("linear", LinearDecoder(
-                        in_features = inp_size,
-                        hid_features = decoder_feats,
-                        out_features = out_feats))
-            self.decoder.add_module("softmax", nn.Softmax())
-            
-            # Add the metrics
+        # Determine the number of decoder output features
+        if self.target == "cls":
+            out_feats = self.n_classes
+        elif self.target == "reg":
+            if self.stride_series:
+                out_feats = self.window_length 
+            else:
+                out_feats = self.window_length*self.window_time_stride
+
+        # Create the decoder
+        self.decoder = LinearDecoder(
+            inp_feats=inp_feats,
+            hid_feats=decoder_feats,
+            out_feats=out_feats,
+            hid_layers=2,
+        )
+
+        # Create the softmax layer
+        self.softmax = nn.Softmax()
+
+        # Add the metrics
+        if self.target == "cls":
             for phase in ["train", "val", "test"]: 
                 self.__setattr__(f"{phase}_acc", tm.Accuracy(num_classes=out_feats, task="multiclass"))
                 self.__setattr__(f"{phase}_f1",  tm.F1Score(num_classes=out_feats, task="multiclass"))
                 if phase != "train":
                     self.__setattr__(f"{phase}_auroc", tm.AUROC(num_classes=out_feats, task="multiclass"))
-
         elif self.target == "reg":
-
-            # Determine the number of output features
-            out_feats = self.window_length if self.stride_series else self.window_length*self.window_time_stride
-            
-            # Add the decoder modules
-            self.decoder.add_module("lstm", LSTMDecoder(
-                        inp_size=inp_size,
-                        inp_features=inp_feats,
-                        hid_features = decoder_feats,
-                        out_features = out_feats))
-
-            # Add the metrics
             for phase in ["train", "val", "test"]:
                 self.__setattr__(f"{phase}_mse", tm.MeanSquaredError(squared=False))
                 self.__setattr__(f"{phase}_r2",  tm.R2Score(num_outputs=out_feats))
 
-    def forward(self, frame):
+
+    def forward(self, x: torch.Tensor):
         """ Forward pass. """
-        out = self.encoder(frame)
-        out = self.decoder(out)
-        return out
+        x = self.encoder(x)
+        x = self.flatten(x)
+        x = self.decoder(x)
+        if self.target == "cls":
+            x = self.softmax(x)
+        return x
 
     # STEPS
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #

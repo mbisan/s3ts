@@ -297,7 +297,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_epochs', type=int, default=60,
                         help='Maximum number of epochs for the training')
     
-    parser.add_argument('--learning_rate', type=float, default=1e-04,
+    parser.add_argument('--learning_rate', type=float, default=1E-4,
                         help='Value of the learning rate')
     
     parser.add_argument('--cv_rep', type=int, default=0,

@@ -42,33 +42,37 @@ class ResidualBlock_1d(LightningModule):
         return F.relu(block)
 
 
-class ResNet_TS(LightningModule):
+class RES_TS(LightningModule):
 
-    def __init__(self, ref_size, channels, window_size):
+    """ Residual CNN for times series. """
+
+    def __init__(self, channels: int, wdw_size: int, ref_size: int,
+                 n_feature_maps: int = 32):
         super().__init__()
 
+        # register parameters
         self.channels = channels
-        self.n_feature_maps = 32
+        self.wdw_size = wdw_size
+        self.ref_size = 1 # here for compatibility
+        self.n_feature_maps = n_feature_maps
 
-        self.model = nn.Sequential(
-            ResidualBlock_1d(in_channels=channels, out_channels=self.n_feature_maps),
-            ResidualBlock_1d(in_channels=self.n_feature_maps, out_channels=self.n_feature_maps * 2),
-            ResidualBlock_1d(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 2),
-            ResidualBlock_1d(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 4),
-            nn.AvgPool1d(window_size)
-        )
+        self.res_0 = ResidualBlock_1d(in_channels=channels, out_channels=self.n_feature_maps)
+        self.res_1 = ResidualBlock_1d(in_channels=self.n_feature_maps, out_channels=self.n_feature_maps * 2)
+        self.res_2 = ResidualBlock_1d(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 2)
+        self.res_3 = ResidualBlock_1d(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 4)
+        self.pool = nn.AdaptiveAvgPool1d(1)
 
-    @staticmethod
-    def __str__() -> str:
-        return "ResNet_TS"
-
-    @staticmethod
-    def __frames__() -> bool:
-        return False
-
-    def get_output_shape(self):
-        return (len(self.model._modules) - 1) * self.n_feature_maps
-
+    def get_output_shape(self) -> torch.Size:
+        x = torch.rand((1, self.channels, self.wdw_size))
+        print("Input shape: ", x.shape)
+        x: torch.Tensor = self(x)
+        print("Latent shape: ", x.shape)
+        return x.shape
+    
     def forward(self, x):
-        x = x.squeeze().unsqueeze(1).float()
-        return self.model(x).squeeze()
+        feats = self.res_0(x.float())
+        feats = self.res_1(feats)
+        feats = self.res_2(feats)
+        feats = self.res_3(feats)
+        feats = self.pool(feats)  
+        return feats

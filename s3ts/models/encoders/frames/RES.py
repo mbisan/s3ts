@@ -18,12 +18,10 @@ class ResidualBlock(LightningModule):
             nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, padding="same"),
             nn.BatchNorm2d(out_channels),
         )
-
         self.shortcut = nn.Sequential(
             nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, padding="same"),
             nn.BatchNorm2d(out_channels)
         )
-
         self.block.apply(ResidualBlock.initialize_weights)
         self.shortcut.apply(ResidualBlock.initialize_weights)
 
@@ -39,41 +37,43 @@ class ResidualBlock(LightningModule):
     def forward(self, x: torch.Tensor):
         block = self.block(x)
         shortcut = self.shortcut(x)
-
         block = torch.add(block, shortcut)
         return nn.functional.relu(block)
 
+class RES_DF(LightningModule):
 
-class ResNet_DFS(LightningModule):
+    """ Residual CNN for dissimilarity frames. """
 
-    def __init__(self, ref_size: int , channels: int, window_size: int):
+    def __init__(self, channels: int, wdw_size: int, ref_size: int,
+                 n_feature_maps: int = 32):
         super().__init__()
 
+        # register parameters
         self.channels = channels
-        self.n_feature_maps = 16
+        self.wdw_size = wdw_size
+        self.ref_size = ref_size
+        self.n_feature_maps = n_feature_maps
 
-        self.model = nn.Sequential(
-            ResidualBlock(in_channels=channels, out_channels=self.n_feature_maps),
-            ResidualBlock(in_channels=self.n_feature_maps, out_channels=self.n_feature_maps * 2),
-            ResidualBlock(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 2),
-            ResidualBlock(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 4),
-            #nn.AvgPool2d((ref_size, window_size))
-            #nn.AvgPool2d((5, 1))
-        )
-        self.calculate_output_shape(ref_size, channels, window_size)
+        self.res_0 = ResidualBlock(in_channels=channels, out_channels=self.n_feature_maps)
+        self.res_1 = ResidualBlock(in_channels=self.n_feature_maps, out_channels=self.n_feature_maps * 2)
+        self.res_2 = ResidualBlock(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 2)
+        #self.res_3 = ResidualBlock(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 4)
+        self.pool = nn.AdaptiveAvgPool2d((1,1))
+        
+    def get_output_shape(self) -> torch.Size:
+        x = torch.rand((1, self.channels, self.ref_size, self.wdw_size))
+        print("Input shape: ", x.shape)
+        x: torch.Tensor = self(x)
+        print("Latent shape: ", x.shape)
+        return x.shape
 
-    def calculate_output_shape(self, ref_size:int, channels:int, window_size:int):
-        x = torch.rand((1, channels, ref_size, window_size))
-        shp: torch.Size = self(x).shape
-        self.lat_channels = shp[1]
-        self.lat_patt_length = shp[2]
-        self.lat_time_length = shp[3]
-
-    def get_output_shape(self):
-        return (len(self.model._modules) -1) * self.n_feature_maps
 
     def forward(self, x):
-        out = self.model(x.float())
-        return out
+        feats = self.res_0(x.float())
+        feats = self.res_1(feats)
+        feats = self.res_2(feats)
+        #feats = self.res_3(feats)
+        feats = self.pool(feats)  
+        return feats
 
     
