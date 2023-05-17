@@ -40,7 +40,7 @@ def setup_trainer(
     csv_logger = CSVLogger(save_dir=directory, name="logs", version=version)
     loggers = [tb_logger, csv_logger]
     # Create the trainer
-    return Trainer(default_root_dir=directory,  accelerator="cpu",
+    return Trainer(default_root_dir=directory,  accelerator="auto",
     logger=loggers, callbacks=callbacks,
     max_epochs=max_epochs,  benchmark=True, deterministic=False, 
     log_every_n_steps=1, check_val_every_n_epoch=1), checkpoint
@@ -82,7 +82,7 @@ def train_model(pretrain_mode: bool, version: str,
         trainer, ckpt = setup_trainer(directory=directory, version=version,
         max_epochs=max_epochs, stop_metric="val_mse", stop_mode="min")
         
-        model = WrapperModel(mode="DF", arch=arch, target="reg",
+        model = WrapperModel(mode="df", arch=arch, target="reg",
             n_classes=dm.n_classes, window_length=dm.window_length, 
             n_patterns=dm.n_patterns, l_patterns=dm.l_patterns,
             window_time_stride=dm.window_time_stride, window_patt_stride=dm.window_patt_stride,

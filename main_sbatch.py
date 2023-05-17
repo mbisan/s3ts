@@ -31,7 +31,7 @@ VAL_SIZE: float = 0.25              # Validation size
 # ~~~~~~~~~~~~~~~~~~~~~~~ (targeting 100K parameters)
 NUM_ENC_FEATS: dict[dict[int]] = {  # Number of encoder features
     "ts": {"rnn": 40, "cnn": 48, "res": 16},
-    "df": {"cnn": 12, "res": 12}}
+    "df": {"cnn": 20, "res": 12}}
 NUM_DEC_FEATS: int = 64             # Number of decoder features 
 # ~~~~~~~~~~~~~~~~~~~~~~~
 EVENTS_PER_CLASS = 32               # Number of events per class

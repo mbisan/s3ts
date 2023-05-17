@@ -15,10 +15,10 @@ torch.set_float32_matmul_precision("medium")
 
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
-PRETRAIN_ENCODERS = False         # Pretrain the DF encoders
-TIME_DIL = False                  # Time dilation
-PATT_STR = False                  # Pattern stride
-SELF_SUP = False                  # Self-supervised pretraining
+PRETRAIN_ENCODERS = True         # Pretrain the DF encoders
+TIME_DIL = True                   # Time dilation
+PATT_STR = True                   # Pattern stride
+SELF_SUP = True                   # Self-supervised pretraining
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DATASETS = [ # Datasets
     "CBF"#, "GunPoint", "Plane", "SyntheticControl"                                           
@@ -39,7 +39,7 @@ VAL_SIZE: float = 0.25              # Validation size
 # ~~~~~~~~~~~~~~~~~~~~~~~ (targeting 100K parameters)
 NUM_ENC_FEATS: dict[dict[int]] = {  # Number of encoder features
     "ts": {"rnn": 40, "cnn": 48, "res": 16},
-    "df": {"cnn": 12, "res": 12}}
+    "df": {"cnn": 20, "res": 12}}
 NUM_DEC_FEATS: int = 64             # Number of decoder features  
 # ~~~~~~~~~~~~~~~~~~~~~~~
 EVENTS_PER_CLASS = 32               # Number of events per class
@@ -50,7 +50,7 @@ TEST_STS_LENGTH = 200               # Number of events for testing
 PRET_STS_LENGTH = 1000              # Number of events for pretraining
 # ~~~~~~~~~~~~~~~~~~~~~~~
 MAX_EPOCHS_PRE: int = 20            # Pre-training epochs
-MAX_EPOCHS_TRA: int = 120           # Training epochs
+MAX_EPOCHS_TRA: int = 20            # Training epochs
 LEARNING_RATE: float = 1E-4         # Learning rate
 # ~~~~~~~~~~~~~~~~~~~~~~~
 LOG_FILE = None                     # Log file
@@ -59,7 +59,7 @@ STORAGE_DIR = Path("storage/")      # Cache folder
 # ~~~~~~~~~~~~~~~~~~~~~~~
 NUM_WORKERS = mp.cpu_count()//2     # Number of workers for the dataloaders
 RANDOM_STATE = 0                    # Random state
-CV_REPS = range(5)                  # Number of cross-validation repetitions
+CV_REPS = range(1)                  # Number of cross-validation repetitions
 # ~~~~~~~~~~~~~~~~~~~~~~~
 SHARED_ARGS = {"rho_dfs": RHO_DFS, "exc": EVENTS_PER_CLASS,
     "batch_size": BATCH_SIZE, "val_size": VAL_SIZE,
@@ -87,7 +87,7 @@ if PRETRAIN_ENCODERS:
             wlen = WINDOW_LENGTH_DF
             for wts in WINDOW_TIME_STRIDES[-1:]:
                 # Full series
-                main_loop(dataset=dataset, mode="DF", arch=arch,
+                main_loop(dataset=dataset, mode=mode, arch=arch,
                     use_pretrain=False, pretrain_mode=True,
                     window_length=wlen, stride_series=False,
                     window_time_stride=wts, window_patt_stride=1,
@@ -96,7 +96,7 @@ if PRETRAIN_ENCODERS:
                     **SHARED_ARGS)
                 if wts != 1:
                     # Strided series
-                    main_loop(dataset=dataset, mode="DF", arch=arch,
+                    main_loop(dataset=dataset, mode=mode, arch=arch,
                         use_pretrain=False, pretrain_mode=True,
                         window_length=wlen, stride_series=True,
                         window_time_stride=wts, window_patt_stride=1,
@@ -120,22 +120,22 @@ if TIME_DIL:
     for cv_rep in CV_REPS:
 
         # Do the TS training
-        mode = "TS"
-        for arch in ARCHS[mode]:
-            enc_feats = NUM_ENC_FEATS[mode][arch]
-            for dataset in DATASETS:
-                res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
-                for wlen in WINDOW_LENGTHS_TS:
-                    main_loop(dataset=dataset, mode=mode, arch=arch,
-                        use_pretrain=False, pretrain_mode=False,
-                        window_length=wlen, stride_series=False,
-                        window_time_stride=1, window_patt_stride=1,
-                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-                        num_encoder_feats=enc_feats, res_fname=res_fname, 
-                        **SHARED_ARGS)
+        # mode = "ts"
+        # for arch in ARCHS[mode]:
+        #     enc_feats = NUM_ENC_FEATS[mode][arch]
+        #     for dataset in DATASETS:
+        #         res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
+        #         for wlen in WINDOW_LENGTHS_TS:
+        #             main_loop(dataset=dataset, mode=mode, arch=arch,
+        #                 use_pretrain=False, pretrain_mode=False,
+        #                 window_length=wlen, stride_series=False,
+        #                 window_time_stride=1, window_patt_stride=1,
+        #                 max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+        #                 num_encoder_feats=enc_feats, res_fname=res_fname, 
+        #                 **SHARED_ARGS)
                     
         # Do the DF training
-        mode = "DF"
+        mode = "df"
         for arch in ARCHS[mode]:
             enc_feats = NUM_ENC_FEATS[mode][arch]
             wlen, wps = WINDOW_LENGTH_DF, 1
@@ -180,7 +180,7 @@ if SELF_SUP:
     for cv_rep in CV_REPS:
                     
         # Do the DF training
-        mode = "DF"
+        mode = "df"
         for arch in ARCHS[mode]:
             enc_feats = NUM_ENC_FEATS[mode][arch]
             wlen, wts, wps = WINDOW_LENGTH_DF, 7, 1

@@ -58,7 +58,7 @@ class RES_DF(LightningModule):
         self.res_1 = ResidualBlock(in_channels=self.n_feature_maps, out_channels=self.n_feature_maps * 2)
         self.res_2 = ResidualBlock(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 2)
         #self.res_3 = ResidualBlock(in_channels=self.n_feature_maps * 2, out_channels=self.n_feature_maps * 4)
-        self.pool = nn.AdaptiveAvgPool2d((1,1))
+        self.pool = nn.AvgPool2d(kernel_size=(ref_size//2,1))
         
     def get_output_shape(self) -> torch.Size:
         x = torch.rand((1, self.channels, self.ref_size, self.wdw_size))
@@ -71,9 +71,9 @@ class RES_DF(LightningModule):
     def forward(self, x):
         feats = self.res_0(x.float())
         feats = self.res_1(feats)
-        feats = self.res_2(feats)
+        feats = self.res_2(feats) 
         #feats = self.res_3(feats)
-        feats = self.pool(feats)  
+        feats = self.pool(feats)
         return feats
 
     

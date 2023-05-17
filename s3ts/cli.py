@@ -85,17 +85,17 @@ def main_loop(
     log.info("Performing sanity checks...")
 
     # Check stride_series is false if mode is TS
-    if mode == "TS" and stride_series:
-        raise ValueError("Stride series must be False for TS mode.")
+    if mode == "ts" and stride_series:
+        raise ValueError("Stride series must be False for ts mode.")
 
     # Check all window parameters are positive integers
     for val in [window_length, window_time_stride, window_patt_stride]:
         if val < 1 or not isinstance(val, int):
             raise ValueError("Window paramters must be positive integers.")
     
-    # Check mode is 'DF' if use_pretrain is True
-    if use_pretrain and mode != "DF" or pretrain_mode and mode != "DF":
-        raise ValueError("Pretraining is only available for DF mode.")
+    # Check mode is 'df' if use_pretrain is True
+    if use_pretrain and mode != "df" or pretrain_mode and mode != "df":
+        raise ValueError("Pretraining is only available for df mode.")
 
     # Check pretrain_mode and use_pretrain are not both True
     if use_pretrain and pretrain_mode:
@@ -163,7 +163,7 @@ def main_loop(
                 break
         # Get directory and version
         directory = train_dir / "finetune" / f"{dataset}_{mode}_{arch}"
-        if mode == "DF":
+        if mode == "df":
             version = f"exc{exc}_avev{train_exc_limit}_tstrat{train_strat_size}" +\
                 f"_tmult{train_event_mult}_ststest{test_sts_length}" +\
                 f"_wlen{window_length}_stride{ss}" +\
@@ -244,7 +244,7 @@ if __name__ == '__main__':
         help='Name of the architecture from which create the model')
     
     parser.add_argument('--use_pretrain', type=bool, action=argparse.BooleanOptionalAction, 
-                        default=False, help='Use pretrained encoder or not (DF mode only)')
+                        default=False, help='Use pretrained encoder or not (df mode only)')
 
     parser.add_argument('--pretrain_mode', type=bool, action=argparse.BooleanOptionalAction,  
                         default=False, help='Switch between train and pretrain mode')

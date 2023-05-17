@@ -61,9 +61,9 @@ class WrapperModel(LightningModule):
                         "df": {"cnn": CNN_DF, "res": RES_DF}}
         
         # Check encoder parameters
-        if mode not in ["DF", "TS"]:
-            raise ValueError(f"Invalid reprsentation: {mode}")
-        if arch not in ["RNN", "CNN", "RES"]:
+        if mode not in ["df", "ts"]:
+            raise ValueError(f"Invalid representation: {mode}")
+        if arch not in ["rnn", "cnn", "res"]:
             raise ValueError(f"Invalid architecture: {arch}")
         if arch not in self.encoder_dict[mode]:
             raise ValueError(f"Architecture {arch} not available for representation {mode}.")
@@ -105,11 +105,8 @@ class WrapperModel(LightningModule):
             n_feature_maps=encoder_feats)
         
         # Determine the input size of the decoder
-        shape: torch.Size = self.encoder.get_output_shape()
-        if mode == "df":
-            inp_feats = shape[1]*shape[2]
-        elif mode == "ts":
-            inp_feats = shape[1]
+        shape: torch.tensor = self.encoder.get_output_shape()
+        inp_feats = torch.prod(torch.tensor(shape[1:]))
         self.flatten = nn.Flatten(start_dim=1)
 
         # Determine the number of decoder output features
@@ -169,7 +166,7 @@ class WrapperModel(LightningModule):
         if self.mode == "df":
             output = self(batch[0])
         elif self.mode == "ts":
-            output = self(batch[1])
+            output = self(torch.unsqueeze(batch[1] , dim=1))
 
         # Compute the loss and metrics
         if self.target == "cls":
@@ -188,7 +185,7 @@ class WrapperModel(LightningModule):
         self.log(f"{stage}_loss", loss, on_epoch=True, on_step=on_step, prog_bar=True, logger=True)
         if self.target == "cls":
             self.log(f"{stage}_acc", acc, on_epoch=True, on_step=False, prog_bar=True, logger=True)
-            self.log(f"{stage}_f1", f1, on_epoch=True, on_step=False, prog_bar=True, logger=True)
+            self.log(f"{stage}_f1", f1, on_epoch=True, on_step=False, prog_bar=False, logger=True)
             if stage != "train":
                 self.log(f"{stage}_auroc", auroc, on_epoch=True, on_step=False, prog_bar=True, logger=True)
         elif self.target == "reg":

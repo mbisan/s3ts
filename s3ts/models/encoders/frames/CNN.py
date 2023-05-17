@@ -21,12 +21,12 @@ class CNN_DF(LightningModule):
         # convolutional layer 0
         self.cnn_0 = nn.Sequential(nn.Conv2d(in_channels=channels, 
             out_channels=self.n_feature_maps//2, kernel_size=3, padding='same'),
-            nn.ReLU(), nn.MaxPool2d(kernel_size=2))
+            nn.ReLU(), nn.MaxPool2d(kernel_size=(4,1)))
         
         # convolutional layer 1
         self.cnn_1 = nn.Sequential(nn.Conv2d(in_channels=self.n_feature_maps//2, 
             out_channels=self.n_feature_maps, kernel_size=3, padding='same'),
-            nn.ReLU(), nn.AvgPool2d(kernel_size=2), nn.Dropout(0.35))
+            nn.ReLU(), nn.AvgPool2d(kernel_size=(4,1)), nn.Dropout(0.35))
         
         # convolutional layer 2
         self.cnn_2 = nn.Sequential(nn.Conv2d(in_channels=self.n_feature_maps, 
@@ -36,7 +36,7 @@ class CNN_DF(LightningModule):
 
         # convolutional layer 3
         self.cnn_3 = nn.Conv2d(in_channels=self.n_feature_maps*2, 
-            out_channels=self.n_feature_maps*4, kernel_size=3, padding='same')
+            out_channels=self.n_feature_maps*2, kernel_size=3, padding='same')
 
         #self.linear_1 = self.dynamic_linear((1, channels, ref_size, window_size)))
         #self.linear_2 = nn.Linear(in_features=self.n_feature_maps * 4, out_features=self.n_feature_maps * 8)
