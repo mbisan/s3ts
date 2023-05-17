@@ -1,18 +1,7 @@
 #/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-""" 
-    Automatic training script for S3TS experiments. 
-    
-    This script is used to train all the models in the paper.
-    It is possible to choose the experiment type (base, ratio, quant, stride)
-    and the datasets to be used.
-    The script will automatically train all the models for all the datasets.
-    The results will be saved in the folder "results/".
-    The training logs will be saved in the folder "training/".
-    The datasets will be downloaded in the folder "cache/".
-    The script will automatically create the folders if they do not exist.
-"""
+""" Automatic local training script for the paper's experiments. """
 
 # package imports
 from s3ts.cli import main_loop
@@ -70,7 +59,7 @@ STORAGE_DIR = Path("storage/")      # Cache folder
 # ~~~~~~~~~~~~~~~~~~~~~~~
 NUM_WORKERS = mp.cpu_count()//2     # Number of workers for the dataloaders
 RANDOM_STATE = 0                    # Random state
-CV_REPS = 5                         # Number of cross-validation repetitions
+CV_REPS = range(5)                  # Number of cross-validation repetitions
 # ~~~~~~~~~~~~~~~~~~~~~~~
 SHARED_ARGS = {"rho_dfs": RHO_DFS, "exc": EVENTS_PER_CLASS,
     "batch_size": BATCH_SIZE, "val_size": VAL_SIZE,
@@ -128,7 +117,7 @@ if PRETRAIN_ENCODERS:
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if TIME_DIL:
-    for cv_rep in range(CV_REPS):
+    for cv_rep in CV_REPS:
 
         # Do the TS training
         mode = "TS"
@@ -165,7 +154,7 @@ if TIME_DIL:
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if PATT_STR:
-    for cv_rep in range(CV_REPS):
+    for cv_rep in CV_REPS:
                     
         # Do the DF training
         mode = "DF"
@@ -188,7 +177,7 @@ if PATT_STR:
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if SELF_SUP:
-    for cv_rep in range(CV_REPS):
+    for cv_rep in CV_REPS:
                     
         # Do the DF training
         mode = "DF"
