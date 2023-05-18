@@ -15,10 +15,10 @@ torch.set_float32_matmul_precision("medium")
 
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
-PRETRAIN_ENCODERS = True         # Pretrain the DF encoders
-TIME_DIL = True                   # Time dilation
-PATT_STR = True                   # Pattern stride
-SELF_SUP = True                   # Self-supervised pretraining
+PRETRAIN_ENCODERS = False         # Pretrain the DF encoders
+TIME_DIL = True                  # Time dilation
+PATT_STR = False                   # Pattern stride
+SELF_SUP = False                   # Self-supervised pretraining
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DATASETS = [ # Datasets
     "CBF"#, "GunPoint", "Plane", "SyntheticControl"                                           
@@ -59,7 +59,7 @@ STORAGE_DIR = Path("storage/")      # Cache folder
 # ~~~~~~~~~~~~~~~~~~~~~~~
 NUM_WORKERS = mp.cpu_count()//2     # Number of workers for the dataloaders
 RANDOM_STATE = 0                    # Random state
-CV_REPS = range(1)                  # Number of cross-validation repetitions
+CV_REPS = range(1,2)                # Number of cross-validation repetitions
 # ~~~~~~~~~~~~~~~~~~~~~~~
 SHARED_ARGS = {"rho_dfs": RHO_DFS, "exc": EVENTS_PER_CLASS,
     "batch_size": BATCH_SIZE, "val_size": VAL_SIZE,
@@ -157,7 +157,7 @@ if PATT_STR:
     for cv_rep in CV_REPS:
                     
         # Do the DF training
-        mode = "DF"
+        mode = "df"
         for arch in ARCHS[mode]:
             enc_feats = NUM_ENC_FEATS[mode][arch]
             wlen, wts = WINDOW_LENGTH_DF, 7
