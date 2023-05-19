@@ -24,8 +24,10 @@ DATASETS = [ # Datasets
     "CBF"#, "GunPoint", "Plane", "SyntheticControl"                                           
 ]                      
 ARCHS = { # Architectures
-    "ts": ["rnn", "cnn", "res"],
-    "df": ["cnn", "res"],
+    # "ts": ["rnn", "cnn", "res", "tcn"],
+    "ts": ["tcn"],
+    # "df": ["cnn", "res"],
+    "df": [],
 }
 # ~~~~~~~~~~~~~~~~~~~~~~~
 WINDOW_LENGTH_DF: list[int] = 10                    # Window length for DF
@@ -38,7 +40,7 @@ BATCH_SIZE: bool = 128              # Batch size
 VAL_SIZE: float = 0.25              # Validation size
 # ~~~~~~~~~~~~~~~~~~~~~~~ (targeting 100K parameters)
 NUM_ENC_FEATS: dict[dict[int]] = {  # Number of encoder features
-    "ts": {"rnn": 40, "cnn": 48, "res": 16},
+    "ts": {"rnn": 40, "cnn": 48, "res": 16, "tcn": 58},
     "df": {"cnn": 20, "res": 12}}
 NUM_DEC_FEATS: int = 64             # Number of decoder features  
 # ~~~~~~~~~~~~~~~~~~~~~~~
@@ -120,19 +122,19 @@ if TIME_DIL:
     for cv_rep in CV_REPS:
 
         # Do the TS training
-        # mode = "ts"
-        # for arch in ARCHS[mode]:
-        #     enc_feats = NUM_ENC_FEATS[mode][arch]
-        #     for dataset in DATASETS:
-        #         res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
-        #         for wlen in WINDOW_LENGTHS_TS:
-        #             main_loop(dataset=dataset, mode=mode, arch=arch,
-        #                 use_pretrain=False, pretrain_mode=False,
-        #                 window_length=wlen, stride_series=False,
-        #                 window_time_stride=1, window_patt_stride=1,
-        #                 max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-        #                 num_encoder_feats=enc_feats, res_fname=res_fname, 
-        #                 **SHARED_ARGS)
+        mode = "ts"
+        for arch in ARCHS[mode]:
+            enc_feats = NUM_ENC_FEATS[mode][arch]
+            for dataset in DATASETS:
+                res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
+                for wlen in WINDOW_LENGTHS_TS:
+                    main_loop(dataset=dataset, mode=mode, arch=arch,
+                        use_pretrain=False, pretrain_mode=False,
+                        window_length=wlen, stride_series=False,
+                        window_time_stride=1, window_patt_stride=1,
+                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+                        num_encoder_feats=enc_feats, res_fname=res_fname, 
+                        **SHARED_ARGS)
                     
         # Do the DF training
         mode = "df"

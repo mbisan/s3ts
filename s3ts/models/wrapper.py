@@ -26,6 +26,7 @@ from s3ts.models.encoders.frames.RES import RES_DF
 from s3ts.models.encoders.series.RNN import RNN_TS
 from s3ts.models.encoders.series.CNN import CNN_TS
 from s3ts.models.encoders.series.RES import RES_TS
+from s3ts.models.encoders.series.TCN import TCN_TS
 
 # numpy
 import logging as log
@@ -57,13 +58,13 @@ class WrapperModel(LightningModule):
 
         super().__init__()
         
-        self.encoder_dict = {"ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS}, 
+        self.encoder_dict = {"ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS, "tcn": TCN_TS}, 
                         "df": {"cnn": CNN_DF, "res": RES_DF}}
         
         # Check encoder parameters
         if mode not in ["df", "ts"]:
             raise ValueError(f"Invalid representation: {mode}")
-        if arch not in ["rnn", "cnn", "res"]:
+        if arch not in ["rnn", "cnn", "res", "tcn"]:
             raise ValueError(f"Invalid architecture: {arch}")
         if arch not in self.encoder_dict[mode]:
             raise ValueError(f"Architecture {arch} not available for representation {mode}.")

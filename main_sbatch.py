@@ -30,7 +30,7 @@ BATCH_SIZE: bool = 128              # Batch size
 VAL_SIZE: float = 0.25              # Validation size
 # ~~~~~~~~~~~~~~~~~~~~~~~ (targeting 100K parameters)
 NUM_ENC_FEATS: dict[dict[int]] = {  # Number of encoder features
-    "ts": {"rnn": 40, "cnn": 48, "res": 16},
+    "ts": {"rnn": 40, "cnn": 48, "res": 16, "tcn": 20},
     "df": {"cnn": 20, "res": 12}}
 NUM_DEC_FEATS: int = 64             # Number of decoder features 
 # ~~~~~~~~~~~~~~~~~~~~~~~

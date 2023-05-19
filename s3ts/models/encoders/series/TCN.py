@@ -1,5 +1,7 @@
+from pytorch_lightning import LightningModule
 from torch.nn.utils import weight_norm
-import torch.nn as nn
+from torch import nn
+import numpy as np
 import torch
 
 # https://arxiv.org/abs/1803.01271
@@ -43,21 +45,48 @@ class TemporalBlock(nn.Module):
     def forward(self, x: torch.Tensor):
         out = self.net(x)
         res = x if self.downsample is None else self.downsample(x)
-        return self.relu(out + res)
+        return self.relu(out + res)    
+
+class TCN_TS(LightningModule):
+
+    """ Recurrent neural network (LSTM) for times series. """
+
+    # def __init__(self, num_inputs, num_channels, kernel_size=2, dropout=0.2):
+        
+    def __init__(self, channels: int, wdw_size: int, ref_size: int,
+                 n_feature_maps: int = 32, dropout: float = 0.2):
+        
+        super(TCN_TS, self).__init__()
+
+        # register parameters
+        self.channels = channels
+        self.wdw_size = wdw_size
+        self.ref_size = 1 # here for compatibility
+        self.n_feature_maps = n_feature_maps
 
 
-class TemporalConvNet(nn.Module):
-    def __init__(self, num_inputs, num_channels, kernel_size=2, dropout=0.2):
-        super(TemporalConvNet, self).__init__()
+        kernel_size = 3
+        dilation_base = 2
+
+        n = int(np.ceil(np.log2((wdw_size-1)*(dilation_base-1)/(kernel_size-1) +1)))
+        layer_feats = [n_feature_maps]*n
+        
         layers = []
-        num_levels = len(num_channels)
+        num_levels = len(layer_feats)
         for i in range(num_levels):
             dilation_size = 2 ** i
-            in_channels = num_inputs if i == 0 else num_channels[i-1]
-            out_channels = num_channels[i]
+            in_channels = channels if i == 0 else layer_feats[i-1]
+            out_channels = layer_feats[i]
             layers += [TemporalBlock(in_channels, out_channels, kernel_size, stride=1, dilation=dilation_size,
                                      padding=(kernel_size-1) * dilation_size, dropout=dropout)]
         self.network = nn.Sequential(*layers)
 
+    def get_output_shape(self) -> torch.Size:
+        x = torch.rand((1, self.channels, self.wdw_size))
+        print("Input shape: ", x.shape)
+        x: torch.Tensor = self(x)
+        print("Latent shape: ", x.shape)
+        return x.shape
+    
     def forward(self, x):
         return self.network(x)
