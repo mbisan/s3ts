@@ -79,6 +79,7 @@ class TCN_TS(LightningModule):
             out_channels = layer_feats[i]
             layers += [TemporalBlock(in_channels, out_channels, kernel_size, stride=1, dilation=dilation_size,
                                      padding=(kernel_size-1) * dilation_size, dropout=dropout)]
+        layers.append(nn.AvgPool1d(kernel_size=(3)))
         self.network = nn.Sequential(*layers)
 
     def get_output_shape(self) -> torch.Size:

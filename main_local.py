@@ -15,19 +15,19 @@ torch.set_float32_matmul_precision("medium")
 
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
-PRETRAIN_ENCODERS = False         # Pretrain the DF encoders
-TIME_DIL = True                  # Time dilation
+PRETRAIN_ENCODERS = False          # Pretrain the DF encoders
+TIME_DIL = True                    # Time dilation
 PATT_STR = False                   # Pattern stride
-SELF_SUP = False                   # Self-supervised pretraining
+SELF_SUP = True                    # Self-supervised pretraining
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DATASETS = [ # Datasets
     "CBF"#, "GunPoint", "Plane", "SyntheticControl"                                           
 ]                      
 ARCHS = { # Architectures
-    # "ts": ["rnn", "cnn", "res", "tcn"],
-    "ts": ["tcn"],
+    "ts": ["rnn", "cnn", "res", "tcn"],
+    #"ts": [],
     # "df": ["cnn", "res"],
-    "df": [],
+    "df": ["tcn"],
 }
 # ~~~~~~~~~~~~~~~~~~~~~~~
 WINDOW_LENGTH_DF: list[int] = 10                    # Window length for DF
@@ -41,7 +41,7 @@ VAL_SIZE: float = 0.25              # Validation size
 # ~~~~~~~~~~~~~~~~~~~~~~~ (targeting 100K parameters)
 NUM_ENC_FEATS: dict[dict[int]] = {  # Number of encoder features
     "ts": {"rnn": 40, "cnn": 48, "res": 16, "tcn": 58},
-    "df": {"cnn": 20, "res": 12}}
+    "df": {"cnn": 20, "res": 12,  "tcn": 64}}
 NUM_DEC_FEATS: int = 64             # Number of decoder features  
 # ~~~~~~~~~~~~~~~~~~~~~~~
 EVENTS_PER_CLASS = 32               # Number of events per class
@@ -61,7 +61,7 @@ STORAGE_DIR = Path("storage/")      # Cache folder
 # ~~~~~~~~~~~~~~~~~~~~~~~
 NUM_WORKERS = mp.cpu_count()//2     # Number of workers for the dataloaders
 RANDOM_STATE = 0                    # Random state
-CV_REPS = range(1,2)                # Number of cross-validation repetitions
+CV_REPS = range(1,2)                  # Number of cross-validation repetitions
 # ~~~~~~~~~~~~~~~~~~~~~~~
 SHARED_ARGS = {"rho_dfs": RHO_DFS, "exc": EVENTS_PER_CLASS,
     "batch_size": BATCH_SIZE, "val_size": VAL_SIZE,

@@ -22,6 +22,7 @@ import torch
 # architectures
 from s3ts.models.encoders.frames.CNN import CNN_DF
 from s3ts.models.encoders.frames.RES import RES_DF
+from s3ts.models.encoders.frames.TCN import TCN_DF
 
 from s3ts.models.encoders.series.RNN import RNN_TS
 from s3ts.models.encoders.series.CNN import CNN_TS
@@ -56,13 +57,15 @@ class WrapperModel(LightningModule):
 
         """ Wrapper for the PyTorch models used in the experiments. """
 
-        super().__init__()
+        super(WrapperModel, self).__init__()
         
-        self.encoder_dict = {"ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS, "tcn": TCN_TS}, 
-                        "df": {"cnn": CNN_DF, "res": RES_DF}}
+        self.encoder_dict = {
+            "ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS, "tcn": TCN_TS}, 
+            "df": {"cnn": CNN_DF, "res": RES_DF, "tcn": TCN_DF},
+            "gf": {"cnn": CNN_DF, "res": RES_DF, "tcn": TCN_DF}}
         
         # Check encoder parameters
-        if mode not in ["df", "ts"]:
+        if mode not in ["ts", "df", "gf"]:
             raise ValueError(f"Invalid representation: {mode}")
         if arch not in ["rnn", "cnn", "res", "tcn"]:
             raise ValueError(f"Invalid architecture: {arch}")

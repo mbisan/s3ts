@@ -2,7 +2,7 @@
 from pytorch_lightning.utilities.model_summary import ModelSummary
 from s3ts.models.wrapper import WrapperModel
 
-model = WrapperModel(mode="ts",
+model = WrapperModel(mode="df",
              arch="tcn",
              target="cls", # "cls"
              n_classes=2,
@@ -12,7 +12,7 @@ model = WrapperModel(mode="ts",
              stride_series=False,
              window_time_stride=1,
              window_patt_stride=1,
-             encoder_feats=58,
+             encoder_feats=64,
              decoder_feats=64,
              learning_rate=1E-4)
              
