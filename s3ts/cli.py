@@ -237,10 +237,10 @@ if __name__ == '__main__':
                     "PowerCons", "Car", "ECG200", "ArrowHead"],
         help='Name of the dataset from which create the DTWs')
 
-    parser.add_argument('--mode', type=str, required=True, choices=['df', 'ts', 'gf'],
+    parser.add_argument('--mode', type=str, required=True, choices=['ts', 'df', 'gf'],
         help='Data representation (df: dissimilarity frames, ts: time series)')
 
-    parser.add_argument('--arch', type=str, required=True, choices=['rnn', 'cnn', 'res', 'tcn'],
+    parser.add_argument('--arch', type=str, required=True, choices=['nn', 'rnn', 'cnn', 'res', 'tcn'],
         help='Name of the architecture from which create the model')
     
     parser.add_argument('--use_pretrain', type=bool, action=argparse.BooleanOptionalAction, 

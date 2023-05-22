@@ -63,77 +63,84 @@ def train_model(pretrain_mode: bool, version: str,
     res["mode"] = mode
     res["arch"] = arch
     res["dataset"] = dataset
-    res["val_size"] = dm.val_size
-    res["max_epochs"] = max_epochs
-    res["batch_size"] = dm.batch_size
-    res["pretrain_mode"] = pretrain_mode
-    res["window_length"] = dm.window_length
-    res["stride_series"] = dm.stride_series
-    res["window_time_stride"] = dm.window_time_stride
-    res["window_patt_stride"] = dm.window_patt_stride
-    res["learning_rate"] = learning_rate
-    res["random_state"] = random_state
 
-    # Create a label for the experiment
+    if arch == "nn":
 
-    if pretrain_mode:
+        pass
 
-        metrics = ["mse", "r2"]
-        trainer, ckpt = setup_trainer(directory=directory, version=version,
-        max_epochs=max_epochs, stop_metric="val_mse", stop_mode="min")
-        
-        model = WrapperModel(mode="df", arch=arch, target="reg",
-            n_classes=dm.n_classes, window_length=dm.window_length, 
-            n_patterns=dm.n_patterns, l_patterns=dm.l_patterns,
-            window_time_stride=dm.window_time_stride, window_patt_stride=dm.window_patt_stride,
-            stride_series=dm.stride_series, learning_rate=learning_rate,
-            encoder_feats=num_encoder_feats, decoder_feats=num_decoder_feats)
-        
     else:
 
-        metrics = ["acc", "f1", "auroc"]
-        trainer, ckpt = setup_trainer(directory=directory, version=version,
-        max_epochs=max_epochs, stop_metric="val_acc", stop_mode="max")
-        model = WrapperModel(mode=mode, arch=arch, target="cls",
-            n_classes=dm.n_classes, window_length=dm.window_length, 
-            n_patterns=dm.n_patterns, l_patterns=dm.l_patterns,
-            window_time_stride=dm.window_time_stride, window_patt_stride=dm.window_patt_stride,
-            stride_series=dm.stride_series, learning_rate=learning_rate,
-            encoder_feats=num_encoder_feats, decoder_feats=num_decoder_feats)
-        
-        # Load the encoder if needed
-        if encoder_path is not None:
-            model.encoder = torch.load(encoder_path)
-            res["pretrained"] = True
+        res["val_size"] = dm.val_size
+        res["max_epochs"] = max_epochs
+        res["batch_size"] = dm.batch_size
+        res["pretrain_mode"] = pretrain_mode
+        res["window_length"] = dm.window_length
+        res["stride_series"] = dm.stride_series
+        res["window_time_stride"] = dm.window_time_stride
+        res["window_patt_stride"] = dm.window_patt_stride
+        res["learning_rate"] = learning_rate
+        res["random_state"] = random_state
+
+        # Create a label for the experiment
+
+        if pretrain_mode:
+
+            metrics = ["mse", "r2"]
+            trainer, ckpt = setup_trainer(directory=directory, version=version,
+            max_epochs=max_epochs, stop_metric="val_mse", stop_mode="min")
+            
+            model = WrapperModel(mode="df", arch=arch, target="reg",
+                n_classes=dm.n_classes, window_length=dm.window_length, 
+                n_patterns=dm.n_patterns, l_patterns=dm.l_patterns,
+                window_time_stride=dm.window_time_stride, window_patt_stride=dm.window_patt_stride,
+                stride_series=dm.stride_series, learning_rate=learning_rate,
+                encoder_feats=num_encoder_feats, decoder_feats=num_decoder_feats)
+            
         else:
-            res["pretrained"] = False
-            res.pop("stride_series")
-        res["cv_rep"] = cv_rep
 
-    # TODO: uncomment when its not so buggy, supposed to improve performance
-    # model: torch.Module = torch.compile(model, mode="reduce-overhead")
+            metrics = ["acc", "f1", "auroc"]
+            trainer, ckpt = setup_trainer(directory=directory, version=version,
+            max_epochs=max_epochs, stop_metric="val_acc", stop_mode="max")
+            model = WrapperModel(mode=mode, arch=arch, target="cls",
+                n_classes=dm.n_classes, window_length=dm.window_length, 
+                n_patterns=dm.n_patterns, l_patterns=dm.l_patterns,
+                window_time_stride=dm.window_time_stride, window_patt_stride=dm.window_patt_stride,
+                stride_series=dm.stride_series, learning_rate=learning_rate,
+                encoder_feats=num_encoder_feats, decoder_feats=num_decoder_feats)
+            
+            # Load the encoder if needed
+            if encoder_path is not None:
+                model.encoder = torch.load(encoder_path)
+                res["pretrained"] = True
+            else:
+                res["pretrained"] = False
+                res.pop("stride_series")
+            res["cv_rep"] = cv_rep
 
-    trainer.fit(model=model, datamodule=dm)
-    model = model.load_from_checkpoint(ckpt.best_model_path)
+        # TODO: uncomment when its not so buggy, supposed to improve performance
+        # model: torch.Module = torch.compile(model, mode="reduce-overhead")
 
-    # Save training results
-    res["nepochs"] = trainer.current_epoch
-    res["best_model"] = ckpt.best_model_path
-    res["total_params"] = sum(p.numel() for p in model.parameters())
-    res["trainable_params"] = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    res["metrics_csv"] = str(directory  / "logs" / version / "metrics.csv")
-    data = trainer.validate(model, datamodule=dm)
-    for m in metrics:
-        res[f"val_{m}"]  = data[0][f"val_{m}"]        
-    if not pretrain_mode:
-        data = trainer.test(model, datamodule=dm)
+        trainer.fit(model=model, datamodule=dm)
+        model = model.load_from_checkpoint(ckpt.best_model_path)
+
+        # Save training results
+        res["nepochs"] = trainer.current_epoch
+        res["best_model"] = ckpt.best_model_path
+        res["total_params"] = sum(p.numel() for p in model.parameters())
+        res["trainable_params"] = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        res["metrics_csv"] = str(directory  / "logs" / version / "metrics.csv")
+        data = trainer.validate(model, datamodule=dm)
         for m in metrics:
-            res[f"test_{m}"] = data[0][f"test_{m}"]
+            res[f"val_{m}"]  = data[0][f"val_{m}"]        
+        if not pretrain_mode:
+            data = trainer.test(model, datamodule=dm)
+            for m in metrics:
+                res[f"test_{m}"] = data[0][f"test_{m}"]
 
-    if pretrain_mode:
-        # Save the pretrained encoder
-        log.info(f"Saving encoder at: '{str(encoder_path)}'")
-        torch.save(model.encoder, encoder_path)
+        if pretrain_mode:
+            # Save the pretrained encoder
+            log.info(f"Saving encoder at: '{str(encoder_path)}'")
+            torch.save(model.encoder, encoder_path)
 
     return res, model
 
