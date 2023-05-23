@@ -34,9 +34,8 @@ def knn_dtw_predict(dm: DFDataModule, metric = "dtw", n_neighbors = 1) -> tuple[
     Y_train = dm.Y_train.numpy()
     model.fit(X_train, Y_train)
 
-    batches = dm.test_dataloader().__len__()
-
     Y_true, Y_pred = [], []
+    print("Predicting on the test set...")
     for batch in tqdm(dm.test_dataloader()):
         series: np.ndarray = batch[1].numpy()
         Y_pred.append(model.predict(series))

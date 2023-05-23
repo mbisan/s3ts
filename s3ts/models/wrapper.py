@@ -92,7 +92,7 @@ class WrapperModel(LightningModule):
             "encoder_feats": encoder_feats, "decoder_feats": decoder_feats, "learning_rate": learning_rate})
         
         # Create the encoder
-        if mode == "df":
+        if mode == "df" or mode == "gf":
             ref_size = len(np.arange(self.l_patterns)[::self.window_patt_stride])
             channels = self.n_patterns
         elif mode == "ts":
@@ -159,7 +159,7 @@ class WrapperModel(LightningModule):
         # frames, series, label = batch
 
         # Forward pass
-        if self.mode == "df":
+        if self.mode == "df" or self.mode == "gf":
             output = self(batch[0])
         elif self.mode == "ts":
             output = self(torch.unsqueeze(batch[1] , dim=1))

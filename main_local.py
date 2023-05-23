@@ -16,20 +16,20 @@ torch.set_float32_matmul_precision("medium")
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
 PRETRAIN_ENCODERS = False          # Pretrain the DF encoders
-TIME_DIL = False                   # Time dilation
+TIME_DIL = True                    # Time dilation
 PATT_STR = False                   # Pattern stride
 SELF_SUP = False                   # Self-supervised pretraining
-ADDITIONAL = True                  # Absolute values
+ADDITIONAL = False                  # Absolute values
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DATASETS = [ # Datasets
     "CBF"#, "GunPoint", "Plane", "SyntheticControl"                                           
 ]                      
 ARCHS = { # Architectures
     #"ts": ["rnn", "cnn", "res", "tcn"],
-    "ts": ["nn"],
-    # "df": ["cnn", "res"],
-    "df": ["tcn"],
-    "gf": [],
+    "ts": [],
+    #"df": ["cnn", "res"],
+    "df": [],
+    "gf": ["cnn"],
 }
 # ~~~~~~~~~~~~~~~~~~~~~~~
 WINDOW_LENGTH_DF: list[int] = 10                    # Window length for DF
@@ -43,7 +43,8 @@ VAL_SIZE: float = 0.25              # Validation size
 # ~~~~~~~~~~~~~~~~~~~~~~~ (targeting 100K parameters)
 NUM_ENC_FEATS: dict[dict[int]] = {  # Number of encoder features
     "ts": {"rnn": 40, "cnn": 48, "res": 16, "tcn": 58},
-    "df": {"cnn": 20, "res": 12,  "tcn": 64}}
+    "df": {"cnn": 20, "res": 12,  "tcn": 48},
+    "gf": {"cnn": 20, "res": 12,  "tcn": 48}}
 NUM_DEC_FEATS: int = 64             # Number of decoder features  
 # ~~~~~~~~~~~~~~~~~~~~~~~
 EVENTS_PER_CLASS = 32               # Number of events per class
@@ -126,6 +127,8 @@ if TIME_DIL:
         # Do the TS training
         mode = "ts"
         for arch in ARCHS[mode]:
+            if arch == "nn":
+                continue
             enc_feats = NUM_ENC_FEATS[mode][arch]
             for dataset in DATASETS:
                 res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
@@ -159,8 +162,6 @@ if TIME_DIL:
 
 if PATT_STR:
     for cv_rep in CV_REPS:
-                    
-        # Do the DF training
         for mode in ["df", "gf"]:
             for arch in ARCHS[mode]:
                 enc_feats = NUM_ENC_FEATS[mode][arch]
@@ -182,8 +183,6 @@ if PATT_STR:
 
 if SELF_SUP:
     for cv_rep in CV_REPS:
-                    
-        # Do the DF training
         for mode in ["df", "gf"]:
             for arch in ARCHS[mode]:
                 enc_feats = NUM_ENC_FEATS[mode][arch]
