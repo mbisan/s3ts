@@ -63,14 +63,6 @@ class WrapperModel(LightningModule):
             "ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS, "tcn": TCN_TS}, 
             "df": {"cnn": CNN_DF, "res": RES_DF, "tcn": TCN_DF},
             "gf": {"cnn": CNN_DF, "res": RES_DF, "tcn": TCN_DF}}
-        
-        # Check encoder parameters
-        if mode not in ["ts", "df", "gf"]:
-            raise ValueError(f"Invalid representation: {mode}")
-        if arch not in ["rnn", "cnn", "res", "tcn"]:
-            raise ValueError(f"Invalid architecture: {arch}")
-        if arch not in self.encoder_dict[mode]:
-            raise ValueError(f"Architecture {arch} not available for representation {mode}.")
         encoder_arch = self.encoder_dict[mode][arch]
 
         # Check decoder parameters

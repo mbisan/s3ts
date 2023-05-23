@@ -16,18 +16,20 @@ torch.set_float32_matmul_precision("medium")
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
 PRETRAIN_ENCODERS = False          # Pretrain the DF encoders
-TIME_DIL = True                    # Time dilation
+TIME_DIL = False                   # Time dilation
 PATT_STR = False                   # Pattern stride
-SELF_SUP = True                    # Self-supervised pretraining
+SELF_SUP = False                   # Self-supervised pretraining
+ADDITIONAL = True                  # Absolute values
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DATASETS = [ # Datasets
     "CBF"#, "GunPoint", "Plane", "SyntheticControl"                                           
 ]                      
 ARCHS = { # Architectures
-    "ts": ["rnn", "cnn", "res", "tcn"],
-    #"ts": [],
+    #"ts": ["rnn", "cnn", "res", "tcn"],
+    "ts": ["nn"],
     # "df": ["cnn", "res"],
     "df": ["tcn"],
+    "gf": [],
 }
 # ~~~~~~~~~~~~~~~~~~~~~~~
 WINDOW_LENGTH_DF: list[int] = 10                    # Window length for DF
@@ -81,39 +83,39 @@ SHARED_ARGS = {"rho_dfs": RHO_DFS, "exc": EVENTS_PER_CLASS,
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if PRETRAIN_ENCODERS:
-    mode = "df"
-    for arch in ARCHS[mode]:
-        enc_feats = NUM_ENC_FEATS[mode][arch]
-        for dataset in DATASETS:
-            res_fname = f"results_pretrain_{arch}_{dataset}.csv"
-            wlen = WINDOW_LENGTH_DF
-            for wts in WINDOW_TIME_STRIDES[-1:]:
-                # Full series
-                main_loop(dataset=dataset, mode=mode, arch=arch,
-                    use_pretrain=False, pretrain_mode=True,
-                    window_length=wlen, stride_series=False,
-                    window_time_stride=wts, window_patt_stride=1,
-                    max_epochs=MAX_EPOCHS_PRE, cv_rep=0, 
-                    num_encoder_feats=enc_feats, res_fname=res_fname,
-                    **SHARED_ARGS)
-                if wts != 1:
-                    # Strided series
+    for mode in ["df", "gf"]:
+        for arch in ARCHS[mode]:
+            enc_feats = NUM_ENC_FEATS[mode][arch]
+            for dataset in DATASETS:
+                res_fname = f"results_pretrain_{arch}_{dataset}.csv"
+                wlen = WINDOW_LENGTH_DF
+                for wts in WINDOW_TIME_STRIDES[-1:]:
+                    # Full series
                     main_loop(dataset=dataset, mode=mode, arch=arch,
                         use_pretrain=False, pretrain_mode=True,
-                        window_length=wlen, stride_series=True,
+                        window_length=wlen, stride_series=False,
                         window_time_stride=wts, window_patt_stride=1,
                         max_epochs=MAX_EPOCHS_PRE, cv_rep=0, 
                         num_encoder_feats=enc_feats, res_fname=res_fname,
                         **SHARED_ARGS)
-            # for wps in WINDOW_PATT_STRIDES:
-            #     # Full series
-            #     main_loop(dataset=dataset, mode="DF", arch=arch,
-            #         use_pretrain=False, pretrain_mode=True,
-            #         window_length=wlen, stride_series=False,
-            #         window_time_stride=7, window_patt_stride=wps,
-            #         max_epochs=MAX_EPOCHS_PRE, cv_rep=0,
-            #         num_encoder_feats=enc_feats, res_fname=res_fname,
-            #         **SHARED_ARGS)
+                    if wts != 1:
+                        # Strided series
+                        main_loop(dataset=dataset, mode=mode, arch=arch,
+                            use_pretrain=False, pretrain_mode=True,
+                            window_length=wlen, stride_series=True,
+                            window_time_stride=wts, window_patt_stride=1,
+                            max_epochs=MAX_EPOCHS_PRE, cv_rep=0, 
+                            num_encoder_feats=enc_feats, res_fname=res_fname,
+                            **SHARED_ARGS)
+                # for wps in WINDOW_PATT_STRIDES:
+                #     # Full series
+                #     main_loop(dataset=dataset, mode="DF", arch=arch,
+                #         use_pretrain=False, pretrain_mode=True,
+                #         window_length=wlen, stride_series=False,
+                #         window_time_stride=7, window_patt_stride=wps,
+                #         max_epochs=MAX_EPOCHS_PRE, cv_rep=0,
+                #         num_encoder_feats=enc_feats, res_fname=res_fname,
+                #         **SHARED_ARGS)
 
 # Training Loop for Ablation Study: Time Dilation
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -137,20 +139,20 @@ if TIME_DIL:
                         **SHARED_ARGS)
                     
         # Do the DF training
-        mode = "df"
-        for arch in ARCHS[mode]:
-            enc_feats = NUM_ENC_FEATS[mode][arch]
-            wlen, wps = WINDOW_LENGTH_DF, 1
-            for dataset in DATASETS:
-                res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
-                for wts in WINDOW_TIME_STRIDES:
-                    main_loop(dataset=dataset, mode=mode, arch=arch,
-                        use_pretrain=False, pretrain_mode=False,
-                        window_length=wlen, stride_series=False,
-                        window_time_stride=wts, window_patt_stride=wps,
-                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-                        num_encoder_feats=enc_feats, res_fname=res_fname, 
-                        **SHARED_ARGS)
+        for mode in ["df", "gf"]:
+            for arch in ARCHS[mode]:
+                enc_feats = NUM_ENC_FEATS[mode][arch]
+                wlen, wps = WINDOW_LENGTH_DF, 1
+                for dataset in DATASETS:
+                    res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
+                    for wts in WINDOW_TIME_STRIDES:
+                        main_loop(dataset=dataset, mode=mode, arch=arch,
+                            use_pretrain=False, pretrain_mode=False,
+                            window_length=wlen, stride_series=False,
+                            window_time_stride=wts, window_patt_stride=wps,
+                            max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+                            num_encoder_feats=enc_feats, res_fname=res_fname, 
+                            **SHARED_ARGS)
 
 # Training Loop for Ablation Study: Pattern Stride
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -159,21 +161,21 @@ if PATT_STR:
     for cv_rep in CV_REPS:
                     
         # Do the DF training
-        mode = "df"
-        for arch in ARCHS[mode]:
-            enc_feats = NUM_ENC_FEATS[mode][arch]
-            wlen, wts = WINDOW_LENGTH_DF, 7
-            for dataset in DATASETS:
-                res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
-                for wps in WINDOW_PATT_STRIDES:
-                    # Full series
-                    main_loop(dataset=dataset, mode=mode, arch=arch,
-                        use_pretrain=False, pretrain_mode=False,
-                        window_length=wlen, stride_series=False,
-                        window_time_stride=wts, window_patt_stride=wps, 
-                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-                        num_encoder_feats=enc_feats, res_fname=res_fname, 
-                        **SHARED_ARGS)
+        for mode in ["df", "gf"]:
+            for arch in ARCHS[mode]:
+                enc_feats = NUM_ENC_FEATS[mode][arch]
+                wlen, wts = WINDOW_LENGTH_DF, 7
+                for dataset in DATASETS:
+                    res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
+                    for wps in WINDOW_PATT_STRIDES:
+                        # Full series
+                        main_loop(dataset=dataset, mode=mode, arch=arch,
+                            use_pretrain=False, pretrain_mode=False,
+                            window_length=wlen, stride_series=False,
+                            window_time_stride=wts, window_patt_stride=wps, 
+                            max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+                            num_encoder_feats=enc_feats, res_fname=res_fname, 
+                            **SHARED_ARGS)
 
 # Training Loop for Ablation Study: Pretraining
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -182,36 +184,52 @@ if SELF_SUP:
     for cv_rep in CV_REPS:
                     
         # Do the DF training
-        mode = "df"
-        for arch in ARCHS[mode]:
-            enc_feats = NUM_ENC_FEATS[mode][arch]
-            wlen, wts, wps = WINDOW_LENGTH_DF, 7, 1
-            for dataset in DATASETS:
-                res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
-                for ev_lim in EVENT_LIMITERS:
-                    # No pretraining
-                    if ev_lim != EVENTS_PER_CLASS:
+        for mode in ["df", "gf"]:
+            for arch in ARCHS[mode]:
+                enc_feats = NUM_ENC_FEATS[mode][arch]
+                wlen, wts, wps = WINDOW_LENGTH_DF, 7, 1
+                for dataset in DATASETS:
+                    res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
+                    for ev_lim in EVENT_LIMITERS:
+                        # No pretraining
+                        if ev_lim != EVENTS_PER_CLASS:
+                            main_loop(dataset=dataset, mode=mode, arch=arch,
+                                train_exc_limit=ev_lim, use_pretrain=False, stride_series=False,
+                                pretrain_mode=False, window_length=wlen, 
+                                window_time_stride=wts, window_patt_stride=wps, 
+                                max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+                                num_encoder_feats=enc_feats, res_fname=res_fname, 
+                                **SHARED_ARGS)
+                        # Full series pretrain
                         main_loop(dataset=dataset, mode=mode, arch=arch,
-                            train_exc_limit=ev_lim, use_pretrain=False, stride_series=False,
+                            train_exc_limit=ev_lim, use_pretrain=True, stride_series=False,
                             pretrain_mode=False, window_length=wlen, 
                             window_time_stride=wts, window_patt_stride=wps, 
                             max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
                             num_encoder_feats=enc_feats, res_fname=res_fname, 
+                            **SHARED_ARGS)                    
+                        # Strided series pretrain
+                        main_loop(dataset=dataset, mode=mode, arch=arch,
+                            train_exc_limit=ev_lim, use_pretrain=True, stride_series=True,
+                            pretrain_mode=False, window_length=wlen, 
+                            window_time_stride=wts, window_patt_stride=wps, 
+                            max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep,
+                            num_encoder_feats=enc_feats, res_fname=res_fname,  
                             **SHARED_ARGS)
-                    # Full series pretrain
-                    main_loop(dataset=dataset, mode=mode, arch=arch,
-                        train_exc_limit=ev_lim, use_pretrain=True, stride_series=False,
-                        pretrain_mode=False, window_length=wlen, 
-                        window_time_stride=wts, window_patt_stride=wps, 
-                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-                        num_encoder_feats=enc_feats, res_fname=res_fname, 
-                        **SHARED_ARGS)                    
-                    # Strided series pretrain
-                    main_loop(dataset=dataset, mode=mode, arch=arch,
-                        train_exc_limit=ev_lim, use_pretrain=True, stride_series=True,
-                        pretrain_mode=False, window_length=wlen, 
-                        window_time_stride=wts, window_patt_stride=wps, 
-                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep,
-                        num_encoder_feats=enc_feats, res_fname=res_fname,  
-                        **SHARED_ARGS)
 
+# Training Loop for Additional Experiments
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+if ADDITIONAL:
+    for cv_rep in CV_REPS:
+        mode = "ts"
+        if "nn" in ARCHS[mode]:
+            arch, wlen, wts, wps, enc_feats = "nn", 1, 1, 1, 1
+            for dataset in DATASETS:
+                res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
+                main_loop(dataset=dataset, mode=mode, arch=arch, 
+                    window_length=wlen, window_time_stride=wts, window_patt_stride=wps,
+                    use_pretrain=False, stride_series=False, pretrain_mode=False,  
+                    max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep,
+                    num_encoder_feats=enc_feats, res_fname=res_fname,  
+                    **SHARED_ARGS)

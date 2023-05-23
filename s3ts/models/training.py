@@ -10,6 +10,7 @@ from pytorch_lightning import Trainer, seed_everything
 import torch
 
 # in-package imports
+from s3ts.models.neighbors import knn_dtw_predict
 from s3ts.models.wrapper import WrapperModel
 from s3ts.data.modules import DFDataModule
 
@@ -47,7 +48,7 @@ def setup_trainer(
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-def train_model(pretrain_mode: bool, version: str,
+def run_model(pretrain_mode: bool, version: str,
         dataset: str, mode: str, arch: str, dm: DFDataModule, 
         directory: Path, max_epochs: int, learning_rate: float,
         num_encoder_feats: int, num_decoder_feats: int,
@@ -66,7 +67,14 @@ def train_model(pretrain_mode: bool, version: str,
 
     if arch == "nn":
 
-        pass
+        acc, f1, model = knn_dtw_predict(dm=dm, metric="dtw", n_neighbors=1)
+        
+        # this would be the event size
+        res["window_length"] = dm.window_length
+
+        res["pretrained"] = False
+        res["test_acc"] = acc
+        res["test_f1"] = f1
 
     else:
 
@@ -143,7 +151,6 @@ def train_model(pretrain_mode: bool, version: str,
             torch.save(model.encoder, encoder_path)
 
     return res, model
-
 
 def save_results(res: dict, res_fname: str, storage_dir: Path):
 
