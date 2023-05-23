@@ -57,7 +57,7 @@ def sbatch_hook(
     ss = 0 if stride_series is None else int(stride_series)
     cv = 0 if cv_rep is None else cv_rep
     if job_name is None:
-        if mode == "DF":
+        if mode == "df" or mode == "gf":
             job_name = f"{dataset}_{mode}_{arch}_wl{window_length}_ts{window_time_stride}_ps{window_patt_stride}_ss{ss}_cv{cv}"
         else:
             job_name = f"{dataset}_{mode}_{arch}_wl{window_length}_cv{cv}"

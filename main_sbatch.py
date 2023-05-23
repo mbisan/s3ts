@@ -74,7 +74,7 @@ if PRETRAIN_ENCODERS:
                 wlen = WINDOW_LENGTH_DF
                 for wts in WINDOW_TIME_STRIDES[-1:]:
                     # Full series
-                    sbatch_hook(dataset=dataset, mode="DF", arch=arch,
+                    sbatch_hook(dataset=dataset, mode=mode, arch=arch,
                         use_pretrain=False, pretrain_mode=True,
                         window_length=wlen, stride_series=False,
                         window_time_stride=wts, window_patt_stride=1,
@@ -83,7 +83,7 @@ if PRETRAIN_ENCODERS:
                         **SHARED_ARGS)
                     if wts != 1:
                         # Strided series
-                        sbatch_hook(dataset=dataset, mode="DF", arch=arch,
+                        sbatch_hook(dataset=dataset, mode=mode, arch=arch,
                             use_pretrain=False, pretrain_mode=True,
                             window_length=wlen, stride_series=True,
                             window_time_stride=wts, window_patt_stride=1,
