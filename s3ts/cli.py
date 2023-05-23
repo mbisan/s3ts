@@ -104,8 +104,8 @@ def main_loop(
             raise ValueError("Window paramters must be positive integers.")
     
     # Check mode is 'df' if use_pretrain is True
-    if use_pretrain and mode != "df" or pretrain_mode and mode != "df":
-        raise ValueError("Pretraining is only available for df mode.")
+    if (use_pretrain and mode not in ["df", "gf"]) or (pretrain_mode and mode not in ["df", "gf"]):
+        raise ValueError("Pretraining is only available for df/gf modes.")
 
     # Check pretrain_mode and use_pretrain are not both True
     if use_pretrain and pretrain_mode:
