@@ -1,31 +1,27 @@
-from functools import partial
-import multiprocessing as mp
-import logging as log
-
 from numba import jit, prange
-from math import sqrt
 import numpy as np
 
 @jit(nopython=True, parallel=True)
-def _gasf(X_cos, X_sin, n_samples, image_size):
-    X_gasf = np.empty((n_samples, image_size, image_size))
-    for i in prange(n_samples):
-        X_gasf[i] = np.outer(X_cos[i], X_cos[i]) - np.outer(X_sin[i], X_sin[i])
-    return X_gasf
+def minmaxscale(X: np.ndarray, fmin: float = -1, fmax: float =1) -> np.ndarray:
 
+    """ Scales the input array to the range [-1, 1]. """
 
-@jit(nopython=True, parallel=True)
-def _gadf(X_cos, X_sin, n_samples, image_size):
-    X_gadf = np.empty((n_samples, image_size, image_size))
-    for i in prange(n_samples):
-        X_gadf[i] = np.outer(X_sin[i], X_cos[i]) - np.outer(X_cos[i], X_sin[i])
-    return X_gadf
+    Xmin, Xmax = X[0], X[0]
+    for i in range(X.shape[0]):
+        if X[i] < Xmin:
+            Xmin = X[i]
+        if X[i] > Xmax:
+            Xmax = X[i]
+
+    X_std = (X - Xmin) / (Xmax - Xmin)
+    X_scaled = X_std * (fmax - fmin) + fmin
+
+    return X_scaled
+
 
 @jit(nopython=True, parallel=True)
 def compute_GM_optim(STS: np.ndarray, 
-                    patterns: np.ndarray, 
-                    method: str = 'summation',
-                    sample_range: tuple[int] = (-1, 1)
+                    patterns: np.ndarray,
                     ) -> np.ndarray:
 
     """ Computes the gramian matrix (GM) for a given set of patterns and a given STS.
@@ -37,9 +33,9 @@ def compute_GM_optim(STS: np.ndarray,
         Parameters
         ----------
         STS : np.ndarray
-            The STS to compute the DM for.
+            The STS to compute the GM for.
         patterns : np.ndarray
-            The patterns used to compute the DM.
+            The patterns used to compute the GM.
 
         References
     ----------
@@ -48,70 +44,26 @@ def compute_GM_optim(STS: np.ndarray,
            Networks." AAAI Workshop (2015).
     """
 
-    """
-    X = check_array(X)
-        n_samples, n_timestamps = X.shape
-        image_size = self._check_params(n_timestamps)
-
-        paa = PiecewiseAggregateApproximation(
-            window_size=None, output_size=image_size,
-            overlapping=self.overlapping
-        )
-        X_paa = paa.fit_transform(X)
-        if self.sample_range is None:
-            X_min, X_max = np.min(X_paa), np.max(X_paa)
-            if (X_min < -1) or (X_max > 1):
-                raise ValueError("If 'sample_range' is None, all the values "
-                                 "of X must be between -1 and 1.")
-            X_cos = X_paa
-        else:
-            scaler = MinMaxScaler(sample_range=self.sample_range)
-            X_cos = scaler.fit_transform(X_paa)
-        X_sin = np.sqrt(np.clip(1 - X_cos ** 2, 0, 1))
-        if self.method in ['s', 'summation']:
-            X_new = _gasf(X_cos, X_sin, n_samples, image_size)
-        else:
-            X_new = _gadf(X_cos, X_sin, n_samples, image_size)
-
-        if self.flatten:
-            return X_new.reshape(n_samples, -1)
-        return X_new
-    """
+    feature_range: tuple[int] = (-1, 1)
 
     n_patts: int = patterns.shape[0]
     l_patts: int = patterns.shape[1]
     l_STS: int = STS.shape[0]
 
-    X = STS
+    STS_cos = minmaxscale(STS, fmin=feature_range[0], fmax=feature_range[1])
+    STS_sin = np.sqrt(np.clip(1 - STS_cos ** 2, 0, 1))
 
-    if self.sample_range is None:
-            X_min, X_max = np.min(X_paa), np.max(X_paa)
-            if (X_min < -1) or (X_max > 1):
-                raise ValueError("If 'sample_range' is None, all the values "
-                                 "of X must be between -1 and 1.")
-            X_cos = X_paa
-        else:
-            scaler = MinMaxScaler(sample_range=sample_range)
-            X_cos = scaler.fit_transform(X_paa)
-    X_sin = np.sqrt(np.clip(1 - X_cos ** 2, 0, 1))
+    patterns_cos = np.zeros_like(patterns)
+    for i in prange(n_patts):
+        patterns_cos[i,:] = minmaxscale(patterns[i,:], fmin=feature_range[0], fmax=feature_range[1])
+    patterns_sin = np.sqrt(np.clip(1 - patterns_cos ** 2, 0, 1))
 
-
-     
-
-
-    # Compute the Gramian distance matrix
+    # Compute the Gramian summantion distance matrix
     GM = np.empty((n_patts, l_patts, l_STS), dtype=np.float32)
-    
-    if method in ['s', 'summation']:
-        for p in prange(n_patts):
-            for i in prange(l_STS):
-                for j in prange(l_patts):
-                    GM[p, j, i] = STS_cos[i]*patterns_cos[p, j] + STS_sin[i]*patterns_sin[p, j]
-    elif method in ["d, difference"]:
-         for p in prange(n_patts):
-            for i in prange(l_patts):
-                for j in prange(l_STS):
-                    GM[p, j, i] = STS_cos[i]*patterns_cos[p, j] + STS_sin[i]*patterns_sin[p, j]
+    for p in prange(n_patts):
+        for i in prange(l_STS):
+            for j in prange(l_patts):
+                GM[p, j, i] = STS_cos[i]*patterns_cos[p, j] + STS_sin[i]*patterns_sin[p, j]
 
     # Return the full distance matrix
     return GM
@@ -122,42 +74,24 @@ if __name__ == "__main__":
 
     """ Small test script for optimization. """
 
-    import time
     import matplotlib.pyplot as plt 
 
     STS = np.sin(np.linspace(0, 6*np.pi, 10000))
     lpat = 300
-    patterns = np.stack([np.arange(0, lpat), np.zeros(lpat), np.arange(0, lpat)[::-1]])
+    patterns = np.stack([np.arange(0, lpat), np.arange(0, lpat)[::-1]])
     # standardize patterns
     patterns = (patterns - np.mean(patterns, axis=1, keepdims=True)) / np.std(patterns, axis=1, keepdims=True)
-    print(patterns)
+    #print(patterns)
 
-    start = time.perf_counter()
-    DM1 = compute_DM(STS, patterns, 0.1)
-    end = time.perf_counter()
-    print("Elapsed (baseline) = {}s".format((end - start)))
+    GM = compute_GM_optim(STS, STS.reshape(1, -1))
 
-    start = time.perf_counter()
-    DM2 = compute_GM_optim(STS, patterns, 0.1)
-    end = time.perf_counter()
-    print("Elapsed (with compilation) = {}s".format((end - start)))
+    plt.figure()
+    plt.plot(STS)
 
-    start = time.perf_counter()
-    DM2 = compute_GM_optim(STS, patterns, 0.1)
-    end = time.perf_counter()
-    print("Elapsed (with compilation) = {}s".format((end - start)))
+    plt.figure()
+    plt.imshow(GM[0])
 
-    
-    # plt.plot(STS)
-    # plt.plot(patterns[0])
-    # plt.plot(patterns[1])
-    
-    # plt.figure()
-    # plt.imshow(DM1[0])
-
-    # plt.figure()
-    # plt.imshow(DM2[0])
-
+    print(GM.max(), GM.min())
     
     plt.show()
 
