@@ -25,7 +25,7 @@ class LSTMDecoder(LightningModule):
         self.out_features = out_features
 
         self.conv = nn.Conv2d(in_channels=inp_features, out_channels=1, kernel_size=1)
-        self.lstm = nn.LSTM(input_size = inp_size, hidden_size = hid_features,
+        self.lstm = nn.LSTM(input_size = inp_size, hidden_size = inp_size,
                             num_layers = hid_layers, dropout= 0.2, batch_first = True)
         self.linear = nn.Linear(in_features=hid_features, out_features=out_features)
 

@@ -6,7 +6,7 @@
 """
 
 # package imports
-from s3ts.models.training import train_model, save_results
+from s3ts.models.training import run_model, save_results
 from s3ts.data.acquisition import download_dataset
 from s3ts.data.setup import setup_pretrain_dm
 from s3ts.data.setup import setup_train_dm 
@@ -84,18 +84,28 @@ def main_loop(
 
     log.info("Performing sanity checks...")
 
+    # Check encoder parameters
+    if mode not in ["ts", "df", "gf"]:
+        raise ValueError(f"Invalid representation: {mode}")
+    if arch not in ["nn", "rnn", "cnn", "res", "tcn"]:
+        raise ValueError(f"Invalid architecture: {arch}")
+    valid_combinations = {"ts": ["nn", "rnn", "cnn", "res", "tcn"], 
+            "df": ["cnn", "res", "tcn"], "gf": ["cnn", "res", "tcn"]}
+    if arch not in valid_combinations[mode]:
+        raise ValueError(f"Architecture {arch} not available for representation {mode}.")
+
     # Check stride_series is false if mode is TS
-    if mode == "TS" and stride_series:
-        raise ValueError("Stride series must be False for TS mode.")
+    if mode == "ts" and stride_series:
+        raise ValueError("Stride series must be False for ts mode.")
 
     # Check all window parameters are positive integers
     for val in [window_length, window_time_stride, window_patt_stride]:
         if val < 1 or not isinstance(val, int):
             raise ValueError("Window paramters must be positive integers.")
     
-    # Check mode is 'DF' if use_pretrain is True
-    if use_pretrain and mode != "DF" or pretrain_mode and mode != "DF":
-        raise ValueError("Pretraining is only available for DF mode.")
+    # Check mode is 'df' if use_pretrain is True
+    if use_pretrain and mode != "df" or pretrain_mode and mode != "df":
+        raise ValueError("Pretraining is only available for df mode.")
 
     # Check pretrain_mode and use_pretrain are not both True
     if use_pretrain and pretrain_mode:
@@ -139,9 +149,13 @@ def main_loop(
     # Download the dataset or load it from storage
     X, Y, medoids, medoid_idx = download_dataset(dataset=dataset, storage_dir=storage_dir)
 
+    # If arch is 'nn', set the window length to the length of the samples
+    if arch == "nn":
+        window_length = X.shape[1]
+
     if pretrain_mode:
         # Get directory and version
-        directory = train_dir / "pretrain" / f"{dataset}_{arch}"
+        directory = train_dir / "pretrain" / f"{dataset}_{mode}_{arch}"
         version = f"wlen{window_length}_stride{ss}" +\
             f"_wtst{window_time_stride}_wpst{window_patt_stride}" +\
             f"_val{val_size}_me{max_epochs}_bs{batch_size}" +\
@@ -155,7 +169,8 @@ def main_loop(
             window_time_stride=window_time_stride, 
             window_patt_stride=window_patt_stride, 
             random_state=random_state,
-            num_workers=num_workers)
+            num_workers=num_workers,
+            mode=mode)
     else:
         # Get the train and test idx for the current CV repetition
         for j, (train_idx, test_idx) in enumerate(train_test_splits(X, Y, exc=exc, nreps=cv_rep+1, random_state=random_state)):
@@ -163,7 +178,7 @@ def main_loop(
                 break
         # Get directory and version
         directory = train_dir / "finetune" / f"{dataset}_{mode}_{arch}"
-        if mode == "DF":
+        if mode == "df":
             version = f"exc{exc}_avev{train_exc_limit}_tstrat{train_strat_size}" +\
                 f"_tmult{train_event_mult}_ststest{test_sts_length}" +\
                 f"_wlen{window_length}_stride{ss}" +\
@@ -194,12 +209,13 @@ def main_loop(
             window_patt_stride=window_patt_stride,
             stride_series=stride_series,
             random_state=random_state,
-            num_workers=num_workers)
+            num_workers=num_workers,
+            mode=mode)
     
-    dm_time =time.perf_counter()
+    dm_time = time.perf_counter()
     
     # Train the model
-    data, model = train_model(
+    data, model = run_model(
         pretrain_mode=pretrain_mode, version=version,
         dataset=dataset, mode=mode, arch=arch, dm=dm, 
         directory=directory, max_epochs=max_epochs,
@@ -237,20 +253,20 @@ if __name__ == '__main__':
                     "PowerCons", "Car", "ECG200", "ArrowHead"],
         help='Name of the dataset from which create the DTWs')
 
-    parser.add_argument('--mode', type=str, required=True, choices=['DF', 'TS'],
-        help='Data representation (DF: Dissimilarity Frame, TS: Time Series)')
+    parser.add_argument('--mode', type=str, required=True, choices=['ts', 'df', 'gf'],
+        help='Data representation (df: dissimilarity frames, ts: time series)')
 
-    parser.add_argument('--arch', type=str, required=True, choices=['RNN', 'CNN', 'ResNet'],
+    parser.add_argument('--arch', type=str, required=True, choices=['nn', 'rnn', 'cnn', 'res', 'tcn'],
         help='Name of the architecture from which create the model')
     
     parser.add_argument('--use_pretrain', type=bool, action=argparse.BooleanOptionalAction, 
-                        default=False, help='Use pretrained encoder or not (DF mode only)')
+                        default=False, help='Use pretrained encoder or not (df/gf mode only)')
 
     parser.add_argument('--pretrain_mode', type=bool, action=argparse.BooleanOptionalAction,  
                         default=False, help='Switch between train and pretrain mode')
 
     parser.add_argument('--rho_dfs', type=float, default=0.1,
-                        help='Value of the forgetting parameter')
+                        help='Value of the forgetting parameter for the DF representation')
     
     parser.add_argument('--window_length', type=int, default=10,
                         help='Window legth for the encoder')
@@ -297,7 +313,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_epochs', type=int, default=60,
                         help='Maximum number of epochs for the training')
     
-    parser.add_argument('--learning_rate', type=float, default=1e-04,
+    parser.add_argument('--learning_rate', type=float, default=1E-4,
                         help='Value of the learning rate')
     
     parser.add_argument('--cv_rep', type=int, default=0,

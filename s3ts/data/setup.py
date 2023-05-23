@@ -4,6 +4,7 @@
 """ Common functions for the experiments. """
 
 # in-package imports
+from s3ts.data.gramian import compute_GM_optim
 from s3ts.data.oesm import compute_DM_optim
 from s3ts.data.modules import DFDataModule
 from s3ts.data.series import compute_STS
@@ -66,7 +67,8 @@ def train_test_splits(X: np.ndarray, Y: np.ndarray,
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 def setup_train_dm(
-        X: np.ndarray, Y: np.ndarray, patterns: np.ndarray,
+        X: np.ndarray, Y: np.ndarray, 
+        mode: str, patterns: np.ndarray,
         train_idx: np.ndarray, test_idx: np.ndarray, 
         test_sts_length: int, 
         train_event_limit: int,
@@ -117,11 +119,16 @@ def setup_train_dm(
         shift_limits=True, STS_events=STS_nev_test, mode="random", 
         random_state=random_state, add_first_event=True)
 
-    log.info("Computing the train DM")
-    DM_train = compute_DM_optim(STS_train, patterns, rho_dfs)
-
-    log.info("Computing the test DM")
-    DM_test = compute_DM_optim(STS_test, patterns, rho_dfs)
+    if mode == "df" or mode == "ts":
+        log.info("Computing the train DM")
+        DM_train = compute_DM_optim(STS_train, patterns, rho_dfs)
+        log.info("Computing the test DM")
+        DM_test = compute_DM_optim(STS_test, patterns, rho_dfs)
+    elif mode == "gf":
+        log.info("Computing the train GM")
+        DM_train = compute_GM_optim(STS_train, patterns)
+        log.info("Computing the test GM")
+        DM_test = compute_GM_optim(STS_test, patterns)
 
     # Remove the first sample from the STSs
     STS_train, STS_test = STS_train[event_length:], STS_test[event_length:]
@@ -136,6 +143,7 @@ def setup_train_dm(
 
     # Return the DataModule
     return DFDataModule(
+        X_train=X_train, Y_train=Y_train, X_test=X_test, Y_test=Y_test,
         STS_train=STS_train, SCS_train=SCS_train, DM_train=DM_train,
         STS_test=STS_test, SCS_test=SCS_test, DM_test=DM_test,
         event_length=event_length, patterns=patterns,
@@ -149,7 +157,8 @@ def setup_train_dm(
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 def setup_pretrain_dm(
-        X: np.ndarray, Y: np.ndarray, patterns: np.ndarray, 
+        X: np.ndarray, Y: np.ndarray,
+        mode: str, patterns: np.ndarray, 
         sts_length: int, rho_dfs: float, 
         batch_size: int, val_size: float,
         window_length: int,
@@ -171,8 +180,12 @@ def setup_pretrain_dm(
         mode="random", random_state=random_state, 
         add_first_event=True)
 
-    log.info("Computing the pretrain DM")
-    DM_pret = compute_DM_optim(STS_pret, patterns, rho_dfs)
+    if mode == "df":
+        log.info("Computing the pretrain DM")
+        DM_pret = compute_DM_optim(STS_pret, patterns, rho_dfs)
+    elif mode == "gf":
+        log.info("Computing the pretrain GM")
+        DM_pret = compute_GM_optim(STS_pret, patterns)
 
     # Remove the first sample from the STSs
     STS_pret = STS_pret[event_length:]
@@ -181,6 +194,7 @@ def setup_pretrain_dm(
 
     # Return the DataModule
     return DFDataModule(
+        X_train=X, Y_train=Y, X_test=None, Y_test=None,
         STS_train=STS_pret, SCS_train=SCS_pret, DM_train=DM_pret,
         STS_test=None, SCS_test=None, DM_test=None,
         event_length=event_length, patterns=patterns,

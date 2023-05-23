@@ -118,6 +118,8 @@ class DFDataModule(LightningDataModule):
     """ Data module for the experiments. """
 
     def __init__(self,
+            X_train: np.ndarray, X_test: np.ndarray,
+            Y_train: np.ndarray, Y_test: np.ndarray,
             STS_train: np.ndarray, STS_test: np.ndarray, 
             SCS_train: np.ndarray, SCS_test: np.ndarray,
             DM_train: np.ndarray, DM_test: np.ndarray,
@@ -185,14 +187,19 @@ class DFDataModule(LightningDataModule):
         self.random_state = random_state
         self.num_workers = num_workers
 
-        self.test = ((STS_test is not None and SCS_test is not None) and DM_test is not None)
+        # Is there a test set?
+        self.test = (X_test is not None and Y_test is not None and \
+            STS_test is not None and SCS_test is not None and DM_test is not None)
 
         # Gather dataset info
         self.l_events = event_length    
         self.n_classes = len(np.unique(SCS_train))
         self.n_patterns = patterns.shape[0]
         self.l_patterns = patterns.shape[1]
-    
+
+        # Register datasets
+        self.X_train = torch.from_numpy(X_train).to(torch.float32)
+        self.Y_train = torch.from_numpy(Y_train).to(torch.int64)
         self.patterns = torch.from_numpy(patterns).to(torch.float32)
 
         self.STS_train_events = len(STS_train) // self.l_events
@@ -202,6 +209,8 @@ class DFDataModule(LightningDataModule):
         self.DM_train = torch.from_numpy(DM_train).to(torch.float32)
 
         if self.test:
+            self.X_test = torch.from_numpy(X_test).to(torch.float32)
+            self.Y_test = torch.from_numpy(Y_test).to(torch.int64)
             self.STS_test_events = len(STS_test) // self.l_events
             self.STS_test = torch.from_numpy(STS_test).to(torch.float32)
             self.SCS_test = torch.from_numpy(SCS_test).to(torch.int64)
@@ -325,19 +334,19 @@ class DFDataModule(LightningDataModule):
             window_time_stride=window_time_stride, window_patt_stride=window_patt_stride)
         self.create_datasets(val_size=val_size)
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader:
         """ Returns the training DataLoader. """
         return DataLoader(self.ds_tra_train, batch_size=self.batch_size, 
             num_workers=self.num_workers, shuffle=False,
             pin_memory=True, persistent_workers=True)
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> DataLoader:
         """ Returns the validation DataLoader. """
         return DataLoader(self.ds_tra_val, batch_size=self.batch_size, 
             num_workers=self.num_workers, shuffle=False,
             pin_memory=True, persistent_workers=True)
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> DataLoader:
         """ Returns the test DataLoader. """
         if self.test:
             return DataLoader(self.ds_test, batch_size=self.batch_size, 
