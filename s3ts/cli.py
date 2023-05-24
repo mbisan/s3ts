@@ -114,7 +114,7 @@ def main_loop(
     # Get the path to the encoder
     assert isinstance(stride_series, bool)
     ss = 1 if stride_series else 0
-    enc_name = f"{dataset}_{arch}_wl{window_length}_ts{window_time_stride}_ps{window_patt_stride}_ss{ss}"
+    enc_name = f"{dataset}_{mode}_{arch}_wl{window_length}_ts{window_time_stride}_ps{window_patt_stride}_ss{ss}"
     encoder_path = storage_dir / "encoders" / (enc_name + ".pt")
 
     if use_pretrain or pretrain_mode:
