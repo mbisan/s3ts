@@ -1,0 +1,2 @@
+mode,arch,dataset,window_length,pretrained,test_acc,test_f1,exc,train_exc_limit,train_strat_size,train_event_mult,nevents_test,nevents_train_lim,nevents_train_tot,time_dm,time_train,time_total
+ts,nn,CBF,128,False,0.40304660201798126,0.40304660201798126,32,32,2,4,200,384,384,23.614951169118285,351.99076981656253,375.6057209856808

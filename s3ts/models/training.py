@@ -75,6 +75,7 @@ def run_model(pretrain_mode: bool, version: str,
         res["pretrained"] = False
         res["test_acc"] = acc
         res["test_f1"] = f1
+        res["cv_rep"] = cv_rep
 
     else:
 
