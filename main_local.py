@@ -141,7 +141,7 @@ if TIME_DIL:
                         num_encoder_feats=enc_feats, res_fname=res_fname, 
                         **SHARED_ARGS)
                     
-        # Do the DF training
+        # Do the DF/GF training
         for mode in ["df", "gf"]:
             for arch in ARCHS[mode]:
                 enc_feats = NUM_ENC_FEATS[mode][arch]
@@ -183,6 +183,26 @@ if PATT_STR:
 
 if SELF_SUP:
     for cv_rep in CV_REPS:
+
+        # Do the TS training
+        mode = "ts"
+        for arch in ARCHS[mode]:
+            if arch == "nn":
+                continue
+            enc_feats = NUM_ENC_FEATS[mode][arch]
+            wlen, wts, wps = 70, 1, 1
+            for dataset in DATASETS:
+                res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
+                for ev_lim in EVENT_LIMITERS:
+                    main_loop(dataset=dataset, mode=mode, arch=arch, train_exc_limit=ev_lim, 
+                        use_pretrain=False, stride_series=False,
+                        pretrain_mode=False, window_length=wlen, 
+                        window_time_stride=wts, window_patt_stride=wps, 
+                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+                        num_encoder_feats=enc_feats, res_fname=res_fname, 
+                        **SHARED_ARGS)
+
+        # Do the DF/GF training
         for mode in ["df", "gf"]:
             for arch in ARCHS[mode]:
                 enc_feats = NUM_ENC_FEATS[mode][arch]
@@ -192,24 +212,24 @@ if SELF_SUP:
                     for ev_lim in EVENT_LIMITERS:
                         # No pretraining
                         if ev_lim != EVENTS_PER_CLASS:
-                            main_loop(dataset=dataset, mode=mode, arch=arch,
-                                train_exc_limit=ev_lim, use_pretrain=False, stride_series=False,
+                            main_loop(dataset=dataset, mode=mode, arch=arch, train_exc_limit=ev_lim, 
+                                use_pretrain=False, stride_series=False,
                                 pretrain_mode=False, window_length=wlen, 
                                 window_time_stride=wts, window_patt_stride=wps, 
                                 max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
                                 num_encoder_feats=enc_feats, res_fname=res_fname, 
                                 **SHARED_ARGS)
                         # Full series pretrain
-                        main_loop(dataset=dataset, mode=mode, arch=arch,
-                            train_exc_limit=ev_lim, use_pretrain=True, stride_series=False,
+                        main_loop(dataset=dataset, mode=mode, arch=arch, train_exc_limit=ev_lim, 
+                            use_pretrain=True, stride_series=False,
                             pretrain_mode=False, window_length=wlen, 
                             window_time_stride=wts, window_patt_stride=wps, 
                             max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
                             num_encoder_feats=enc_feats, res_fname=res_fname, 
                             **SHARED_ARGS)                    
                         # Strided series pretrain
-                        main_loop(dataset=dataset, mode=mode, arch=arch,
-                            train_exc_limit=ev_lim, use_pretrain=True, stride_series=True,
+                        main_loop(dataset=dataset, mode=mode, arch=arch, train_exc_limit=ev_lim, 
+                            use_pretrain=True, stride_series=True,
                             pretrain_mode=False, window_length=wlen, 
                             window_time_stride=wts, window_patt_stride=wps, 
                             max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep,

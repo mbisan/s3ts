@@ -8,11 +8,11 @@ model = WrapperModel(mode="df",
              n_classes=2,
              n_patterns=2,
              l_patterns=100,
-             window_length=10,
+             window_length=70,
              stride_series=False,
              window_time_stride=1,
              window_patt_stride=1,
-             encoder_feats=48,
+             encoder_feats=64,
              decoder_feats=64,
              learning_rate=1E-4)
              
