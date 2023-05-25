@@ -14,7 +14,6 @@ class Chomp1d(nn.Module):
     def forward(self, x: torch.Tensor):
         return x[:, :, :-self.chomp_size].contiguous()
 
-
 class TemporalBlock(nn.Module):
     def __init__(self, n_inputs, n_outputs, kernel_size, stride, dilation, padding, dropout=0.2):
         super(TemporalBlock, self).__init__()
@@ -54,7 +53,8 @@ class TCN_DF(LightningModule):
     # def __init__(self, num_inputs, num_channels, kernel_size=2, dropout=0.2):
         
     def __init__(self, channels: int, wdw_size: int, ref_size: int,
-                 n_feature_maps: int = 32, dropout: float = 0.2):
+                 n_feature_maps: int = 32, dropout: float = 0.2,
+                 orientation: str = "series"):
         
         super(TCN_DF, self).__init__()
 
@@ -64,12 +64,19 @@ class TCN_DF(LightningModule):
         self.ref_size = ref_size 
         self.n_feature_maps = n_feature_maps
 
+        self.orientation = orientation
+
         kernel_size = 3
         dilation_base = 2
-
-        in_channels = channels*wdw_size
-        n = int(np.ceil(np.log2((wdw_size-1)*(dilation_base-1)/(kernel_size-1) +1)))
-        layer_feats = [n_feature_maps]*n
+        
+        if self.orientation == "pattern":
+            in_channels = channels*wdw_size
+            n = int(np.ceil(np.log2((ref_size-1)*(dilation_base-1)/(kernel_size-1) +1)))
+            layer_feats = [n_feature_maps]*n
+        if self.orientation == "series":
+            in_channels = channels*ref_size
+            n = int(np.ceil(np.log2((wdw_size-1)*(dilation_base-1)/(kernel_size-1) +1)))
+            layer_feats = [n_feature_maps]*n
         
         layers = []
         num_levels = len(layer_feats)
@@ -79,13 +86,18 @@ class TCN_DF(LightningModule):
             out_channels = layer_feats[i]
             layers += [TemporalBlock(in_channels, out_channels, kernel_size, stride=1, dilation=dilation_size,
                                      padding=(kernel_size-1) * dilation_size, dropout=dropout)]
-        layers.append(nn.AvgPool1d(kernel_size=(5)))
+        if self.orientation == "pattern":
+            layers.append(nn.AvgPool1d(kernel_size=(5)))
         self.network = nn.Sequential(*layers)
 
     def get_output_shape(self) -> torch.Size:
-        x = torch.rand((1, self.channels, self.ref_size, self.wdw_size))
+        if self.orientation == "pattern":
+            x = torch.rand((1, self.channels, self.ref_size, self.wdw_size))
+            xd = x.view(-1, self.channels*self.wdw_size, self.ref_size)
+        elif self.orientation == "series":
+            x = torch.rand((1, self.channels, self.ref_size, self.wdw_size))
+            xd = x.view(-1, self.channels*self.ref_size, self.wdw_size)
         print("Input shape: ", x.shape)
-        xd = x.view(-1, self.channels*self.wdw_size, self.ref_size)
         print("Permute shape: ", xd.shape)
         del xd
         x: torch.Tensor = self(x)
@@ -93,4 +105,7 @@ class TCN_DF(LightningModule):
         return x.shape
     
     def forward(self, x: torch.Tensor):
-        return self.network(x.view(-1, self.channels*self.wdw_size, self.ref_size).flip(2))
+        if self.orientation == "pattern":
+            return self.network(x.view(-1, self.channels*self.wdw_size, self.ref_size).flip(2))
+        if self.orientation == "series":
+            return self.network(x.view(-1, self.channels*self.ref_size, self.wdw_size))

@@ -28,13 +28,13 @@ ARCHS = { # Architectures
     #"ts": ["rnn", "cnn", "res", "tcn"],
     "ts": [],
     #"df": ["cnn", "res"],
-    "df": [],
-    "gf": ["cnn"],
+    "df": ["tcn"],
+    "gf": [],
 }
 # ~~~~~~~~~~~~~~~~~~~~~~~
 WINDOW_LENGTH_DF: list[int] = 10                    # Window length for DF
 WINDOW_LENGTHS_TS: list[int] = [10, 30, 50, 70]     # Window length for TS                   
-WINDOW_TIME_STRIDES: list[int] = [1, 3, 5, 7]       # Window time stride
+WINDOW_TIME_STRIDES: list[int] = [7]       # Window time stride
 WINDOW_PATT_STRIDES: list[int] = [2, 3, 5]          # Window pattern stride
 # ~~~~~~~~~~~~~~~~~~~~~~~
 RHO_DFS: float = 0.1                # Memory parameter for DF
@@ -55,7 +55,7 @@ TEST_STS_LENGTH = 200               # Number of events for testing
 PRET_STS_LENGTH = 1000              # Number of events for pretraining
 # ~~~~~~~~~~~~~~~~~~~~~~~
 MAX_EPOCHS_PRE: int = 20            # Pre-training epochs
-MAX_EPOCHS_TRA: int = 20            # Training epochs
+MAX_EPOCHS_TRA: int = 60            # Training epochs
 LEARNING_RATE: float = 1E-4         # Learning rate
 # ~~~~~~~~~~~~~~~~~~~~~~~
 LOG_FILE = None                     # Log file
@@ -64,7 +64,7 @@ STORAGE_DIR = Path("storage/")      # Cache folder
 # ~~~~~~~~~~~~~~~~~~~~~~~
 NUM_WORKERS = mp.cpu_count()//2     # Number of workers for the dataloaders
 RANDOM_STATE = 0                    # Random state
-CV_REPS = range(1,2)                  # Number of cross-validation repetitions
+CV_REPS = range(1)                  # Number of cross-validation repetitions
 # ~~~~~~~~~~~~~~~~~~~~~~~
 SHARED_ARGS = {"rho_dfs": RHO_DFS, "exc": EVENTS_PER_CLASS,
     "batch_size": BATCH_SIZE, "val_size": VAL_SIZE,

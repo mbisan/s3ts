@@ -38,7 +38,7 @@ HIPATIA_MEDIUM = {
     "logs_dir"    : Path("logs/").absolute(),
     "outs_dir"    : Path("outputs/").absolute(),
     "modules"     : [
-        "Python/3.9.5-GCCcore-10.3.0"
+        "Python/3.10.4-GCCcore-11.3.0"
     ]
 }
 
