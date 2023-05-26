@@ -3,7 +3,7 @@ from pytorch_lightning.utilities.model_summary import ModelSummary
 from s3ts.models.wrapper import WrapperModel
 
 model = WrapperModel(mode="df",
-             arch="tcn",
+             arch="dfn",
              target="cls", # "cls"
              n_classes=2,
              n_patterns=2,

@@ -23,6 +23,7 @@ import torch
 from s3ts.models.encoders.frames.CNN import CNN_DF
 from s3ts.models.encoders.frames.RES import RES_DF
 from s3ts.models.encoders.frames.TCN import TCN_DF
+from s3ts.models.encoders.frames.DFN import DFN_DF
 
 from s3ts.models.encoders.series.RNN import RNN_TS
 from s3ts.models.encoders.series.CNN import CNN_TS
@@ -61,8 +62,8 @@ class WrapperModel(LightningModule):
         
         self.encoder_dict = {
             "ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS, "tcn": TCN_TS}, 
-            "df": {"cnn": CNN_DF, "res": RES_DF, "tcn": TCN_DF},
-            "gf": {"cnn": CNN_DF, "res": RES_DF, "tcn": TCN_DF}}
+            "df": {"cnn": CNN_DF, "res": RES_DF, "tcn": TCN_DF, "dfn": DFN_DF},
+            "gf": {"cnn": CNN_DF, "res": RES_DF, "tcn": TCN_DF, "dfn": DFN_DF}}
         encoder_arch = self.encoder_dict[mode][arch]
 
         # Check decoder parameters
