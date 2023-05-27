@@ -12,7 +12,7 @@ class Chomp2d(nn.Module):
         self.chomp_size = chomp_size
 
     def forward(self, x: torch.Tensor):
-        return x[:, self.chomp_size[0]:, :-self.chomp_size[1]].contiguous()
+        return x[:,:, self.chomp_size[0]:, :-self.chomp_size[1]].contiguous()
 
 class TemporalBlock(nn.Module):
     
@@ -88,31 +88,33 @@ class DFN_DF(LightningModule):
 
         krn_size = np.array((5, 3))
         img_dims = np.array((ref_size, wdw_size))
-        dil_base = 2
+        dil_base = np.array((2, 2))
 
         def minimum_layers(dim_size: int, krn_size: int, dil_base) -> int:
             return int(np.ceil(np.log2((dim_size-1)*(dil_base-1)/(krn_size-1) +1)))
-        self.n_layers = max([minimum_layers(img_dims[i], krn_size[i], dil_base) for i in range(2)])
+        print([minimum_layers(img_dims[i], krn_size[i], dil_base[i]) for i in range(2)])
+        self.n_layers = max([minimum_layers(img_dims[i], krn_size[i], dil_base[i]) for i in range(2)])
         layer_feats = [n_feature_maps]*self.n_layers
      
+        layers = []
         for i in range(self.n_layers):
             dil_layer = dil_base ** i
             pad_layer = ((krn_size-1)*dil_layer)
             in_channels = channels if i == 0 else layer_feats[i-1]
             out_channels = layer_feats[i]
-            layer = TemporalBlock(in_channels=in_channels, out_channels=out_channels, 
-                kernel_size=krn_size.tolist(), stride=1, dilation=dil_layer, 
-                padding=pad_layer, dropout=dropout)
-            self.__setattr__(f"tmp_block_{i}", layer)
+            layers.append(TemporalBlock(in_channels=in_channels, out_channels=out_channels, 
+                kernel_size=krn_size.tolist(), stride=1, dilation=dil_layer.tolist(), 
+                padding=pad_layer, dropout=dropout))
+        layers.append(nn.AdaptiveAvgPool2d((1, wdw_size)))
+        self.network = nn.Sequential(*layers)
 
     def get_output_shape(self) -> torch.Size:
         x = torch.rand((1, self.channels, self.ref_size, self.wdw_size))
         print("Input shape: ", x.shape)
+        print("Num layers: ", self.n_layers)
         x: torch.Tensor = self(x)
         print("Latent shape: ", x.shape)
         return x.shape
     
-    def forward(self, x: torch.Tensor):
-        for i in range(self.n_layers):
-            x = self.__getattr__(f"tmp_block_{i}")(x)
-        return x
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.network(x)

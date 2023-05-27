@@ -87,10 +87,10 @@ def main_loop(
     # Check encoder parameters
     if mode not in ["ts", "df", "gf"]:
         raise ValueError(f"Invalid representation: {mode}")
-    if arch not in ["nn", "rnn", "cnn", "res", "tcn"]:
+    if arch not in ["nn", "rnn", "cnn", "res", "tcn", "dfn"]:
         raise ValueError(f"Invalid architecture: {arch}")
     valid_combinations = {"ts": ["nn", "rnn", "cnn", "res", "tcn"], 
-            "df": ["cnn", "res", "tcn"], "gf": ["cnn", "res", "tcn"]}
+            "df": ["cnn", "res", "tcn", "dfn"], "gf": ["cnn", "res", "tcn", "dfn"]}
     if arch not in valid_combinations[mode]:
         raise ValueError(f"Architecture {arch} not available for representation {mode}.")
 
@@ -256,7 +256,7 @@ if __name__ == '__main__':
     parser.add_argument('--mode', type=str, required=True, choices=['ts', 'df', 'gf'],
         help='Data representation (df: dissimilarity frames, ts: time series)')
 
-    parser.add_argument('--arch', type=str, required=True, choices=['nn', 'rnn', 'cnn', 'res', 'tcn'],
+    parser.add_argument('--arch', type=str, required=True, choices=['nn', 'rnn', 'cnn', 'res', 'tcn', 'dfn'],
         help='Name of the architecture from which create the model')
     
     parser.add_argument('--use_pretrain', type=bool, action=argparse.BooleanOptionalAction, 

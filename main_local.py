@@ -28,13 +28,13 @@ ARCHS = { # Architectures
     #"ts": ["rnn", "cnn", "res", "tcn"],
     "ts": [],
     #"df": ["cnn", "res"],
-    "df": ["tcn"],
+    "df": ["dfn"],
     "gf": [],
 }
 # ~~~~~~~~~~~~~~~~~~~~~~~
 WINDOW_LENGTH_DF: list[int] = 10                    # Window length for DF
 WINDOW_LENGTHS_TS: list[int] = [10, 30, 50, 70]     # Window length for TS                   
-WINDOW_TIME_STRIDES: list[int] = [7]       # Window time stride
+WINDOW_TIME_STRIDES: list[int] = [7]                # Window time stride
 WINDOW_PATT_STRIDES: list[int] = [2, 3, 5]          # Window pattern stride
 # ~~~~~~~~~~~~~~~~~~~~~~~
 RHO_DFS: float = 0.1                # Memory parameter for DF
@@ -43,8 +43,8 @@ VAL_SIZE: float = 0.25              # Validation size
 # ~~~~~~~~~~~~~~~~~~~~~~~ (targeting 100K parameters)
 NUM_ENC_FEATS: dict[dict[int]] = {  # Number of encoder features
     "ts": {"rnn": 40, "cnn": 48, "res": 16, "tcn": 58},
-    "df": {"cnn": 20, "res": 12,  "tcn": 48},
-    "gf": {"cnn": 20, "res": 12,  "tcn": 48}}
+    "df": {"cnn": 20, "res": 12,  "tcn": 48, "dfn": 24},
+    "gf": {"cnn": 20, "res": 12,  "tcn": 48, "dfn": 24}}
 NUM_DEC_FEATS: int = 64             # Number of decoder features  
 # ~~~~~~~~~~~~~~~~~~~~~~~
 EVENTS_PER_CLASS = 32               # Number of events per class
@@ -55,7 +55,7 @@ TEST_STS_LENGTH = 200               # Number of events for testing
 PRET_STS_LENGTH = 1000              # Number of events for pretraining
 # ~~~~~~~~~~~~~~~~~~~~~~~
 MAX_EPOCHS_PRE: int = 20            # Pre-training epochs
-MAX_EPOCHS_TRA: int = 60            # Training epochs
+MAX_EPOCHS_TRA: int = 120           # Training epochs
 LEARNING_RATE: float = 1E-4         # Learning rate
 # ~~~~~~~~~~~~~~~~~~~~~~~
 LOG_FILE = None                     # Log file
