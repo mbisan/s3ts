@@ -86,7 +86,7 @@ class DFN_DF(LightningModule):
 
         self.orientation = orientation
 
-        krn_size = np.array((5, 3))
+        krn_size = np.array((7, 3))
         img_dims = np.array((ref_size, wdw_size))
         dil_base = np.array((2, 2))
 
@@ -105,7 +105,7 @@ class DFN_DF(LightningModule):
             layers.append(TemporalBlock(in_channels=in_channels, out_channels=out_channels, 
                 kernel_size=krn_size.tolist(), stride=1, dilation=dil_layer.tolist(), 
                 padding=pad_layer, dropout=dropout))
-        layers.append(nn.AdaptiveAvgPool2d((1, wdw_size)))
+        layers.append(nn.AvgPool2d((10, 3)))
         self.network = nn.Sequential(*layers)
 
     def get_output_shape(self) -> torch.Size:

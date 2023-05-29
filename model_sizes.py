@@ -12,7 +12,7 @@ model = WrapperModel(mode="df",
              stride_series=False,
              window_time_stride=1,
              window_patt_stride=1,
-             encoder_feats=24,
+             encoder_feats=20,
              decoder_feats=64,
              learning_rate=1E-4)
              

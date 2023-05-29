@@ -17,9 +17,12 @@ DATASETS = [ # Datasets
     "CBF"#, "GunPoint", "Plane", "SyntheticControl"                                           
 ]                      
 ARCHS = { # Architectures
-    "ts": ["nn", "rnn", "cnn", "res", "tcn"],
-    "df": ["cnn", "res", "tcn"],
-    "gf": ["cnn", "res", "tcn"],
+    # "ts": ["nn", "rnn", "cnn", "res", "tcn"],
+    "ts": [],
+    # "df": ["cnn", "res", "dfn"],
+    "df": ["dfn"],
+    #"gf": ["cnn", "res"],
+    "gf": [],
 }
 # ~~~~~~~~~~~~~~~~~~~~~~~
 WINDOW_LENGTH_DF: list[int] = 10                    # Window length for DF
@@ -33,8 +36,8 @@ VAL_SIZE: float = 0.25              # Validation size
 # ~~~~~~~~~~~~~~~~~~~~~~~ (targeting 100K parameters)
 NUM_ENC_FEATS: dict[dict[int]] = {  # Number of encoder features
     "ts": {"rnn": 40, "cnn": 48, "res": 16, "tcn": 58},
-    "df": {"cnn": 20, "res": 12,  "tcn": 48},
-    "gf": {"cnn": 20, "res": 12,  "tcn": 48}}
+    "df": {"cnn": 20, "res": 12, "dfn": 20, "tcn": 48},
+    "gf": {"cnn": 20, "res": 12, "tcn": 48}}
 NUM_DEC_FEATS: int = 64             # Number of decoder features 
 # ~~~~~~~~~~~~~~~~~~~~~~~
 EVENTS_PER_CLASS = 32               # Number of events per class
