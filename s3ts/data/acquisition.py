@@ -7,11 +7,13 @@
 from s3ts.data.series import compute_medoids
 from pathlib import Path
 import logging as log
+import warnings
 
 # basic dependencies
 import numpy as np 
 
 # sktime
+warnings.filterwarnings("ignore")
 from sktime.datasets import load_UCR_UEA_dataset
 
 
