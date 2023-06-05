@@ -22,7 +22,7 @@ SELF_SUP = False                   # Self-supervised pretraining
 ADDITIONAL = False                  # Absolute values
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DATASETS = [ # Datasets
-    "CBF"#, "GunPoint", "Plane", "SyntheticControl"                                           
+    "ECG200"#, "GunPoint", "Plane", "SyntheticControl"                                           
 ]                      
 ARCHS = { # Architectures
     #"ts": ["rnn", "cnn", "res", "tcn"],
