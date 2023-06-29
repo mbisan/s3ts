@@ -85,7 +85,7 @@ scikit-learn==1.2.2
 scipy==1.10.1
 seaborn==0.12.2
 six==1.16.0
-sktime==0.17.1
+sktime==0.18.0
 stack-data==0.6.2
 sympy==1.11.1
 tensorboard==2.12.2
@@ -106,3 +106,4 @@ wcwidth==0.2.6
 Werkzeug==2.2.3
 wrapt==1.15.0
 yarl==1.8.2
+torchview
