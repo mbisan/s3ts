@@ -7,22 +7,23 @@ from s3ts.hooks import sbatch_hook
 
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
-PRETRAIN_ENCODERS = False           # Pretrain the DF encoders
-TIME_DIL = False                    # Time dilation
-PATT_STR = False                    # Pattern stride
-SELF_SUP = False                    # Self-supervised pretraining
-ADDITIONAL = False                  # Additional experiments
+PRETRAIN_ENCODERS = 1              # Pretrain the DF encoders
+TIME_DIL = 1                       # Time dilation
+SELF_SUP = 1                       # Self-supervised pretraining
+ADDITIONAL = 1                     # Nearest neighbors
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DATASETS = [ # Datasets
-    "CBF"#, "GunPoint", "Plane", "SyntheticControl"                                           
+    "ArrowHead",
+    "CBF",
+    "ECG200",
+    "GunPoint",
+    "SyntheticControl",
+    "Trace",                                        
 ]                      
 ARCHS = { # Architectures
-    # "ts": ["nn", "rnn", "cnn", "res", "tcn"],
-    "ts": [],
-    # "df": ["cnn", "res", "dfn"],
-    "df": ["dfn"],
-    #"gf": ["cnn", "res"],
-    "gf": [],
+    "ts": ["rnn", "cnn", "res"],
+    "df": ["cnn", "res"],
+    "gf": ["cnn", "res"],
 }
 # ~~~~~~~~~~~~~~~~~~~~~~~
 WINDOW_LENGTH_DF: list[int] = 10                    # Window length for DF
@@ -93,15 +94,6 @@ if PRETRAIN_ENCODERS:
                             max_epochs=MAX_EPOCHS_PRE, cv_rep=0, 
                             num_encoder_feats=enc_feats, res_fname=res_fname,
                             **SHARED_ARGS)
-                # for wps in WINDOW_PATT_STRIDES:
-                #     # Full series
-                #     sbatch_hook(dataset=dataset, mode="DF", arch=arch,
-                #         use_pretrain=False, pretrain_mode=True,
-                #         window_length=wlen, stride_series=False,
-                #         window_time_stride=7, window_patt_stride=wps,
-                #         max_epochs=MAX_EPOCHS_PRE, cv_rep=0,
-                #         num_encoder_feats=enc_feats, res_fname=res_fname,
-                #         **SHARED_ARGS)
 
 # Training Loop for Ablation Study: Time Dilation
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -141,28 +133,6 @@ if TIME_DIL:
                             max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
                             num_encoder_feats=enc_feats, res_fname=res_fname, 
                             **SHARED_ARGS)
-
-# Training Loop for Ablation Study: Pattern Stride
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-if PATT_STR:
-    for cv_rep in CV_REPS:
-        for mode in ["df", "gf"]:
-            for arch in ARCHS[mode]:
-                enc_feats = NUM_ENC_FEATS[mode][arch]
-                wlen, wts = WINDOW_LENGTH_DF, 7
-                for dataset in DATASETS:
-                    res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
-                    for wps in WINDOW_PATT_STRIDES:
-                        # Full series
-                        sbatch_hook(dataset=dataset, mode=mode, arch=arch,
-                            use_pretrain=False, pretrain_mode=False,
-                            window_length=wlen, stride_series=False,
-                            window_time_stride=wts, window_patt_stride=wps, 
-                            max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-                            num_encoder_feats=enc_feats, res_fname=res_fname, 
-                            **SHARED_ARGS)
-
 
 # Training Loop for Ablation Study: Pretraining
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
