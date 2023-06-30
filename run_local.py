@@ -15,36 +15,37 @@ torch.set_float32_matmul_precision("medium")
 
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
-PRETRAIN_ENCODERS = False          # Pretrain the DF encoders
-TIME_DIL = True                    # Time dilation
-PATT_STR = False                   # Pattern stride
-SELF_SUP = False                   # Self-supervised pretraining
-ADDITIONAL = False                  # Absolute values
+PRETRAIN_ENCODERS = 1              # Pretrain the DF encoders
+TIME_DIL = 1                       # Time dilation
+SELF_SUP = 1                       # Self-supervised pretraining
+ADDITIONAL = 1                     # Nearest neighbors
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DATASETS = [ # Datasets
-    "ECG200"#, "GunPoint", "Plane", "SyntheticControl"                                           
+    "ArrowHead",
+    "CBF",
+    "ECG200",
+    "GunPoint",
+    "SyntheticControl",
+    "Trace",                                        
 ]                      
 ARCHS = { # Architectures
-    #"ts": ["rnn", "cnn", "res", "tcn"],
-    "ts": [],
-    #"df": ["cnn", "res"],
-    "df": ["dfn"],
-    "gf": [],
+    "ts": ["rnn", "cnn", "res"],
+    "df": ["cnn", "res"],
+    "gf": ["cnn", "res"],
 }
 # ~~~~~~~~~~~~~~~~~~~~~~~
 WINDOW_LENGTH_DF: list[int] = 10                    # Window length for DF
 WINDOW_LENGTHS_TS: list[int] = [10, 30, 50, 70]     # Window length for TS                   
 WINDOW_TIME_STRIDES: list[int] = [7]                # Window time stride
-WINDOW_PATT_STRIDES: list[int] = [2, 3, 5]          # Window pattern stride
 # ~~~~~~~~~~~~~~~~~~~~~~~
 RHO_DFS: float = 0.1                # Memory parameter for DF
 BATCH_SIZE: bool = 128              # Batch size
 VAL_SIZE: float = 0.25              # Validation size
 # ~~~~~~~~~~~~~~~~~~~~~~~ (targeting 100K parameters)
 NUM_ENC_FEATS: dict[dict[int]] = {  # Number of encoder features
-    "ts": {"rnn": 40, "cnn": 48, "res": 16, "tcn": 58},
-    "df": {"cnn": 20, "res": 12,  "tcn": 48, "dfn": 24},
-    "gf": {"cnn": 20, "res": 12,  "tcn": 48, "dfn": 24}}
+    "ts": {"rnn": 40, "cnn": 48, "res": 16},
+    "df": {"cnn": 20, "res": 12},
+    "gf": {"cnn": 20, "res": 12}}
 NUM_DEC_FEATS: int = 64             # Number of decoder features  
 # ~~~~~~~~~~~~~~~~~~~~~~~
 EVENTS_PER_CLASS = 32               # Number of events per class
@@ -108,15 +109,6 @@ if PRETRAIN_ENCODERS:
                             max_epochs=MAX_EPOCHS_PRE, cv_rep=0, 
                             num_encoder_feats=enc_feats, res_fname=res_fname,
                             **SHARED_ARGS)
-                # for wps in WINDOW_PATT_STRIDES:
-                #     # Full series
-                #     main_loop(dataset=dataset, mode="DF", arch=arch,
-                #         use_pretrain=False, pretrain_mode=True,
-                #         window_length=wlen, stride_series=False,
-                #         window_time_stride=7, window_patt_stride=wps,
-                #         max_epochs=MAX_EPOCHS_PRE, cv_rep=0,
-                #         num_encoder_feats=enc_feats, res_fname=res_fname,
-                #         **SHARED_ARGS)
 
 # Training Loop for Ablation Study: Time Dilation
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -153,27 +145,6 @@ if TIME_DIL:
                             use_pretrain=False, pretrain_mode=False,
                             window_length=wlen, stride_series=False,
                             window_time_stride=wts, window_patt_stride=wps,
-                            max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-                            num_encoder_feats=enc_feats, res_fname=res_fname, 
-                            **SHARED_ARGS)
-
-# Training Loop for Ablation Study: Pattern Stride
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-if PATT_STR:
-    for cv_rep in CV_REPS:
-        for mode in ["df", "gf"]:
-            for arch in ARCHS[mode]:
-                enc_feats = NUM_ENC_FEATS[mode][arch]
-                wlen, wts = WINDOW_LENGTH_DF, 7
-                for dataset in DATASETS:
-                    res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
-                    for wps in WINDOW_PATT_STRIDES:
-                        # Full series
-                        main_loop(dataset=dataset, mode=mode, arch=arch,
-                            use_pretrain=False, pretrain_mode=False,
-                            window_length=wlen, stride_series=False,
-                            window_time_stride=wts, window_patt_stride=wps, 
                             max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
                             num_encoder_feats=enc_feats, res_fname=res_fname, 
                             **SHARED_ARGS)
