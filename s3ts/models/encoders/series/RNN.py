@@ -36,6 +36,4 @@ class RNN_TS(LightningModule):
         ret_bn1: torch.Tensor = self.bn_1(output.permute(0, 2, 1))
         output, _ = self.lstm_2(ret_bn1.permute(0, 2, 1))
         ret_bn2: torch.Tensor = self.bn_2(output.permute(0, 2, 1))
-        #ret_lin = self.lin(ret_bn2.view(ret_bn2.shape[0], -1))
-        #return self.relu(ret_lin)
         return ret_bn2.view(ret_bn2.shape[0], -1)

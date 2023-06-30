@@ -38,9 +38,6 @@ class CNN_DF(LightningModule):
         self.cnn_3 = nn.Conv2d(in_channels=self.n_feature_maps*2, 
             out_channels=self.n_feature_maps*2, kernel_size=3, padding='same')
 
-        #self.linear_1 = self.dynamic_linear((1, channels, ref_size, window_size)))
-        #self.linear_2 = nn.Linear(in_features=self.n_feature_maps * 4, out_features=self.n_feature_maps * 8)
-
     def get_output_shape(self) -> torch.Size:
         x = torch.rand((1, self.channels, self.ref_size, self.wdw_size))
         print("Input shape: ", x.shape)
@@ -48,18 +45,9 @@ class CNN_DF(LightningModule):
         print("Latent shape: ", x.shape)
         return x.shape
 
-    # def dynamic_linear(self, image_dim):
-    #     x = torch.rand(*(image_dim))
-    #     features = self.model(x.float())
-    #     flat = features.view(features.size(0), -1)
-    #     return nn.Linear(in_features=flat.size(1), out_features=self.n_feature_maps * 4)
-
     def forward(self, x):
         feats = self.cnn_0(x.float())
         feats = self.cnn_1(feats)
         feats = self.cnn_2(feats)
         feats = self.cnn_3(feats)      
-        #flat = features.view(features.size(0), -1)
-        #lin_1 = self.linear_1(flat)
-        #return self.linear_2(lin_1)
         return feats
