@@ -47,34 +47,39 @@ def load_folder(folder: Path) -> pd.DataFrame:
         
     return df
 
-def results_table(df: pd.DataFrame) -> pd.DataFrame:
+def results_table(df: pd.DataFrame, 
+        metric: str = "test_acc",
+        ) -> pd.DataFrame:
 
     """ Generates the results table for the paper. """
 
-    # # Generate a table
-    # tab1 = df.groupby(["mode", "arch", "dataset", "eq_wdw_length"])["test_auroc"].mean().reset_index()
-    # tab2 = dfs.groupby(["mode", "arch", "dataset", "eq_wdw_length"])["test_auroc"].std().reset_index()
-    # tab1 = tab1[tab1["eq_wdw_length"] == 70].drop(columns=["eq_wdw_length"])
-    # tab2 = tab2[tab2["eq_wdw_length"] == 70].drop(columns=["eq_wdw_length"])
-    # tab = pd.merge(tab1, tab2, on=["dataset", "mode", "arch"]).rename(columns={"test_auroc_x": "mean", "test_auroc_y": "std"})
-    # tab["mean"], tab["std"] = tab["mean"]*100, tab["std"]*100
+    data = df[df["pretrain_mode"] == False].copy()
+    data = data[
+        (data["arch"] == "nn") |
+        ((data["mode"] == "ts") & (data["window_length"] == 70)) |
+        ((data["train_exc_limit"] == 32) & (data["window_length"] == 10) & (data["window_time_stride"] == 7) & (data["window_patt_stride"] == 1))
+    ]
 
-    # tab.sort_values(by=["mode", "arch", "dataset"], inplace=True)
+    def method(row):
+        string = row["mode"].upper() + "-" +  row["arch"].upper() 
+        if row["pretrained"]:
+            if row["stride_series"]:
+                string += "-B"
+            else:
+                string += "-A"
+        return string
 
+    data["method"] = data[["arch", "mode", "pretrained", "stride_series"]].apply(method, axis=1)
 
-    # tab1 = nn_data.groupby(["dataset", "mode", "arch"])["test_acc"].mean()
-    # tab2 = nn_data.groupby(["dataset", "mode", "arch"])["test_acc"].std()
-    # tab = pd.merge(tab1, tab2, on=["dataset", "mode", "arch"]).rename(columns={"test_acc_x": "mean", "test_acc_y": "std"})
-    # tab["mean"], tab["std"] = tab["mean"]*100, tab["std"]*100
+    tab1 = (data.groupby(["method", "dataset"])[[metric]].mean()*100).reset_index()
+    tab2 = (data.groupby(["method", "dataset"])[[metric]].std()*100).reset_index()
+    tab1["var"], tab2["var"] = "mean", "std"
 
+    table = pd.concat([tab1, tab2])
+    table = table.groupby(["method", "var", "dataset"])[metric].mean().unstack().unstack().round(2)
+    table["avg_rank"] = tab1.groupby(["method", "dataset"])[metric].mean().unstack().rank(ascending=False).mean(axis=1).round(2)
 
-    # tab1 = data[data["train_exc_limit"] == 32].groupby(["mode", "arch", "pretrained", "stride_series", "dataset"])["test_auroc"].mean()
-    # tab2 = data[data["train_exc_limit"] == 32].groupby(["mode", "arch", "pretrained", "stride_series", "dataset"])["test_auroc"].std()
-    # tab = pd.merge(tab1, tab2, on=["mode", "arch", "pretrained", "stride_series", "dataset"]).rename(columns={"test_auroc_x": "mean", "test_auroc_y": "std"})
-    # tab["mean"], tab["std"] = tab["mean"]*100, tab["std"]*100
-
-
-    return None
+    return table
 
 
 def timedil_figure(
@@ -115,19 +120,41 @@ def timedil_figure(
         kind="line", col="mode", row="dataset", palette=sns.color_palette("bright"),
         height=2.5, aspect=1.25, legend="auto", markers="True", col_order=["DF", "GAF"], 
         row_order=["ArrowHead", "CBF", "ECG200", "GunPoint", "SyntheticControl", "Trace"],
-        facet_kws={"despine": False, "margin_titles": True, "legend_out": False})
+        facet_kws={"despine": False, "margin_titles": True, "legend_out": True,
+                   "sharey": False, "sharex": True})
     g.set_titles(col_template="{col_name}", row_template="{row_name}", size=fontsize)
     g.set_xlabels("Equivalent Window Length", fontsize=fontsize-2);
     g.set_ylabels(metric_lab, fontsize=fontsize-2);
     g.set(xlim=(5, 75), xticks=[10, 30, 50, 70])
-        #ylim=[25, 75], yticks=[30, 40, 50, 60, 70])
     g.figure.subplots_adjust(wspace=0, hspace=0)
+    g.legend.set_title("")
+
+    dsets = ["ArrowHead", "CBF", "ECG200", "GunPoint", "SyntheticControl", "Trace"]
+    ybounds = {
+        "ArrowHead": ([35, 60], [40, 45, 50, 55]),
+        "CBF": ([35, 75], [40, 50, 60, 70]),
+        "ECG200": ([45, 70], [50, 55, 60, 65]),
+        "GunPoint": ([45, 70], [50, 55, 60, 65]),
+        "SyntheticControl": ([25, 65], [30, 40, 50, 60]),
+        "Trace": ([45, 70], [50, 55, 60, 65])}
+
+    for i, row in enumerate(g.axes):
+        for j, ax in enumerate(row):
+            ax.set_ylim(ybounds[dsets[i]][0])
+            ax.set_yticks(ybounds[dsets[i]][1])
 
     for (row_val, col_val), ax in g.axes_dict.items():
+        if col_val in ["GAF"]:
+            ax.set_yticklabels([])
         if row_val not in ["CBF", "SyntheticControl"]:
             ax.set_ylabel("")
         for sp in ax.spines.values():
             sp.set_color("black")
+        if row_val == "Trace":
+            ax.set_xlabel("")
+            if col_val == "DF":
+                ax.text(1, -0.32, "Context Size", ha="center", va="center", transform=ax.transAxes, fontsize=fontsize-2)
+
 
     g.savefig(fname, bbox_inches='tight')
 
@@ -161,9 +188,10 @@ def pretrain_figure(df: pd.DataFrame,
 
     g: sns.FacetGrid = sns.relplot(data=data, x="train_exc_limit", y=metric, hue='Arch', 
         kind="line", col="mode", row="dataset", palette=sns.color_palette("bright"),
-        height=2.5, aspect=1.75, legend="auto", markers="True", col_order=["DF", "GAF"], 
+        height=2.5, aspect=1.25, legend="brief", markers="True", col_order=["DF", "GAF"], 
         row_order=["ArrowHead", "CBF", "ECG200", "GunPoint", "SyntheticControl", "Trace"],
-        facet_kws={"despine": False, "margin_titles": True, "legend_out": True})
+        facet_kws={"despine": False, "margin_titles": True, "legend_out": True,
+                   "sharey": False, "sharex": True})
 
     g.set_titles(col_template="{col_name}", row_template="{row_name}", size=fontsize)
     g.set_xlabels("Labeled events per class", fontsize=fontsize-2);
@@ -171,12 +199,33 @@ def pretrain_figure(df: pd.DataFrame,
     g.set(xlim=(2, 34), xticks=[8,16,24,32])
     #    ylim=[15, 80], yticks=[20, 30, 40, 50, 60, 70])
     g.figure.subplots_adjust(wspace=0, hspace=0)
+    g.legend.set_bbox_to_anchor((1.020, 0.5))
+    g.legend.set_title("")
 
+    dsets = ["ArrowHead", "CBF", "ECG200", "GunPoint", "SyntheticControl", "Trace"]
+    ybounds = {
+        "ArrowHead": ([35, 60], [40, 45, 50, 55]),
+        "CBF": ([40, 80], [50, 60, 70]),
+        "ECG200": ([45, 70], [50, 55, 60, 65]),
+        "GunPoint": ([45, 70], [50, 55, 60, 65]),
+        "SyntheticControl": ([15, 55], [20, 30, 40, 50]),
+        "Trace": ([45, 80], [50, 55, 60, 65])}
+
+    for i, row in enumerate(g.axes):
+        for j, ax in enumerate(row):
+            ax.set_ylim(ybounds[dsets[i]][0])
+            ax.set_yticks(ybounds[dsets[i]][1])
     for (row_val, col_val), ax in g.axes_dict.items():
+        if col_val in ["GAF"]:
+            ax.set_yticklabels([])
         if row_val not in ["CBF", "SyntheticControl"]:
             ax.set_ylabel("")
         for sp in ax.spines.values():
             sp.set_color("black")
+        if row_val == "Trace":
+            ax.set_xlabel("")
+            if col_val == "DF":
+                ax.text(1, -0.32, "Labeled events per class", ha="center", va="center", transform=ax.transAxes, fontsize=fontsize-2)
 
     g.savefig(fname, bbox_inches='tight')
 
@@ -307,7 +356,7 @@ if __name__ == "__main__":
     timedil_figure(df)
 
     # pretrain figure
-    #pretrain_figure(df)
+    pretrain_figure(df)
 
     # encoding plots
     # for dset in ["ArrowHead", "CBF", "ECG200", "GunPoint", "SyntheticControl", "Trace"]:

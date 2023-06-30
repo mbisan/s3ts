@@ -1,3 +1,8 @@
+#/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+""" Hooks to launch from an HPC cluster using SLURM. """
+
 # package imports
 from pathlib import Path
 import subprocess
