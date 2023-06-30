@@ -1,9 +1,7 @@
 #/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-    Helper functions for analysis of the data.
-"""
+""" Helper functions for analysis of the output data. """
 
 # package imports
 from s3ts.data.acquisition import download_dataset
@@ -353,10 +351,10 @@ if __name__ == "__main__":
     print(results_table(df))
 
     # timedil figure
-    # timedil_figure(df)
+    timedil_figure(df)
 
     # pretrain figure
-    # pretrain_figure(df)
+    pretrain_figure(df)
 
     # encoding plots
     for dset in ["ArrowHead", "CBF", "ECG200", "GunPoint", "SyntheticControl", "Trace"]:

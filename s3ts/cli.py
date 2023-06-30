@@ -1,9 +1,7 @@
 #/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-    Command Line Interface (CLI) for the S3TS package.
-"""
+""" Command Line Interface (CLI) for the S3TS package. """
 
 # package imports
 from s3ts.models.training import run_model, save_results

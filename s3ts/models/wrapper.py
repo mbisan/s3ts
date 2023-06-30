@@ -1,9 +1,7 @@
-"""
-Base Convolutional Classification Model
+#/usr/bin/python3
+# -*- coding: utf-8 -*-
 
-@author Raúl Coterillo
-@version 2023-01
-"""
+""" Wrapper model for the S3TS models. """
 
 from __future__ import annotations
 
@@ -22,13 +20,10 @@ import torch
 # architectures
 from s3ts.models.encoders.frames.CNN import CNN_DF
 from s3ts.models.encoders.frames.RES import RES_DF
-from storage.TCN import TCN_DF
-from storage.DFN import DFN_DF
 
 from s3ts.models.encoders.series.RNN import RNN_TS
 from s3ts.models.encoders.series.CNN import CNN_TS
 from s3ts.models.encoders.series.RES import RES_TS
-from s3ts.models.encoders.series.TCN import TCN_TS
 
 # numpy
 import logging as log
@@ -61,9 +56,9 @@ class WrapperModel(LightningModule):
         super(WrapperModel, self).__init__()
         
         self.encoder_dict = {
-            "ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS, "tcn": TCN_TS}, 
-            "df": {"cnn": CNN_DF, "res": RES_DF, "tcn": TCN_DF, "dfn": DFN_DF},
-            "gf": {"cnn": CNN_DF, "res": RES_DF, "tcn": TCN_DF, "dfn": DFN_DF}}
+            "ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS}, 
+            "df": {"cnn": CNN_DF, "res": RES_DF},
+            "gf": {"cnn": CNN_DF, "res": RES_DF}}
         encoder_arch = self.encoder_dict[mode][arch]
 
         # Check decoder parameters

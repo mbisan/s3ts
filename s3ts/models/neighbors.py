@@ -1,9 +1,15 @@
+#/usr/bin/python3
+# -*- coding: utf-8 -*-
+
+""" 
+    KNNeighbors Classifier with DTW metric.
+"""
+
 from sktime.classification.distance_based import KNeighborsTimeSeriesClassifier
 from sklearn.metrics import accuracy_score, f1_score
 from s3ts.data.modules import DFDataModule
 from tqdm import tqdm
 import numpy as np
-
 
 def knn_dtw_predict(dm: DFDataModule, metric = "dtw", n_neighbors = 1) -> tuple[float, float, KNeighborsTimeSeriesClassifier]:
 
