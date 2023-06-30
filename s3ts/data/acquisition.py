@@ -13,8 +13,8 @@ import warnings
 import numpy as np 
 
 # sktime
-warnings.filterwarnings("ignore")
-from sktime.datasets import load_UCR_UEA_dataset
+with warnings.catch_warnings():
+    from sktime.datasets import load_UCR_UEA_dataset
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -57,9 +57,10 @@ def download_dataset(dataset: str, storage_dir: Path) -> tuple[np.ndarray, np.nd
     else:
         # Download TS dataset from UCR UEA
         log.info(f"Downloading '{dataset}' from UCR/UEA...")
-        X, Y = load_UCR_UEA_dataset(name=dataset, 
-                                return_type="np2d",
-                                return_X_y=True)
+        with warnings.catch_warnings():
+            X, Y = load_UCR_UEA_dataset(name=dataset, 
+                                    return_type="np2d",
+                                    return_X_y=True)
         X: np.ndarray = X.astype(np.float32)
         Y: np.ndarray = Y.astype(np.int8)
 
