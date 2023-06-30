@@ -6,9 +6,13 @@ This repository contains the code for the paper **"Streaming time series classif
 
 Streaming time series (STS) may be seen as concatenations of regular time series (TS) events that are received in a point-by-point basis. In a realistic setting, there is a continuous stream of data and only a few labeled events to tackle the classification problem. Recently, the dissimilarity frame (DF) feature representation has been proposed to deal with STS classification. DFs transform the STS into a sequence of images that can be classified by standard CNN image classifiers. We devised an adaptation to the STS setting of another popular image-based encoding, Gramian angular fields (GAF), by following the pattern-projection scheme used in the DF representation. We propose a self-supervised pretraining strategy for image-based STS classifiers, enabling the exploitation of unlabeled data from the STS data stream. We also put forward an optimization for image-based classifiers that enables the extraction of longer time features with no additional computational cost. Our experiments show that both methodologies either match or surpass the performance of state-of-the-art STS classifiers that utilize the raw data directly.
 
+## Image Encodings
+
 <p align="center">
-<img src="figures/encodings/df_gf_GunPoint.pdf" alt="" width="300"/> </br>
-<em>DF (left) vs GF (right) of several datasets. In order: CBF, GunPoint, Trace.</em>
+<img src="figures/encodings/enc_CBF.png" alt="" width="500"/> </br>
+<img src="figures/encodings/enc_GunPoint.png" alt="" width="500"/> </br>
+<img src="figures/encodings/enc_Trace.png" alt="" width="500"/> </br>
+<em>DF (left) vs GAF (right) encoding of several datasets. In order: CBF, GunPoint, Trace.</em>
 </p>
 
 ## Replication

@@ -342,7 +342,7 @@ def encoding_plot(dataset: str,
                     df_ax.set_xlabel("DF Representation", fontsize=fontsize)
                     gf_ax.set_xlabel("GAF Representation", fontsize=fontsize)
 
-    plt.savefig(folder / f"enc_{dataset}.pdf", bbox_inches="tight")
+    plt.savefig(folder / f"enc_{dataset}.png", bbox_inches="tight")
 
 
 if __name__ == "__main__":
@@ -350,17 +350,17 @@ if __name__ == "__main__":
     df = load_folder(Path("storage/synced"))
 
     # results table
-    #print(results_table(df))
+    print(results_table(df))
 
     # timedil figure
-    timedil_figure(df)
+    # timedil_figure(df)
 
     # pretrain figure
-    pretrain_figure(df)
+    # pretrain_figure(df)
 
     # encoding plots
-    # for dset in ["ArrowHead", "CBF", "ECG200", "GunPoint", "SyntheticControl", "Trace"]:
-    #     encoding_plot(dset)
+    for dset in ["ArrowHead", "CBF", "ECG200", "GunPoint", "SyntheticControl", "Trace"]:
+        encoding_plot(dset)
 
     plt.show()
 
