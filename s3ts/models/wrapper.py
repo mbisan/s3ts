@@ -22,8 +22,8 @@ import torch
 # architectures
 from s3ts.models.encoders.frames.CNN import CNN_DF
 from s3ts.models.encoders.frames.RES import RES_DF
-from s3ts.models.encoders.frames.TCN import TCN_DF
-from s3ts.models.encoders.frames.DFN import DFN_DF
+from storage.TCN import TCN_DF
+from storage.DFN import DFN_DF
 
 from s3ts.models.encoders.series.RNN import RNN_TS
 from s3ts.models.encoders.series.CNN import CNN_TS
