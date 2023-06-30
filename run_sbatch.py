@@ -2,7 +2,7 @@
 
 """ Automatic sbatch training script for the paper's experiments. """
 
-from s3ts.presets import HIPATIA_MEDIUM, HIPATIA_LARGE, ATLAS
+# from s3ts.presets import PRESET
 from s3ts.hooks import sbatch_hook
 
 # Common settings
@@ -64,7 +64,7 @@ SHARED_ARGS = {"rho_dfs": RHO_DFS, "exc": EVENTS_PER_CLASS,
     "test_sts_length": TEST_STS_LENGTH, 
     "pret_sts_length": PRET_STS_LENGTH,
     "random_state": RANDOM_STATE}
-SHARED_ARGS = {**SHARED_ARGS, **HIPATIA_LARGE}
+#SHARED_ARGS = {**SHARED_ARGS, **PRESET}
 
 # Pretrain Loop
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
