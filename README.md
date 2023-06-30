@@ -69,5 +69,3 @@ The script **figures/networks/generator.py** can be used to generate network dia
 <img src="figures/networks/img-cnn.png" alt="" width="300"/> </br>
 <em> Diagram of the CNN-based networks used for STS classification. </em>
 </p>
-
-
