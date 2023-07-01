@@ -74,8 +74,8 @@ def results_table(df: pd.DataFrame,
     tab1["var"], tab2["var"] = "mean", "std"
 
     table = pd.concat([tab1, tab2])
-    table = table.groupby(["method", "var", "dataset"])[metric].mean().unstack().unstack().round(2)
-    table["avg_rank"] = tab1.groupby(["method", "dataset"])[metric].mean().unstack().rank(ascending=False).mean(axis=1).round(2)
+    table = table.groupby(["method", "var", "dataset"])[metric].mean().unstack().unstack().round(0)
+    table["avg_rank"] = tab1.groupby(["method", "dataset"])[metric].mean().unstack().rank(ascending=False).mean(axis=1).round(1)
 
     return table
 
@@ -197,8 +197,8 @@ def pretrain_figure(df: pd.DataFrame,
     g.set(xlim=(2, 34), xticks=[8,16,24,32])
     #    ylim=[15, 80], yticks=[20, 30, 40, 50, 60, 70])
     g.figure.subplots_adjust(wspace=0, hspace=0)
-    g.legend.set_bbox_to_anchor((1.020, 0.5))
     g.legend.set_title("")
+
 
     dsets = ["ArrowHead", "CBF", "ECG200", "GunPoint", "SyntheticControl", "Trace"]
     ybounds = {
@@ -207,7 +207,7 @@ def pretrain_figure(df: pd.DataFrame,
         "ECG200": ([45, 70], [50, 55, 60, 65]),
         "GunPoint": ([45, 70], [50, 55, 60, 65]),
         "SyntheticControl": ([15, 55], [20, 30, 40, 50]),
-        "Trace": ([45, 80], [50, 55, 60, 65])}
+        "Trace": ([45, 80], [50, 55, 60, 65, 70, 75])}
 
     for i, row in enumerate(g.axes):
         for j, ax in enumerate(row):
@@ -348,17 +348,17 @@ if __name__ == "__main__":
     df = load_folder(Path("storage/synced"))
 
     # results table
-    print(results_table(df))
+    #print(results_table(df))
 
     # timedil figure
-    timedil_figure(df)
+    #timedil_figure(df)
 
     # pretrain figure
     pretrain_figure(df)
 
     # encoding plots
-    for dset in ["ArrowHead", "CBF", "ECG200", "GunPoint", "SyntheticControl", "Trace"]:
-        encoding_plot(dset)
+    #for dset in ["ArrowHead", "CBF", "ECG200", "GunPoint", "SyntheticControl", "Trace"]:
+    #    encoding_plot(dset)
 
     plt.show()
 
