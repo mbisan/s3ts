@@ -16,13 +16,14 @@ torch.set_float32_matmul_precision("medium")
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
 
-PRET_TABLE = 1          # Pretrain the DF encoders for the table comparison
-COMP_TABLE_DL = 1       # Train loop for the table comparison (DL METHODS)
-COMP_TABLE_NN = 1       # Train loop for the table comparison (NN-DTW)
+PRET_TABLE = 0          # Pretrain the DF encoders for the table comparison
+COMP_TABLE_DL = 0       # Train loop for the table comparison (DL METHODS)
+COMP_TABLE_NN = 0       # Train loop for the table comparison (NN-DTW)
 
-PRET_ABLAT = 1          # Pretrain the DF encoders (ablation study)
-ABLAT_TIMEDIL = 1       # Ablation Study: Time dilation
-ABLAT_SELFSUP = 1       # Ablation Study; Self-supervised pretraining
+PRET_ABLAT = 0          # Pretrain the DF encoders (ablation study)
+ABLAT_TIMEDIL = 0       # Ablation Study: Time dilation
+ABLAT_SELFSUP = 0       # Ablation Study; Self-supervised pretraining
+
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DATASETS = [ # Datasets
     "ArrowHead",
@@ -41,17 +42,14 @@ ARCHS = { # Architectures
 WINDOW_LENGTH_DF: list[int] = 10                    # Window length for DF
 WINDOW_LENGTHS_TS: list[int] = [10, 30, 50, 70]     # Window length for TS                   
 WINDOW_TIME_STRIDES: list[int] = [7]                # Window time stride
-# ~~~~~~~~~~~~~~~~~~~~~~~
 WINDOW_LENGTH_DICT = {
-    "ArrowHead": 125,
-    "CBF": 65,
+    "ArrowHead": 120,
+    "CBF": 60,
     "ECG200": 50,
-    "GunPoint": 75,
+    "GunPoint": 70,
     "SyntheticControl": 30,
     "Trace": 150,
 }
-
-
 # ~~~~~~~~~~~~~~~~~~~~~~~
 RHO_DFS: float = 0.1                # Memory parameter for DF
 BATCH_SIZE: bool = 128              # Batch size
@@ -106,31 +104,64 @@ if PRET_TABLE:
             for dataset in DATASETS:
                 res_fname = f"results_pretrain_{arch}_{dataset}.csv"
                 wlen = WINDOW_LENGTH_DF
-                for wts in WINDOW_TIME_STRIDES[-1:]:
-                    # Full series
-                    main_loop(dataset=dataset, mode=mode, arch=arch,
-                        use_pretrain=False, pretrain_mode=True,
-                        window_length=wlen, stride_series=False,
-                        window_time_stride=wts, window_patt_stride=1,
-                        max_epochs=MAX_EPOCHS_PRE, cv_rep=0, 
-                        num_encoder_feats=enc_feats, res_fname=res_fname,
-                        **SHARED_ARGS)
-                    if wts != 1:
-                        # Strided series
-                        main_loop(dataset=dataset, mode=mode, arch=arch,
-                            use_pretrain=False, pretrain_mode=True,
-                            window_length=wlen, stride_series=True,
-                            window_time_stride=wts, window_patt_stride=1,
-                            max_epochs=MAX_EPOCHS_PRE, cv_rep=0, 
-                            num_encoder_feats=enc_feats, res_fname=res_fname,
-                            **SHARED_ARGS)
+                wts = WINDOW_LENGTH_DICT[dataset]//wlen
+
+                # Full series
+                main_loop(dataset=dataset, mode=mode, arch=arch,
+                    use_pretrain=False, pretrain_mode=True,
+                    window_length=wlen, stride_series=False,
+                    window_time_stride=wts, window_patt_stride=1,
+                    max_epochs=MAX_EPOCHS_PRE, cv_rep=0, 
+                    num_encoder_feats=enc_feats, res_fname=res_fname,
+                    **SHARED_ARGS)
+                
+                # Strided series
+                main_loop(dataset=dataset, mode=mode, arch=arch,
+                    use_pretrain=False, pretrain_mode=True,
+                    window_length=wlen, stride_series=True,
+                    window_time_stride=wts, window_patt_stride=1,
+                    max_epochs=MAX_EPOCHS_PRE, cv_rep=0, 
+                    num_encoder_feats=enc_feats, res_fname=res_fname,
+                    **SHARED_ARGS)
 
 # Training Loop for Method Comparison Table
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if COMP_TABLE_DL:
-    pass
-
+    for cv_rep in CV_REPS:
+            
+        # Do the TS training
+        mode = "ts"
+        for arch in ARCHS[mode]:
+            if arch == "nn":
+                continue
+            enc_feats = NUM_ENC_FEATS[mode][arch]
+            for dataset in DATASETS:
+                res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
+                wlen = WINDOW_LENGTH_DICT[dataset]
+                main_loop(dataset=dataset, mode=mode, arch=arch,
+                    use_pretrain=False, pretrain_mode=False,
+                    window_length=wlen, stride_series=False,
+                    window_time_stride=1, window_patt_stride=1,
+                    max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+                    num_encoder_feats=enc_feats, res_fname=res_fname, 
+                    **SHARED_ARGS)
+                    
+        # Do the DF/GF training
+        for mode in ["df", "gf"]:
+            for arch in ARCHS[mode]:
+                enc_feats = NUM_ENC_FEATS[mode][arch]
+                wlen, wps = WINDOW_LENGTH_DF, 1
+                for dataset in DATASETS:
+                    res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
+                    wts = WINDOW_LENGTH_DICT[dataset]//wlen
+                    main_loop(dataset=dataset, mode=mode, arch=arch,
+                        use_pretrain=False, pretrain_mode=False,
+                        window_length=wlen, stride_series=False,
+                        window_time_stride=wts, window_patt_stride=wps,
+                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+                        num_encoder_feats=enc_feats, res_fname=res_fname, 
+                        **SHARED_ARGS)
 
 if COMP_TABLE_NN:
     for cv_rep in CV_REPS:
@@ -153,22 +184,23 @@ if COMP_TABLE_NN:
 if ABLAT_TIMEDIL:
     for cv_rep in CV_REPS:
 
-        # Do the TS training
-        mode = "ts"
-        for arch in ARCHS[mode]:
-            if arch == "nn":
-                continue
-            enc_feats = NUM_ENC_FEATS[mode][arch]
-            for dataset in DATASETS:
-                res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
-                for wlen in WINDOW_LENGTHS_TS:
-                    main_loop(dataset=dataset, mode=mode, arch=arch,
-                        use_pretrain=False, pretrain_mode=False,
-                        window_length=wlen, stride_series=False,
-                        window_time_stride=1, window_patt_stride=1,
-                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-                        num_encoder_feats=enc_feats, res_fname=res_fname, 
-                        **SHARED_ARGS)
+        # NOTE: Removed from the loop for now
+        # # Do the TS training
+        # mode = "ts"
+        # for arch in ARCHS[mode]:
+        #     if arch == "nn":
+        #         continue
+        #     enc_feats = NUM_ENC_FEATS[mode][arch]
+        #     for dataset in DATASETS:
+        #         res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
+        #         for wlen in WINDOW_LENGTHS_TS:
+        #             main_loop(dataset=dataset, mode=mode, arch=arch,
+        #                 use_pretrain=False, pretrain_mode=False,
+        #                 window_length=wlen, stride_series=False,
+        #                 window_time_stride=1, window_patt_stride=1,
+        #                 max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+        #                 num_encoder_feats=enc_feats, res_fname=res_fname, 
+        #                 **SHARED_ARGS)
                     
         # Do the DF/GF training
         for mode in ["df", "gf"]:
@@ -186,8 +218,8 @@ if ABLAT_TIMEDIL:
                             num_encoder_feats=enc_feats, res_fname=res_fname, 
                             **SHARED_ARGS)
                         
-# Pretrain Loop For Ablation Study
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Pretrain Loop for Ablation Study: Pretraining
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if PRET_ABLAT:
     for mode in ["df", "gf"]:
@@ -218,26 +250,27 @@ if PRET_ABLAT:
 # Training Loop for Ablation Study: Pretraining
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-if SELF_SUP:
+if ABLAT_SELFSUP:
     for cv_rep in CV_REPS:
 
-        # Do the TS training
-        mode = "ts"
-        for arch in ARCHS[mode]:
-            if arch == "nn":
-                continue
-            enc_feats = NUM_ENC_FEATS[mode][arch]
-            wlen, wts, wps = 70, 1, 1
-            for dataset in DATASETS:
-                res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
-                for ev_lim in EVENT_LIMITERS:
-                    main_loop(dataset=dataset, mode=mode, arch=arch, train_exc_limit=ev_lim, 
-                        use_pretrain=False, stride_series=False,
-                        pretrain_mode=False, window_length=wlen, 
-                        window_time_stride=wts, window_patt_stride=wps, 
-                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-                        num_encoder_feats=enc_feats, res_fname=res_fname, 
-                        **SHARED_ARGS)
+        # NOTE: Removed from the loop for now
+        # # Do the TS training
+        # mode = "ts"
+        # for arch in ARCHS[mode]:
+        #     if arch == "nn":
+        #         continue
+        #     enc_feats = NUM_ENC_FEATS[mode][arch]
+        #     wlen, wts, wps = 70, 1, 1
+        #     for dataset in DATASETS:
+        #         res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
+        #         for ev_lim in EVENT_LIMITERS:
+        #             main_loop(dataset=dataset, mode=mode, arch=arch, train_exc_limit=ev_lim, 
+        #                 use_pretrain=False, stride_series=False,
+        #                 pretrain_mode=False, window_length=wlen, 
+        #                 window_time_stride=wts, window_patt_stride=wps, 
+        #                 max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+        #                 num_encoder_feats=enc_feats, res_fname=res_fname, 
+        #                 **SHARED_ARGS)
 
         # Do the DF/GF training
         for mode in ["df", "gf"]:
