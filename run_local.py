@@ -15,10 +15,14 @@ torch.set_float32_matmul_precision("medium")
 
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
-PRETRAIN_ENCODERS = 1              # Pretrain the DF encoders
-TIME_DIL = 1                       # Time dilation
-SELF_SUP = 1                       # Self-supervised pretraining
-ADDITIONAL = 1                     # Nearest neighbors
+
+PRET_TABLE = 1          # Pretrain the DF encoders for the table comparison
+COMP_TABLE_DL = 1       # Train loop for the table comparison (DL METHODS)
+COMP_TABLE_NN = 1       # Train loop for the table comparison (NN-DTW)
+
+PRET_ABLAT = 1          # Pretrain the DF encoders (ablation study)
+ABLAT_TIMEDIL = 1       # Ablation Study: Time dilation
+ABLAT_SELFSUP = 1       # Ablation Study; Self-supervised pretraining
 # ~~~~~~~~~~~~~~~~~~~~~~~
 DATASETS = [ # Datasets
     "ArrowHead",
@@ -37,6 +41,17 @@ ARCHS = { # Architectures
 WINDOW_LENGTH_DF: list[int] = 10                    # Window length for DF
 WINDOW_LENGTHS_TS: list[int] = [10, 30, 50, 70]     # Window length for TS                   
 WINDOW_TIME_STRIDES: list[int] = [7]                # Window time stride
+# ~~~~~~~~~~~~~~~~~~~~~~~
+WINDOW_LENGTH_DICT = {
+    "ArrowHead": 125,
+    "CBF": 65,
+    "ECG200": 50,
+    "GunPoint": 75,
+    "SyntheticControl": 30,
+    "Trace": 150,
+}
+
+
 # ~~~~~~~~~~~~~~~~~~~~~~~
 RHO_DFS: float = 0.1                # Memory parameter for DF
 BATCH_SIZE: bool = 128              # Batch size
@@ -81,10 +96,10 @@ SHARED_ARGS = {"rho_dfs": RHO_DFS, "exc": EVENTS_PER_CLASS,
     "num_workers": NUM_WORKERS,  # remove from sbatch
     "random_state": RANDOM_STATE}
 
-# Pretrain Loop
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Pretrain Loop For Method Comparison Table
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-if PRETRAIN_ENCODERS:
+if PRET_TABLE:
     for mode in ["df", "gf"]:
         for arch in ARCHS[mode]:
             enc_feats = NUM_ENC_FEATS[mode][arch]
@@ -110,10 +125,32 @@ if PRETRAIN_ENCODERS:
                             num_encoder_feats=enc_feats, res_fname=res_fname,
                             **SHARED_ARGS)
 
+# Training Loop for Method Comparison Table
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+if COMP_TABLE_DL:
+    pass
+
+
+if COMP_TABLE_NN:
+    for cv_rep in CV_REPS:
+        mode = "ts"
+        if "nn" in ARCHS[mode]:
+            arch, wlen, wts, wps, enc_feats = "nn", 1, 1, 1, 1
+            for dataset in DATASETS:
+                res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
+                main_loop(dataset=dataset, mode=mode, arch=arch, 
+                    window_length=wlen, window_time_stride=wts, window_patt_stride=wps,
+                    use_pretrain=False, stride_series=False, pretrain_mode=False,  
+                    max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep,
+                    num_encoder_feats=enc_feats, res_fname=res_fname,  
+                    **SHARED_ARGS)
+
+
 # Training Loop for Ablation Study: Time Dilation
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-if TIME_DIL:
+if ABLAT_TIMEDIL:
     for cv_rep in CV_REPS:
 
         # Do the TS training
@@ -147,6 +184,35 @@ if TIME_DIL:
                             window_time_stride=wts, window_patt_stride=wps,
                             max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
                             num_encoder_feats=enc_feats, res_fname=res_fname, 
+                            **SHARED_ARGS)
+                        
+# Pretrain Loop For Ablation Study
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+if PRET_ABLAT:
+    for mode in ["df", "gf"]:
+        for arch in ARCHS[mode]:
+            enc_feats = NUM_ENC_FEATS[mode][arch]
+            for dataset in DATASETS:
+                res_fname = f"results_pretrain_{arch}_{dataset}.csv"
+                wlen = WINDOW_LENGTH_DF
+                for wts in WINDOW_TIME_STRIDES[-1:]:
+                    # Full series
+                    main_loop(dataset=dataset, mode=mode, arch=arch,
+                        use_pretrain=False, pretrain_mode=True,
+                        window_length=wlen, stride_series=False,
+                        window_time_stride=wts, window_patt_stride=1,
+                        max_epochs=MAX_EPOCHS_PRE, cv_rep=0, 
+                        num_encoder_feats=enc_feats, res_fname=res_fname,
+                        **SHARED_ARGS)
+                    if wts != 1:
+                        # Strided series
+                        main_loop(dataset=dataset, mode=mode, arch=arch,
+                            use_pretrain=False, pretrain_mode=True,
+                            window_length=wlen, stride_series=True,
+                            window_time_stride=wts, window_patt_stride=1,
+                            max_epochs=MAX_EPOCHS_PRE, cv_rep=0, 
+                            num_encoder_feats=enc_feats, res_fname=res_fname,
                             **SHARED_ARGS)
 
 # Training Loop for Ablation Study: Pretraining
@@ -206,20 +272,3 @@ if SELF_SUP:
                             max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep,
                             num_encoder_feats=enc_feats, res_fname=res_fname,  
                             **SHARED_ARGS)
-
-# Training Loop for Additional Experiments
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-if ADDITIONAL:
-    for cv_rep in CV_REPS:
-        mode = "ts"
-        if "nn" in ARCHS[mode]:
-            arch, wlen, wts, wps, enc_feats = "nn", 1, 1, 1, 1
-            for dataset in DATASETS:
-                res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
-                main_loop(dataset=dataset, mode=mode, arch=arch, 
-                    window_length=wlen, window_time_stride=wts, window_patt_stride=wps,
-                    use_pretrain=False, stride_series=False, pretrain_mode=False,  
-                    max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep,
-                    num_encoder_feats=enc_feats, res_fname=res_fname,  
-                    **SHARED_ARGS)
