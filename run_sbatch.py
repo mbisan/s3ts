@@ -139,14 +139,34 @@ if COMP_TABLE_DL:
                 for dataset in DATASETS:
                     res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
                     wts = WINDOW_LENGTH_DICT[dataset]//wlen
-                    sbatch_hook(dataset=dataset, mode=mode, arch=arch,
-                            use_pretrain=False, pretrain_mode=False,
-                            window_length=wlen, stride_series=False,
-                            window_time_stride=wts, window_patt_stride=wps,
-                            max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-                            num_encoder_feats=enc_feats, res_fname=res_fname, 
-                            **SHARED_ARGS)
                     
+                    # No pretrain
+                    sbatch_hook(dataset=dataset, mode=mode, arch=arch,
+                        use_pretrain=False, pretrain_mode=False,
+                        window_length=wlen, stride_series=False,
+                        window_time_stride=wts, window_patt_stride=wps,
+                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+                        num_encoder_feats=enc_feats, res_fname=res_fname, 
+                        **SHARED_ARGS)
+                
+                    # Full series pretrain
+                    sbatch_hook(dataset=dataset, mode=mode, arch=arch,
+                        use_pretrain=True, stride_series=False,
+                        pretrain_mode=False, window_length=wlen, 
+                        window_time_stride=wts, window_patt_stride=wps, 
+                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+                        num_encoder_feats=enc_feats, res_fname=res_fname, 
+                        **SHARED_ARGS)   
+                                     
+                    # Strided series pretrain
+                    sbatch_hook(dataset=dataset, mode=mode, arch=arch,
+                        use_pretrain=True, stride_series=True,
+                        pretrain_mode=False, window_length=wlen, 
+                        window_time_stride=wts, window_patt_stride=wps, 
+                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep,
+                        num_encoder_feats=enc_feats, res_fname=res_fname,  
+                        **SHARED_ARGS)
+                
 if COMP_TABLE_NN:
     for cv_rep in CV_REPS:
         mode = "ts"
@@ -236,23 +256,24 @@ if PRET_ABLAT:
 if ABLAT_SELFSUP:
     for cv_rep in CV_REPS:
 
+        # NOTE: Removed from the loop for now
         # Do the TS training
-        mode = "ts"
-        for arch in ARCHS[mode]:
-            if arch == "nn":
-                continue
-            enc_feats = NUM_ENC_FEATS[mode][arch]
-            wlen, wts, wps = 70, 1, 1
-            for dataset in DATASETS:
-                res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
-                for ev_lim in EVENT_LIMITERS:
-                    sbatch_hook(dataset=dataset, mode=mode, arch=arch, train_exc_limit=ev_lim, 
-                        use_pretrain=False, stride_series=False,
-                        pretrain_mode=False, window_length=wlen, 
-                        window_time_stride=wts, window_patt_stride=wps, 
-                        max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-                        num_encoder_feats=enc_feats, res_fname=res_fname, 
-                        **SHARED_ARGS)
+        # mode = "ts"
+        # for arch in ARCHS[mode]:
+        #     if arch == "nn":
+        #         continue
+        #     enc_feats = NUM_ENC_FEATS[mode][arch]
+        #     wlen, wts, wps = 70, 1, 1
+        #     for dataset in DATASETS:
+        #         res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
+        #         for ev_lim in EVENT_LIMITERS:
+        #             sbatch_hook(dataset=dataset, mode=mode, arch=arch, train_exc_limit=ev_lim, 
+        #                 use_pretrain=False, stride_series=False,
+        #                 pretrain_mode=False, window_length=wlen, 
+        #                 window_time_stride=wts, window_patt_stride=wps, 
+        #                 max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
+        #                 num_encoder_feats=enc_feats, res_fname=res_fname, 
+        #                 **SHARED_ARGS)
 
         # Do the DF/GF training
         for mode in ["df", "gf"]:
