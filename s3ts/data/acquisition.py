@@ -13,8 +13,8 @@ import warnings
 import numpy as np 
 
 # sktime
-with warnings.catch_warnings():
-    from sktime.datasets import load_UCR_UEA_dataset
+#with warnings.catch_warnings():
+from aeon.datasets import load_classification
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -58,9 +58,12 @@ def download_dataset(dataset: str, storage_dir: Path) -> tuple[np.ndarray, np.nd
         # Download TS dataset from UCR UEA
         log.info(f"Downloading '{dataset}' from UCR/UEA...")
         with warnings.catch_warnings():
-            X, Y = load_UCR_UEA_dataset(name=dataset, 
-                                    return_type="np2d",
-                                    return_X_y=True)
+            # X, Y = load_UCR_UEA_dataset(name=dataset, 
+            #                         return_type="np2d",
+            #                         return_X_y=True)
+            X, Y = load_classification(name, split=None, return_metadata=False)
+            X = X[:,0,:] # retain only 1 dimension
+            
         X: np.ndarray = X.astype(np.float32)
         Y: np.ndarray = Y.astype(np.int8)
 
