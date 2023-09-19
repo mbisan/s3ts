@@ -25,8 +25,8 @@ In order to setup the environment, we recommend using a virtual environment. The
 ```bash
 git clone https://[repository_url]/s3ts.git     # clone the repo
 cd s3ts                                         # move in the folder
-python3 -m venv s3ts_env                        # create virtualenv
-source s3ts_env/bin/activate                    # activate it
+python3 -m venv env                             # create virtualenv
+source env/bin/activate                         # activate it
 pip install -r requirements.txt                 # install dependencies
 python -m pip install -e .                      # install s3ts package
 ```

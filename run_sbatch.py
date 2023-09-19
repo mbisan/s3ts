@@ -5,7 +5,6 @@
 from s3ts.presets import HIPATIA_LARGE as PRESET
 from s3ts.hooks import sbatch_hook
 
-
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -351,14 +351,14 @@ if __name__ == "__main__":
     #print(results_table(df))
 
     # timedil figure
-    #timedil_figure(df)
+    timedil_figure(df)
 
     # pretrain figure
-    pretrain_figure(df)
+    #pretrain_figure(df)
 
     # encoding plots
-    #for dset in ["ArrowHead", "CBF", "ECG200", "GunPoint", "SyntheticControl", "Trace"]:
-    #    encoding_plot(dset)
+    # for dset in ["ArrowHead", "CBF", "ECG200", "GunPoint", "SyntheticControl", "Trace", "TwoLeadECG"]:
+    #     encoding_plot(dset)
 
     plt.show()
 

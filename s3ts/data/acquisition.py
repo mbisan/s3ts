@@ -61,7 +61,7 @@ def download_dataset(dataset: str, storage_dir: Path) -> tuple[np.ndarray, np.nd
             # X, Y = load_UCR_UEA_dataset(name=dataset, 
             #                         return_type="np2d",
             #                         return_X_y=True)
-            X, Y = load_classification(name, split=None, return_metadata=False)
+            X, Y = load_classification(name=dataset, split=None, return_metadata=False)
             X = X[:,0,:] # retain only 1 dimension
             
         X: np.ndarray = X.astype(np.float32)
@@ -136,6 +136,18 @@ def dset_exceptions(dataset: str, X: np.ndarray, Y: np.ndarray):
         # remove class 5
         X = X[Y != 5]
         Y = Y[Y != 5]
+
+        # ensure label consistency
+        Yn = np.zeros_like(Y, dtype=np.int8)
+        for i, y in enumerate(np.unique(Y)):
+            Yn[Y == y] = i
+        Y = Yn
+
+    elif dataset == "ECG5000":
+        
+        # remove class 4
+        X = X[Y != 4]
+        Y = Y[Y != 4]
 
         # ensure label consistency
         Yn = np.zeros_like(Y, dtype=np.int8)
