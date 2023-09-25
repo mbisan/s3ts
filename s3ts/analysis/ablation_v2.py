@@ -14,27 +14,23 @@ def timedil_figure(
     
     """ Generates the time dilation figure for the paper. """
 
-    # cleanup
+    # font settings
+    plt.rc('font', family='serif', serif='Times New Roman', size=fontsize)
+    plt.rc('xtick', labelsize='medium')
+    plt.rc('ytick', labelsize='medium')
 
+    # cleanup
     data = df[df["pretrain_mode"] == False].copy()
     data = data[data['train_exc_limit'] == 32]
     data = data[data["window_patt_stride"] == 1]
     data = data[data["pretrained"] == False]
     data = data[~data["mode"].isin(["ts"])]
-
-    metric: str = "test_acc"
-
-    data[metric] = data[metric]*100
-
     data["Method"] =  data["arch"] + "_" + data["mode"]
     data.sort_values(["Method"], inplace=True)
-
     data["arch"].replace(to_replace=["rnn", "cnn", "res"], value=["RNN", "CNN", "RES"], inplace=True)
     data["mode"].replace(to_replace=["df", "gf"], value=["DF", "GF"], inplace=True)
-    data["Arch"] = data["arch"]
 
     # aggregation 
-
     dfs = []
     for g, gdf in data.groupby(["mode", "arch", "dataset"]):
 
@@ -50,20 +46,14 @@ def timedil_figure(
         dfs.append(gdat)
     pdata = pd.concat(dfs)
 
-
-
-    plt.rc('font', family='serif', serif='Times New Roman', size=fontsize)
-    plt.rc('xtick', labelsize='medium')
-    plt.rc('ytick', labelsize='medium')
-
-
+    # figure setup
     fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(12,6), gridspec_kw={"wspace": 0} )
     ax: list[plt.Axes] 
+
 
     cmap = plt.get_cmap("tab10", pdata["dataset"].nunique())
     colors =  {dset: cmap(i) for i, dset in enumerate(pdata["dataset"].unique())}
     nums =  {dset: i+1 for i, dset in enumerate(pdata["dataset"].unique())}
-
 
     for (mode, arch, dset), gdf in pdata.groupby(["mode", "arch", "dataset"]):
 
@@ -81,6 +71,7 @@ def timedil_figure(
         iax.set_title(mode)
         iax.set_ylim(-40, 70)
         iax.grid(True, axis="y")
+        iax.axhline(color="black", zorder=-10, lw=3)
         iax.errorbar(gdf["eq_wdw_length"]//10, gdf["mean"]*100, yerr=gdf["std"]*100, linestyle=ltype, label=label, c=color)
 
     # legends
@@ -93,5 +84,113 @@ def timedil_figure(
     fig.text(0.5, 0, '$\delta$', horizontalalignment='center', verticalalignment='center', transform=fig.transFigure)
     # y label
     ax[0].set_ylabel(r"% Change in Test Accuracy");
+
+    plt.savefig(fname, bbox_inches='tight')
+
+
+
+def pretrain_figure(
+        df: pd.DataFrame,
+        fontsize: int = 18,
+        metric: str = "test_acc",
+        fname: str = "figures/ablation/pretrain_new.pdf",
+        ) -> None:
+    
+    """ Generates the time dilation figure for the paper. """
+
+    # font settings
+    plt.rc('font', family='serif', serif='Times New Roman', size=fontsize)
+    plt.rc('xtick', labelsize='medium')
+    plt.rc('ytick', labelsize='medium')
+
+    # cleanup
+    data = df[df["pretrain_mode"] == False].copy()
+    data = data[data["window_time_stride"] == 7]
+    data = data[data["window_patt_stride"] == 1]
+    data = data[data["arch"].isin(["cnn", "res"])]
+
+    data["Method"] =  data["arch"] + "_" + data["mode"]
+    data.sort_values(["Method"], inplace=True)
+
+    data["arch"].replace(to_replace=["cnn", "res"], value=["CNN", "RES"], inplace=True)
+    data["mode"].replace(to_replace=["df", "gf"], value=["DF", "GF"], inplace=True)
+    data["Arch"] = data["arch"] + data["pretrained"].replace({True: "-", False: ""}) + data["stride_series"].replace({True: "B", False: "A"})
+    data["Arch"].replace({"CNNA": "CNN", "RESA": "RES"}, inplace=True)
+    # aggregation 
+    dfs = []
+    for (mode, dataset, arch), gdf in data.groupby(["mode", "dataset", "arch"]):
+        mean = gdf.groupby(["mode", "dataset", "Arch", "train_exc_limit"])[metric].mean().reset_index()
+        std = gdf.groupby(["mode", "dataset", "Arch", "train_exc_limit"])[metric].std().reset_index()
+        
+        # baseline
+        bline_mean, bline_std = mean[mean["Arch"] == arch][metric].values, std[std["Arch"] == arch][metric].values
+
+        # a pretrain
+        a_mean, a_std = mean[mean["Arch"] == f"{arch}-A"][metric].values, std[std["Arch"] == f"{arch}-A"][metric].values
+
+        # b pretrain
+        b_mean, b_std = mean[mean["Arch"] == f"{arch}-B"][metric].values, std[std["Arch"] == f"{arch}-B"][metric].values
+
+        gdat = mean[mean["Arch"] == arch][["mode", "dataset", "train_exc_limit"]].copy()
+        gdat["arch"] = arch
+        gdat["bline_mean"], gdat["bline_std"] = bline_mean, bline_std 
+        gdat["a_mean"], gdat["a_std"] = (a_mean - bline_mean)/bline_mean, a_std/a_mean
+        gdat["b_mean"], gdat["b_std"] = (b_mean - bline_mean)/bline_mean, b_std/b_mean
+        dfs.append(gdat)
+    pdata = pd.concat(dfs)
+
+    # figure setup
+    fig, ax = plt.subplots(ncols=2, nrows=2, figsize=(10,10), gridspec_kw={"wspace": 0.05, "hspace": 0.05})
+
+    cmap = plt.get_cmap("tab10", pdata["dataset"].nunique())
+    colors =  {dset: cmap(i) for i, dset in enumerate(pdata["dataset"].unique())}
+    nums =  {dset: i+1 for i, dset in enumerate(pdata["dataset"].unique())}
+
+    for (mode, arch, dset), gdf in pdata.groupby(["mode", "arch", "dataset"]):
+
+        color = colors[dset]
+        col = 0 if mode == "DF" else 1
+        row = 0 if arch == "CNN" else 1
+
+        if mode == "DF":
+            label = str(nums[dset]) if arch == "CNN" else None
+        else:
+            label = str(nums[dset]) if arch == "RES" else None
+
+        iax: plt.Axes = ax[row, col]
+        
+        # do only once
+        if dset == "ArrowHead":
+            iax.text(0.5, 1, f"{arch} - {mode}", transform=iax.transAxes, fontsize=fontsize-5,
+                    horizontalalignment='center', verticalalignment='center',
+                    bbox=dict(edgecolor="lightgray", facecolor='white', alpha=1))
+            iax.axhline(color="black", zorder=-10, lw=3)
+            if col == 1:
+                iax.set_yticklabels([])
+            if row == 0:
+                iax.set_xticklabels([])
+            iax.set_ylim(-10, 65)
+            iax.grid(True, axis="y")
+
+        # do the plotting    
+        x = np.log2(gdf["train_exc_limit"])
+        iax.errorbar(x, gdf["a_mean"]*100, yerr=np.abs(gdf["a_mean"]*100*(gdf["a_std"] + gdf["bline_std"]/gdf["bline_mean"])), 
+            linestyle="dotted", marker="s", label=label, c=color)
+        iax.errorbar(x, gdf["b_mean"]*100, yerr=np.abs(gdf["b_mean"]*100*(gdf["b_std"] + gdf["bline_std"]/gdf["bline_mean"])),
+            linestyle="dashed", marker="D", label=label, c=color)
+        
+   # legends
+    bpad = 0.9
+    handles, labels = ax[0,0].get_legend_handles_labels()
+    fig.legend(handles=handles[::2], labels=labels[::2], loc="center", bbox_to_anchor=(0.96,0.65), 
+            borderpad=bpad, title="TASK A", ncols=1, fancybox=False, shadow=True, fontsize=fontsize-5)
+    fig.legend(handles=handles[1::2], labels=labels[1::2], loc="center", bbox_to_anchor=(0.96,0.35), 
+            borderpad=bpad, title="TASK B", ncols=1, fancybox=False, shadow=True, fontsize=fontsize-5)
+
+    # labels
+    fig.text(0.5, 0.05, r'$\log_2(n_{samples})$', horizontalalignment='center', verticalalignment='center', 
+            transform=fig.transFigure, rotation="horizontal")
+    fig.text(0.05, 0.5, r"% Change in Test Accuracy", horizontalalignment='center', verticalalignment='center', 
+            transform=fig.transFigure, rotation="vertical")
 
     plt.savefig(fname, bbox_inches='tight')

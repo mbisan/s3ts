@@ -121,6 +121,6 @@ def encoding_plot(dataset: str,
 
             if p == n_patterns-1:
                     df_ax.set_xlabel("DF Representation", fontsize=fontsize)
-                    gf_ax.set_xlabel("GAF Representation", fontsize=fontsize)
+                    gf_ax.set_xlabel("GF Representation", fontsize=fontsize)
 
-    plt.savefig(folder / f"enc_{dataset}.png", bbox_inches="tight")
+    plt.savefig(folder / f"enc_{dataset}.pdf", bbox_inches="tight")
