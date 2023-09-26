@@ -39,7 +39,7 @@ def timedil_figure(
 
         mean = gdf.groupby(["mode", "arch", "dataset", "eq_wdw_length"])[metric].mean()
         mean.name = "mean"
-        std  = gdf.groupby(["mode", "arch", "dataset", "eq_wdw_length"])[metric].std().rename({metric: "std"})
+        std  = gdf.groupby(["mode", "arch", "dataset", "eq_wdw_length"])[metric].std()
         std.name = "std"
         
         gdat = pd.concat([mean, std], axis=1).reset_index()
@@ -47,32 +47,42 @@ def timedil_figure(
     pdata = pd.concat(dfs)
 
     # figure setup
-    fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(12,6), gridspec_kw={"wspace": 0} )
+    fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(12,6), gridspec_kw={"wspace": 0.05} )
     ax: list[plt.Axes] 
 
-
-    cmap = plt.get_cmap("tab10", pdata["dataset"].nunique())
-    colors =  {dset: cmap(i) for i, dset in enumerate(pdata["dataset"].unique())}
+    cmap = plt.get_cmap("Paired", pdata["dataset"].nunique()*2)
+    colors =  {dset: cmap(i*2+1) for i, dset in enumerate(pdata["dataset"].unique())}
     nums =  {dset: i+1 for i, dset in enumerate(pdata["dataset"].unique())}
 
     for (mode, arch, dset), gdf in pdata.groupby(["mode", "arch", "dataset"]):
 
-        ax_idx = 0 if mode == "DF" else 1
+        if mode == "DF":
+            ax_idx = 0
+            color = 0 if arch == "CNN" else 1
+        else:
+            ax_idx = 1
+            color = 2 if arch == "CNN" else 3
         ltype = "solid" if arch == "CNN" else "dashed"
+        mtype = "o" if arch == "CNN" else "s"
         color = colors[dset]
+        
         iax = ax[ax_idx]
         if ax_idx == 0:
             label = str(nums[dset]) if arch == "CNN" else None
         else:
             label = str(nums[dset]) if arch == "RES" else None
             iax.set_yticklabels([])
+        
         iax.set_yticks([-30,-20,-10,0,10,20,30,40,50,60])
         iax.set_xticks([1,3,5,7])
         iax.set_title(mode)
         iax.set_ylim(-40, 70)
         iax.grid(True, axis="y")
+        
         iax.axhline(color="black", zorder=-10, lw=3)
-        iax.errorbar(gdf["eq_wdw_length"]//10, gdf["mean"]*100, yerr=gdf["std"]*100, linestyle=ltype, label=label, c=color)
+        
+        iax.errorbar(gdf["eq_wdw_length"]//10, gdf["mean"]*100, yerr=gdf["std"]*100, 
+            linestyle=ltype, label=label, c=color, marker=mtype)
 
     # legends
     handles, labels = ax[0].get_legend_handles_labels()
@@ -81,13 +91,12 @@ def timedil_figure(
     fig.legend(handles=handles, labels=labels, loc="center", bbox_to_anchor=(1.02,0.35), borderpad=0.8, title="RES", ncols=2, fancybox=False, shadow=True)
 
     # x label
-    fig.text(0.5, 0, '$\delta$', horizontalalignment='center', verticalalignment='center', transform=fig.transFigure)
+    fig.text(0.512, 0, '$\delta$', horizontalalignment='center', verticalalignment='center', transform=fig.transFigure)
     # y label
-    ax[0].set_ylabel(r"% Change in Test Accuracy");
-
+    fig.text(0.07, 0.5, r"% Change in Test Accuracy", horizontalalignment='center', verticalalignment='center', 
+            transform=fig.transFigure, rotation="vertical")
+    
     plt.savefig(fname, bbox_inches='tight')
-
-
 
 def pretrain_figure(
         df: pd.DataFrame,
@@ -137,60 +146,86 @@ def pretrain_figure(
         gdat["a_mean"], gdat["a_std"] = (a_mean - bline_mean)/bline_mean, a_std/a_mean
         gdat["b_mean"], gdat["b_std"] = (b_mean - bline_mean)/bline_mean, b_std/b_mean
         dfs.append(gdat)
-    pdata = pd.concat(dfs)
+    pdata = pd.concat(dfs, ignore_index=True)
 
     # figure setup
-    fig, ax = plt.subplots(ncols=2, nrows=2, figsize=(10,10), gridspec_kw={"wspace": 0.05, "hspace": 0.05})
+    nrows, ncols = 2, 3
+    fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(13,7), gridspec_kw={"wspace": 0.15
+                                                                                , "hspace": 0.05})
 
-    cmap = plt.get_cmap("tab10", pdata["dataset"].nunique())
-    colors =  {dset: cmap(i) for i, dset in enumerate(pdata["dataset"].unique())}
-    nums =  {dset: i+1 for i, dset in enumerate(pdata["dataset"].unique())}
+    dsets = pdata["dataset"].unique()
+    cmap = plt.get_cmap("Paired")
+
+    nu_map = {dset: i+1 for i, dset in enumerate(dsets)}
+    ax_map = {dset: (idx//ncols, idx%ncols) for idx, dset in enumerate(dsets)}
+
+    ybounds = {
+        "ArrowHead": ([35, 60], [40, 45, 50, 55]),
+        "CBF": ([35, 75], [40, 50, 60, 70]),
+        "ECG200": ([45, 70], [50, 55, 60, 65]),
+        "GunPoint": ([45, 70], [50, 55, 60, 65]),
+        "SyntheticControl": ([25, 65], [30, 40, 50, 60]),
+        "Trace": ([45, 70], [50, 55, 60, 65])}
 
     for (mode, arch, dset), gdf in pdata.groupby(["mode", "arch", "dataset"]):
 
-        color = colors[dset]
-        col = 0 if mode == "DF" else 1
-        row = 0 if arch == "CNN" else 1
-
-        if mode == "DF":
-            label = str(nums[dset]) if arch == "CNN" else None
-        else:
-            label = str(nums[dset]) if arch == "RES" else None
-
+        (row, col), dsetn = ax_map[dset], nu_map[dset]
         iax: plt.Axes = ax[row, col]
         
-        # do only once
-        if dset == "ArrowHead":
-            iax.text(0.5, 1, f"{arch} - {mode}", transform=iax.transAxes, fontsize=fontsize-5,
+        if mode == "DF":
+            color = 0 if arch == "CNN" else 1
+        else:
+            color = 2 if arch == "CNN" else 3
+
+        if row == 0:
+            iax.set_xticklabels([])
+        iax.grid(True, axis="y")
+
+        if mode == "DF" and arch == "RES":
+            iax.text(0.5, 1, f"{dsetn}", transform=iax.transAxes, fontsize=fontsize-3,
                     horizontalalignment='center', verticalalignment='center',
                     bbox=dict(edgecolor="lightgray", facecolor='white', alpha=1))
             iax.axhline(color="black", zorder=-10, lw=3)
-            if col == 1:
-                iax.set_yticklabels([])
-            if row == 0:
-                iax.set_xticklabels([])
-            iax.set_ylim(-10, 65)
-            iax.grid(True, axis="y")
+            #iax.set_ylim(-10, 65)
+
 
         # do the plotting    
         x = np.log2(gdf["train_exc_limit"])
         iax.errorbar(x, gdf["a_mean"]*100, yerr=np.abs(gdf["a_mean"]*100*(gdf["a_std"] + gdf["bline_std"]/gdf["bline_mean"])), 
-            linestyle="dotted", marker="s", label=label, c=color)
+            linestyle="solid", marker="o", c=cmap(color*2+1), label=f"{mode},{arch},A")
         iax.errorbar(x, gdf["b_mean"]*100, yerr=np.abs(gdf["b_mean"]*100*(gdf["b_std"] + gdf["bline_std"]/gdf["bline_mean"])),
-            linestyle="dashed", marker="D", label=label, c=color)
+            linestyle="dashed", marker="s", c=cmap(color*2), label=f"{mode},{arch},B")
         
+            
    # legends
     bpad = 0.9
     handles, labels = ax[0,0].get_legend_handles_labels()
-    fig.legend(handles=handles[::2], labels=labels[::2], loc="center", bbox_to_anchor=(0.96,0.65), 
+    lidx = np.arange(len(handles))
+    lidxA, lidxB = lidx[::2], lidx[1::2]
+
+    fig.legend(handles=handles[::2], labels=labels[::2], loc="center", bbox_to_anchor=(1,0.65), 
             borderpad=bpad, title="TASK A", ncols=1, fancybox=False, shadow=True, fontsize=fontsize-5)
-    fig.legend(handles=handles[1::2], labels=labels[1::2], loc="center", bbox_to_anchor=(0.96,0.35), 
+    fig.legend(handles=handles[1::2], labels=labels[1::2], loc="center", bbox_to_anchor=(1,0.35), 
             borderpad=bpad, title="TASK B", ncols=1, fancybox=False, shadow=True, fontsize=fontsize-5)
 
     # labels
     fig.text(0.5, 0.05, r'$\log_2(n_{samples})$', horizontalalignment='center', verticalalignment='center', 
             transform=fig.transFigure, rotation="horizontal")
-    fig.text(0.05, 0.5, r"% Change in Test Accuracy", horizontalalignment='center', verticalalignment='center', 
-            transform=fig.transFigure, rotation="vertical")
+    fig.text(0.08, 0.5, r"% Change in Test Accuracy", horizontalalignment='center', verticalalignment='center', 
+            transform=fig.transFigure, rotation="vertical");
 
-    plt.savefig(fname, bbox_inches='tight')
+    plt.tight_layout()
+    plt.savefig(fname, bbox_inches="tight")
+
+
+
+
+if __name__ == "__main__":
+
+    from s3ts.analysis.results import load_folder
+    from pathlib import Path
+
+    df = load_folder(Path("storage/synced"))
+
+    timedil_figure(df)
+    pretrain_figure(df)
