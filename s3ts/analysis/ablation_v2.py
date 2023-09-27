@@ -186,15 +186,14 @@ def pretrain_figure(
                     horizontalalignment='center', verticalalignment='center',
                     bbox=dict(edgecolor="lightgray", facecolor='white', alpha=1))
             iax.axhline(color="black", zorder=-10, lw=3)
-            #iax.set_ylim(-10, 65)
 
 
         # do the plotting    
         x = np.log2(gdf["train_exc_limit"])
         iax.errorbar(x, gdf["a_mean"]*100, yerr=np.abs(gdf["a_mean"]*100*(gdf["a_std"] + gdf["bline_std"]/gdf["bline_mean"])), 
-            linestyle="solid", marker="o", c=cmap(color*2+1), label=f"{mode},{arch},A")
+            linestyle="solid", marker="o", c=cmap(color*2+1), label=f"{mode}-{arch}")
         iax.errorbar(x, gdf["b_mean"]*100, yerr=np.abs(gdf["b_mean"]*100*(gdf["b_std"] + gdf["bline_std"]/gdf["bline_mean"])),
-            linestyle="dashed", marker="s", c=cmap(color*2), label=f"{mode},{arch},B")
+            linestyle="dashed", marker="s", c=cmap(color*2), label=f"{mode}-{arch}")
         
             
    # legends
@@ -203,13 +202,13 @@ def pretrain_figure(
     lidx = np.arange(len(handles))
     lidxA, lidxB = lidx[::2], lidx[1::2]
 
-    fig.legend(handles=handles[::2], labels=labels[::2], loc="center", bbox_to_anchor=(1,0.65), 
+    fig.legend(handles=handles[::2], labels=labels[::2], loc="center", bbox_to_anchor=(.97,0.65), 
             borderpad=bpad, title="TASK A", ncols=1, fancybox=False, shadow=True, fontsize=fontsize-5)
-    fig.legend(handles=handles[1::2], labels=labels[1::2], loc="center", bbox_to_anchor=(1,0.35), 
+    fig.legend(handles=handles[1::2], labels=labels[1::2], loc="center", bbox_to_anchor=(.97,0.35), 
             borderpad=bpad, title="TASK B", ncols=1, fancybox=False, shadow=True, fontsize=fontsize-5)
 
     # labels
-    fig.text(0.5, 0.05, r'$\log_2(n_{samples})$', horizontalalignment='center', verticalalignment='center', 
+    fig.text(0.5, 0.05, r'$\log_2(n_{tr})$', horizontalalignment='center', verticalalignment='center', 
             transform=fig.transFigure, rotation="horizontal")
     fig.text(0.08, 0.5, r"% Change in Test Accuracy", horizontalalignment='center', verticalalignment='center', 
             transform=fig.transFigure, rotation="vertical");
