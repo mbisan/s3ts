@@ -39,6 +39,7 @@ WINDOW_LENGTH_DICT = {
     "ArrowHead": 120,
     "CBF": 60,
     "ECG200": 50,
+    "ECG5000": 70,
     "GunPoint": 70,
     "SyntheticControl": 30,
     "Trace": 150,
