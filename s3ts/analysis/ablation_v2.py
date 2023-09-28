@@ -9,7 +9,7 @@ def timedil_figure(
         df: pd.DataFrame,
         fontsize: int = 18,
         metric: str = "test_acc",
-        fname: str = "figures/ablation/timedil_new.pdf",
+        fname: str = "figures/ablation/timedil.pdf",
         ) -> None:
     
     """ Generates the time dilation figure for the paper. """
@@ -19,12 +19,14 @@ def timedil_figure(
     plt.rc('xtick', labelsize='medium')
     plt.rc('ytick', labelsize='medium')
 
-    # cleanup
+    # filtering
     data = df[df["pretrain_mode"] == False].copy()
     data = data[data['train_exc_limit'] == 32]
     data = data[data["window_patt_stride"] == 1]
     data = data[data["pretrained"] == False]
     data = data[~data["mode"].isin(["ts"])]
+    data = data[data["window_time_stride"].isin([1,3,5,7])]
+
     data["Method"] =  data["arch"] + "_" + data["mode"]
     data.sort_values(["Method"], inplace=True)
     data["arch"].replace(to_replace=["rnn", "cnn", "res"], value=["RNN", "CNN", "RES"], inplace=True)
@@ -102,7 +104,7 @@ def pretrain_figure(
         df: pd.DataFrame,
         fontsize: int = 18,
         metric: str = "test_acc",
-        fname: str = "figures/ablation/pretrain_new.pdf",
+        fname: str = "figures/ablation/pretrain.pdf",
         ) -> None:
     
     """ Generates the time dilation figure for the paper. """
@@ -112,9 +114,29 @@ def pretrain_figure(
     plt.rc('xtick', labelsize='medium')
     plt.rc('ytick', labelsize='medium')
 
+    wlsf  = 10
+    wldict = {
+        "ArrowHead": 120,
+        "CBF": 60,
+        "ECG200": 50,
+        "ECG5000": 70,
+        "GunPoint": 70,
+        "SyntheticControl": 30,
+        "Trace": 150,
+    }
+
     # cleanup
     data = df[df["pretrain_mode"] == False].copy()
-    data = data[data["window_time_stride"] == 7]
+    dfl = []
+    for dset, gdf in data.groupby("dataset"):
+        wtst =  wldict[dset]//wlsf
+        gdf = gdf[(gdf["window_length"] == wlsf) & (gdf["window_time_stride"] == wtst)]
+        dfl.append(gdf)
+    data = pd.concat(dfl, ignore_index=True)
+
+    data.to_csv("testing.csv")
+
+    #data = data[data["window_time_stride"] == 7]
     data = data[data["window_patt_stride"] == 1]
     data = data[data["arch"].isin(["cnn", "res"])]
 
@@ -159,14 +181,6 @@ def pretrain_figure(
     nu_map = {dset: i+1 for i, dset in enumerate(dsets)}
     ax_map = {dset: (idx//ncols, idx%ncols) for idx, dset in enumerate(dsets)}
 
-    ybounds = {
-        "ArrowHead": ([35, 60], [40, 45, 50, 55]),
-        "CBF": ([35, 75], [40, 50, 60, 70]),
-        "ECG200": ([45, 70], [50, 55, 60, 65]),
-        "GunPoint": ([45, 70], [50, 55, 60, 65]),
-        "SyntheticControl": ([25, 65], [30, 40, 50, 60]),
-        "Trace": ([45, 70], [50, 55, 60, 65])}
-
     for (mode, arch, dset), gdf in pdata.groupby(["mode", "arch", "dataset"]):
 
         (row, col), dsetn = ax_map[dset], nu_map[dset]
@@ -200,8 +214,6 @@ def pretrain_figure(
     bpad = 0.9
     handles, labels = ax[0,0].get_legend_handles_labels()
     lidx = np.arange(len(handles))
-    lidxA, lidxB = lidx[::2], lidx[1::2]
-
     fig.legend(handles=handles[::2], labels=labels[::2], loc="center", bbox_to_anchor=(.97,0.65), 
             borderpad=bpad, title="TASK A", ncols=1, fancybox=False, shadow=True, fontsize=fontsize-5)
     fig.legend(handles=handles[1::2], labels=labels[1::2], loc="center", bbox_to_anchor=(.97,0.35), 
@@ -213,18 +225,11 @@ def pretrain_figure(
     fig.text(0.08, 0.5, r"% Change in Test Accuracy", horizontalalignment='center', verticalalignment='center', 
             transform=fig.transFigure, rotation="vertical");
 
-    plt.tight_layout()
     plt.savefig(fname, bbox_inches="tight")
-
-
 
 
 if __name__ == "__main__":
 
-    from s3ts.analysis.results import load_folder
-    from pathlib import Path
-
-    df = load_folder(Path("storage/synced"))
-
+    df = pd.read_csv("storage/all_results.csv")
     timedil_figure(df)
     pretrain_figure(df)
