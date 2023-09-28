@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 """ Automatic sbatch training script for the paper's experiments. """
 
@@ -39,7 +40,6 @@ WINDOW_LENGTH_DICT = {
     "ArrowHead": 120,
     "CBF": 60,
     "ECG200": 50,
-    "ECG5000": 70,
     "GunPoint": 70,
     "SyntheticControl": 30,
     "Trace": 150,
@@ -91,7 +91,6 @@ if PRET_TABLE:
                 res_fname = f"results_pretrain_{arch}_{dataset}.csv"
                 wlen = WINDOW_LENGTH_DF
                 wts = WINDOW_LENGTH_DICT[dataset]//wlen
-                
                 # Full series
                 sbatch_hook(dataset=dataset, mode=mode, arch=arch,
                     use_pretrain=False, pretrain_mode=True,
@@ -186,26 +185,6 @@ if COMP_TABLE_NN:
 
 if ABLAT_TIMEDIL:
     for cv_rep in CV_REPS:
-
-        # NOTE: Removed from the loop for now
-        # # Do the TS training
-        # mode = "ts"
-        # for arch in ARCHS[mode]:
-        #     if arch == "nn":
-        #         continue
-        #     enc_feats = NUM_ENC_FEATS[mode][arch]
-        #     for dataset in DATASETS:
-        #         res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
-        #         for wlen in WINDOW_LENGTHS_TS:
-        #             sbatch_hook(dataset=dataset, mode=mode, arch=arch,
-        #                 use_pretrain=False, pretrain_mode=False,
-        #                 window_length=wlen, stride_series=False,
-        #                 window_time_stride=1, window_patt_stride=1,
-        #                 max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-        #                 num_encoder_feats=enc_feats, res_fname=res_fname, 
-        #                 **SHARED_ARGS)
-                    
-        # Do the DF/GF training
         for mode in ["df", "gf"]:
             for arch in ARCHS[mode]:
                 enc_feats = NUM_ENC_FEATS[mode][arch]
@@ -255,32 +234,12 @@ if PRET_ABLAT:
 
 if ABLAT_SELFSUP:
     for cv_rep in CV_REPS:
-
-        # NOTE: Removed from the loop for now
-        # Do the TS training
-        # mode = "ts"
-        # for arch in ARCHS[mode]:
-        #     if arch == "nn":
-        #         continue
-        #     enc_feats = NUM_ENC_FEATS[mode][arch]
-        #     wlen, wts, wps = 70, 1, 1
-        #     for dataset in DATASETS:
-        #         res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
-        #         for ev_lim in EVENT_LIMITERS:
-        #             sbatch_hook(dataset=dataset, mode=mode, arch=arch, train_exc_limit=ev_lim, 
-        #                 use_pretrain=False, stride_series=False,
-        #                 pretrain_mode=False, window_length=wlen, 
-        #                 window_time_stride=wts, window_patt_stride=wps, 
-        #                 max_epochs=MAX_EPOCHS_TRA, cv_rep=cv_rep, 
-        #                 num_encoder_feats=enc_feats, res_fname=res_fname, 
-        #                 **SHARED_ARGS)
-
-        # Do the DF/GF training
         for mode in ["df", "gf"]:
             for arch in ARCHS[mode]:
                 enc_feats = NUM_ENC_FEATS[mode][arch]
-                wlen, wts, wps = WINDOW_LENGTH_DF, 7, 1
                 for dataset in DATASETS:
+                    wlen, wps = WINDOW_LENGTH_DF, 1
+                    wts = WINDOW_LENGTH_DICT[dataset]//wlen
                     res_fname = f"results_{mode}_{arch}_{dataset}_cv{cv_rep}.csv"
                     for ev_lim in EVENT_LIMITERS:
                         # No pretraining
