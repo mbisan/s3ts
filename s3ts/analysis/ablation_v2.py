@@ -133,9 +133,6 @@ def pretrain_figure(
         gdf = gdf[(gdf["window_length"] == wlsf) & (gdf["window_time_stride"] == wtst)]
         dfl.append(gdf)
     data = pd.concat(dfl, ignore_index=True)
-
-    data.to_csv("testing.csv")
-
     #data = data[data["window_time_stride"] == 7]
     data = data[data["window_patt_stride"] == 1]
     data = data[data["arch"].isin(["cnn", "res"])]
