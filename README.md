@@ -1,7 +1,5 @@
 # Self-Supervised Streaming Time Series Classification
 
-This repository contains the code for the paper **"Streaming time series classification with limited labeled data via self-supervised image representation"** during the submission process to the International Conference on Data Mining (ICDM) 2023.
-
 ## Abstract
 
 Streaming time series (STS) can be viewed as sequential concatenations of batch time series (TS), referred to as events, which are received incrementally. In practical scenarios, there exists a continuous flow of data, with only a limited number of labeled events available to address the STS classification problem. Recently, the dissimilarity frame (DF) feature representation has been proposed to handle STS classification. DFs transform STS into a sequence of images that can be effectively classified using standard CNN image classifiers.
