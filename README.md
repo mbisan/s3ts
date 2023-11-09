@@ -7,12 +7,14 @@ This repository contains the code for the paper **"Streaming time series classif
 Streaming time series (STS) can be viewed as sequential concatenations of batch time series (TS), referred to as events, which are received incrementally. In practical scenarios, there exists a continuous flow of data, with only a limited number of labeled events available to address the STS classification problem. Recently, the dissimilarity frame (DF) feature representation has been proposed to handle STS classification. DFs transform STS into a sequence of images that can be effectively classified using standard CNN image classifiers.
 In this study, we propose an enhancement of DFs for STS classification in the presence of scarce labeled data. This enhancement enables the capture of larger time patterns without necessitating an increased number of parameters. Additionally, leveraging the same principles underlying DFs, we adapt the popular image-based encoding technique, Gramian angular fields (GAF), for the same classification task. Furthermore, we introduce a self-supervised pretraining strategy for STS classifiers based on DFs and GAFs, enabling the utilization of unlabeled data from the STS data stream. Through experimental evaluation, we demonstrate that STS classifiers based on DFs and GAFs either match or surpass the performance of state-of-the-art STS classifiers.
 
+<!---
 <p align="center">
 <img src="figures/encodings/enc_CBF.png" alt="" width="500"/> </br>
 <img src="figures/encodings/enc_GunPoint.png" alt="" width="500"/> </br>
 <img src="figures/encodings/enc_Trace.png" alt="" width="500"/> </br>
 <em>DF (left) vs GAF (right) encoding of several datasets. In order: CBF, GunPoint, Trace.</em>
 </p>
+-->
 
 ## Replication
 
