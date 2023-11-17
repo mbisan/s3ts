@@ -6,7 +6,7 @@ def compute_medoids(
         meds_per_class: int = 1, metric: str = 'dtw', 
     ) -> tuple[np.ndarray, np.ndarray]: 
 
-    """ Computes the medoids of the classes in the dataset. """
+    """ Computes 'meds_per_class' medoids of each class in the dataset. """
 
     # Check the distance type
     suported_metrics = ['euclidean', 'squared',
@@ -39,12 +39,11 @@ def compute_medoids(
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 def finite_random_STS(
-        X: np.ndarray, 
-        Y: np.ndarray,
-        length: int,
-        seed: int = 42
+        X: np.ndarray, Y: np.ndarray, length: int, seed: int = 42
         ) -> tuple[np.ndarray, np.ndarray]:
     
+    """ Create a finite STS by randomly concatenating 'length' events """
+
     # create random number generator
     rng = np.random.default_rng(seed=seed)
 
@@ -65,10 +64,7 @@ def finite_random_STS(
     return STS, SCS
 
 def infite_random_STS(
-        X: np.ndarray, 
-        Y: np.ndarray,
-        length: int,
-        seed: int = 42
+        X: np.ndarray, Y: np.ndarray, seed: int = 42
         ) -> tuple[np.ndarray, np.ndarray]:
     
     # create random number generator
@@ -84,6 +80,36 @@ def infite_random_STS(
             yield X[rand_idx,:,i], Y[rand_idx]
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # def compute_STS(
