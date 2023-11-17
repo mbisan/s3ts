@@ -14,73 +14,25 @@ import multiprocessing as mp
 import logging as log
 import numpy as np
 
+class StaticDS(Dataset):
 
-class SFDataset(Dataset):
+    DM: torch.Tensor
+    STS: torch.Tensor
+    SCS: torch.Tensor
+    index: np.ndarray
+    wdw_len: int
+    wdw_str: int
+    sts_str: bool
+    DM_transform: function
+    STS_transform: function
 
-    """ Dataset for the experiments. """
-
-    def __init__(self,
-            DM: torch.Tensor,
-            STS: torch.Tensor,
-            SCS: torch.Tensor,
-            index: np.ndarray,
-            window_length: int,
-            window_time_stride: int,
-            window_patt_stride: int,
-            DM_transform = None,
-            STS_transform = None, 
-            SCS_transform = None,
-            stride_series: bool = True,
-            ) -> None:
-
-        """ Initialize the dataset. 
-        
-        Parameters
-        ----------
-        DM : torch.Tensor
-            Dissimilarity matrix
-        STS : torch.Tensor
-            Streaming Time Series
-        SCS : torch.Tensor
-            Streaming Class Series
-        index : np.ndarray
-            Index of the samples
-        window_length : int
-            Length of the window
-        window_time_stride : int
-            Time stride of the frame window
-        window_patt_stride : int
-            Pattern stride of the frame window
-        DM_transform : callable, optional
-            Transformation to apply to the DM
-        STS_transform : callable, optional
-            Transformation to apply to the STS
-        SCS_transform : callable, optional
-            Transformation to apply to the SCS
-        """
-
-        super().__init__()
-
-        self.DM = DM
-        self.STS = STS
-        self.SCS = SCS
-        self.index = index
-
-        self.window_length = window_length
-        self.wts = window_time_stride
-        self.wps = window_patt_stride
-        self.stride_series = stride_series
-
-        self.available_events = 1
-
-        self.DM_transform = DM_transform
-        self.STS_transform = STS_transform
-        self.SCS_transform = SCS_transform
+    def __init__(self, DM, STS, SCS, index,
+            wdw_len, wdw_str, sts_str,
+            DM_trans=None, STS_trans=None) -> None:
+        super().__init__(), self.__dict__.update(locals())
 
     def __len__(self) -> int:
-
         """ Return the length of the dataset. """
-        
         return len(self.index)
 
 
@@ -111,24 +63,37 @@ class SFDataset(Dataset):
         # Return the frame, series, and label
         return frame, series, label
 
-# ================================================================= #
-
-class SFDataModule(LightningDataModule):
+class StaticDM(LightningDataModule):
 
     """ Data module for the experiments. """
 
+    STS: np.ndarray     # data stream
+    SCS: np.ndarray     # class stream
+    DM: np.ndarray      # dissimilarity matrix
+    wdw_len: int
+    wdw_str: int
+    sts_str: bool
+
     def __init__(self,
-            X: np.ndarray, # 
-            Y: np.ndarray, # class stream
-            Z: np.ndarray, # paterns
-            mode: str,
+            STS: np.ndarray,
+            SCS: np.ndarray,
+            DM: np.ndarray,
+
+
+            event_length: int,
+            patterns: np.ndarray,
+             
+            batch_size: int,
             
-            val_size: float, batch_size: int,
+            wdw_len: int,
+            wdw_str: int,
+            sts_str: bool,
+            
             window_length: int, 
             window_time_stride: int, 
             window_patt_stride: int, 
             stride_series: bool, 
-            random_state: int = 0, 
+            random_state: int = 42, 
             num_workers: int = mp.cpu_count()//2
             ) -> None:
         

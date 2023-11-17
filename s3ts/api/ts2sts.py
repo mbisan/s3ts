@@ -15,22 +15,21 @@ def compute_medoids(
         raise ValueError(f"The distance type must be one of {suported_metrics}.")
     
     # grab the classes
+    sdim, slen = X.shape[1], X.shape[2]
     classes = np.unique(Y)
 
     # Initialize the arrays
-    meds = np.empty((len(np.unique(Y)), meds_per_class, X.shape[1]), dtype=float)
+    meds = np.empty((len(np.unique(Y)), meds_per_class, sdim, slen), dtype=float)
     meds_idx = np.empty((len(np.unique(Y)), meds_per_class), dtype=int)
     
     # Find the medoids for each class
     for i, y in enumerate(classes):
-
-        index = np.argwhere(Y == y)
-        X_y = X[index, :]
+        index = np.argwhere(Y == y)[:,0]
+        X_y = X[index,:,:]
         dm = pairwise_distance(X_y, metric=metric)
         scores = dm.sum(axis=0)
-        meds_idx_y = np.argpartition(scores, meds_per_class)
-
-        meds[i,:,:] = X_y[meds_idx_y,:]
+        meds_idx_y = np.argpartition(scores, meds_per_class)[:meds_per_class]
+        meds[i,:,:] = X_y[meds_idx_y]
         meds_idx[i,:] = index[meds_idx_y]
 
     # Return the medoids and their indices
@@ -52,14 +51,14 @@ def finite_random_STS(
     STS_dim, STS_len = X.shape[1], X.shape[2]*length
 
     # initialize STS
-    STS = np.empty((STS_dim, STS_len) , dtype=float)
-    SCS = np.empty(STS_len, dtype=int)
+    STS = np.zeros((STS_dim, STS_len), dtype=np.float32)
+    SCS = np.zeros(STS_len, dtype=np.int8)
 
     # random concatenation
     for s in range(length):
         rand_idx = rng.integers(0, nsamp)
-        STS[:,s*lsamp:(s+1)*lsamp] = X[rand_idx,:,:]        
-        SCS[s*lsamp:(s+1)*lsamp] = Y[rand_idx]
+        STS[:, s*lsamp:(s+1)*lsamp] = X[rand_idx,:,:] 
+        SCS[ s*lsamp : (s+1)*lsamp ] = Y[rand_idx]
 
     return STS, SCS
 

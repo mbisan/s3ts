@@ -11,7 +11,7 @@ from pytorch_lightning import Trainer, seed_everything
 
 # in-package imports
 from s3ts.models.wrapper import WrapperModel
-from s3ts.data.modules import DFDataModule
+from s3ts.legacy.modules import DFDataModule
 
 # default pl settings
 default_pl_kwargs: dict = {

@@ -39,7 +39,6 @@ def compute_DM(
                         DM[p, i, j] += (patterns[p,k,i] - STS[k,j])**2
 
     # Compute the DM
-
     if prev_col is None:
         for p in prange(npatts):
             # Solve first row

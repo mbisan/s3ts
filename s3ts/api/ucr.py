@@ -6,7 +6,7 @@
 """ File containing the function to download a dataset from UCR/UEA archive. """
 
 # standard library
-from s3ts.data.series import compute_medoids
+from s3ts.legacy.series import compute_medoids
 from pathlib import Path
 import logging as log
 import warnings

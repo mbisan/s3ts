@@ -4,7 +4,7 @@
 """ Command Line Interface (CLI) for the S3TS package. """
 
 # package imports
-from s3ts.models.training import run_model, save_results
+from s3ts.legacy.training import run_model, save_results
 from s3ts.data.acquisition import download_dataset
 from s3ts.experiments.setup import setup_pretrain_dm
 from s3ts.experiments.setup import setup_train_dm 
