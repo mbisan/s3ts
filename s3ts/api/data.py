@@ -1,0 +1,1 @@
+""" Functions to generate an STS dataset from a batch TS dataset. """

@@ -6,9 +6,9 @@
 # package imports
 from s3ts.models.training import run_model, save_results
 from s3ts.data.acquisition import download_dataset
-from s3ts.data.setup import setup_pretrain_dm
-from s3ts.data.setup import setup_train_dm 
-from s3ts.data.setup import train_test_splits
+from s3ts.experiments.setup import setup_pretrain_dm
+from s3ts.experiments.setup import setup_train_dm 
+from s3ts.experiments.setup import train_test_splits
 
 # standard library
 import multiprocessing as mp
@@ -145,6 +145,7 @@ def main_loop(
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     # Download the dataset or load it from storage
+    # TODO add support for external datasets
     X, Y, medoids, medoid_idx = download_dataset(dataset=dataset, storage_dir=storage_dir)
 
     # If arch is 'nn', set the window length to the length of the samples

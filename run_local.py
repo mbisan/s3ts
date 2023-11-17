@@ -4,7 +4,7 @@
 """ Automatic local training script for the paper's experiments. """
 
 # package imports
-from s3ts.cli import main_loop
+from s3ts.experiments.cli import main_loop
 
 # standard library
 import multiprocessing as mp
