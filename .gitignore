@@ -134,3 +134,6 @@ training/
 cache/
 test/
 results/
+
+# ignore changes to datasets folder
+storage/datasets

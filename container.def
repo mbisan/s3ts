@@ -1,0 +1,8 @@
+Bootstrap: docker
+From: pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+
+%files
+    requirements.txt requirements.txt
+
+%post
+    pip install -r ./requirements.txt
