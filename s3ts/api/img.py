@@ -104,22 +104,25 @@ def _minmax_clip_scaler(
 def compute_GM_optim(
         STS: np.ndarray, 
         patts: np.ndarray,
-        clip_range: np.ndarray
+        clip_range: np.ndarray = None
         ) -> np.ndarray:
-    
-    feature_range: tuple[int] = (-1, 1)
 
     STS_len: int = STS.shape[1]
     npatts: int = patts.shape[0]
     dpatts: int = patts.shape[1]
     lpatts: int = patts.shape[2]
 
+    # scale the STS
     STS_cos = np.zeros_like(STS)
-    
-    for j in prange(dpatts):
-        STS_cos[j] = _minmax_clip_scaler(STS[j])
+    if clip_range is None:
+        for j in prange(dpatts):
+            STS_cos[j] = _minmax_clip_scaler(STS[j])
+    else:
+        for j in prange(dpatts):
+            STS_cos[j] = _minmax_clip_scaler(STS[j], clip_range=clip_range[j])
     STS_sin = np.sqrt(np.clip(1 - STS_cos ** 2, 0, 1))
 
+    # scale the patterns
     patts_cos = np.zeros_like(patts)
     for i in prange(lpatts):
         for j in prange(dpatts):
