@@ -45,7 +45,7 @@ class CNN_DF(LightningModule):
         print("Latent shape: ", x.shape)
         return x.shape
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         feats = self.cnn_0(x.float())
         feats = self.cnn_1(feats)
         feats = self.cnn_2(feats)

@@ -29,16 +29,12 @@ from s3ts.models.encoders.series.RES import RES_TS
 import logging as log
 import numpy as np
 
-# ========================================================= #
-#                     MULTITASK MODEL                       #
-# ========================================================= #
-
 class WrapperModel(LightningModule):
 
     def __init__(self,
         mode: str, 
         arch: str,
-        target: str,
+        task: str,
         n_classes: int,
         n_patterns: int,
         l_patterns: int,
@@ -62,13 +58,13 @@ class WrapperModel(LightningModule):
         encoder_arch = self.encoder_dict[mode][arch]
 
         # Check decoder parameters
-        if target not in ["cls", "reg"]:
-            raise ValueError(f"Invalid target: {target}")
-        
+        if task not in ["cls", "reg"]:
+            raise ValueError(f"Invalid task: {task}")
+
         # Gather model parameters
         self.mode = mode
         self.arch = arch
-        self.target = target
+        self.target = task
         self.n_classes = n_classes
         self.n_patterns = n_patterns
         self.l_patterns = l_patterns

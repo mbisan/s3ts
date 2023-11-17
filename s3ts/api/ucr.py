@@ -1,3 +1,5 @@
+""" Functions to generate an STS dataset from a batch TS dataset. """
+
 # /usr/bin/env python3
 # # -*- coding: utf-8 -*-
 
@@ -19,7 +21,7 @@ from aeon.datasets import load_classification
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def download_dataset(dataset: str, storage_dir: Path) -> tuple[np.ndarray, np.ndarray]:
+def download_ucr(dataset: str, storage_dir: Path) -> tuple[np.ndarray, np.ndarray]:
 
     """ Load dataset from UCR/UEA time series archive. 
     If the dataset is not already downloaded, it will be downloaded and cached.
@@ -100,6 +102,8 @@ def download_dataset(dataset: str, storage_dir: Path) -> tuple[np.ndarray, np.nd
     # Return dataset features and labels
     return X, Y, medoids, medoid_idx
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
 def dset_exceptions(dataset: str, X: np.ndarray, Y: np.ndarray):
 
     """ Exceptions for datasets. """
@@ -156,3 +160,10 @@ def dset_exceptions(dataset: str, X: np.ndarray, Y: np.ndarray):
         Y = Yn
 
     return X, Y
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+def load_ucr():
+
+
+    pass

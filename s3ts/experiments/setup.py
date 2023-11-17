@@ -4,8 +4,8 @@
 """ Common functions for the experiments. """
 
 # in-package imports
-from s3ts.data.gramian import compute_GM_optim
-from s3ts.data.oesm import compute_DM_optim
+from s3ts.images.gramian import compute_GM_optim
+from s3ts.images.oesm import compute_DM_optim
 from s3ts.data.modules import DFDataModule
 from s3ts.data.series import compute_STS
 
