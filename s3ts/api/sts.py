@@ -26,7 +26,7 @@ def compute_medoids(
 
         index = np.argwhere(Y == y)
         X_y = X[index, :]
-        dm = pairwise_distance(Xy, metric=metric)
+        dm = pairwise_distance(X_y, metric=metric)
         scores = dm.sum(axis=0)
         meds_idx_y = np.argpartition(scores, meds_per_class)
 
@@ -38,7 +38,7 @@ def compute_medoids(
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def compute_random_STS(
+def finite_random_STS(
         X: np.ndarray, 
         Y: np.ndarray,
         length: int,
@@ -48,10 +48,9 @@ def compute_random_STS(
     # create random number generator
     rng = np.random.default_rng(seed=seed)
 
-    nsamp = X.shape[0]
-    STS_dim = X.shape[1]
-    sam_len = X.shape[2]
-    STS_len = X.shape[2]*length
+    # get dataset info
+    nsamp, lsamp = X.shape[0], X.shape[2]
+    STS_dim, STS_len = X.shape[1], X.shape[2]*length
 
     # initialize STS
     STS = np.empty((STS_dim, STS_len) , dtype=float)
@@ -60,11 +59,12 @@ def compute_random_STS(
     # random concatenation
     for s in range(length):
         rand_idx = rng.integers(0, nsamp)
-        STS[:,s*sam_len:(s+1)*sam_len] = X[rand_idx,:,:]        
-        SCS[s*sam_len:(s+1)*sam_len] = Y[rand_idx]
+        STS[:,s*lsamp:(s+1)*lsamp] = X[rand_idx,:,:]        
+        SCS[s*lsamp:(s+1)*lsamp] = Y[rand_idx]
 
-#TODO
-def compute_random_balanced_STS(
+    return STS, SCS
+
+def infite_random_STS(
         X: np.ndarray, 
         Y: np.ndarray,
         length: int,
@@ -74,122 +74,117 @@ def compute_random_balanced_STS(
     # create random number generator
     rng = np.random.default_rng(seed=seed)
 
-    nsamp = X.shape[0]
-    STS_dim = X.shape[1]
-    sam_len = X.shape[2]
-    STS_len = X.shape[2]*length
-
-    # initialize STS
-    STS = np.empty((STS_dim, STS_len) , dtype=float)
-    SCS = np.empty(STS_len, dtype=int)
+    # get dataset info
+    nsamp, lsamp = X.shape[0], X.shape[2]
 
     # random concatenation
-    for s in range(length):
+    while True:
         rand_idx = rng.integers(0, nsamp)
-        STS[:,s*sam_len:(s+1)*sam_len] = X[rand_idx,:,:]        
-        SCS[s*sam_len:(s+1)*sam_len] = Y[rand_idx]
+        for i in range(lsamp):
+            yield X[rand_idx,:,i], Y[rand_idx]
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def compute_STS(
-        X: np.ndarray, 
-        Y: np.ndarray,
-        STS_events: int,
-        shift_limits: bool,
-        mode: str = "random",
-        random_state: int = 0,
-        event_strat_size: int = 2,
-        add_first_event: bool = False,
-        ) -> tuple[np.ndarray, np.ndarray]:
 
-    """ Generates a Streaming Time Series (STS) from a given dataset. """
+# def compute_STS(
+#         X: np.ndarray, 
+#         Y: np.ndarray,
+#         STS_events: int,
+#         shift_limits: bool,
+#         mode: str = "random",
+#         random_state: int = 0,
+#         event_strat_size: int = 2,
+#         add_first_event: bool = False,
+#         ) -> tuple[np.ndarray, np.ndarray]:
 
-    # Check the shape of the dataset and labels match
-    if X.shape[0] != Y.shape[0]:
-        raise ValueError("The number of events in the dataset and labels must be the same.")
+#     """ Generates a Streaming Time Series (STS) from a given dataset. """
+
+#     # Check the shape of the dataset and labels match
+#     if X.shape[0] != Y.shape[0]:
+#         raise ValueError("The number of events in the dataset and labels must be the same.")
 
     
     
-    # Get the number of classes
-    n_classes = len(np.unique(Y))
+#     # Get the number of classes
+#     n_classes = len(np.unique(Y))
     
-    # Get the length of the time series
-    s_length = X.shape[1]
+#     # Get the length of the time series
+#     s_length = X.shape[1]
     
-    # Get the number of events
-    n_events = X.shape[0]
+#     # Get the number of events
+#     n_events = X.shape[0]
 
-    # Get the length of the final STS
-    STS_length = STS_events*s_length
+#     # Get the length of the final STS
+#     STS_length = STS_events*s_length
 
-    # Do some logging
-    log.info(f"Number of events: {n_events}")
-    log.info(f"Length of events: {s_length}")
-    log.info(f"Number of classes: {n_classes}")
-    log.info(f"Class ratios: {np.unique(Y, return_counts=True)[1]/n_events}")
-    log.info(f"Length of STS: {STS_length}")
+#     # Do some logging
+#     log.info(f"Number of events: {n_events}")
+#     log.info(f"Length of events: {s_length}")
+#     log.info(f"Number of classes: {n_classes}")
+#     log.info(f"Class ratios: {np.unique(Y, return_counts=True)[1]/n_events}")
+#     log.info(f"Length of STS: {STS_length}")
 
-    # Initialize the arrays
-    if add_first_event:
-        STS = np.empty(STS_length+s_length, dtype=np.float32)
-        SCS = np.empty(STS_length+s_length, dtype=np.int8)
-        random_idx = rng.integers(0, n_events)
-        STS[0:s_length] = X[random_idx,:]
-        SCS[0:s_length] = Y[random_idx]
-    else:
-        STS = np.empty(STS_length, dtype=np.float32)
-        SCS = np.empty(STS_length, dtype=np.int8)
+#     # Initialize the arrays
+#     if add_first_event:
+#         STS = np.empty(STS_length+s_length, dtype=np.float32)
+#         SCS = np.empty(STS_length+s_length, dtype=np.int8)
+#         random_idx = rng.integers(0, n_events)
+#         STS[0:s_length] = X[random_idx,:]
+#         SCS[0:s_length] = Y[random_idx]
+#     else:
+#         STS = np.empty(STS_length, dtype=np.float32)
+#         SCS = np.empty(STS_length, dtype=np.int8)
 
-    # Generate the STS 
-    if mode == "random":
-        for s in range(STS_events):
+#     # Generate the STS 
+#     if mode == "random":
+#         for s in range(STS_events):
 
-            random_idx = rng.integers(0, n_events)
-            s = s+1 if add_first_event else s
+#             random_idx = rng.integers(0, n_events)
+#             s = s+1 if add_first_event else s
 
-            # Calculate shift so that sample ends match
-            shift = STS[s-1] - X[random_idx,0] if shift_limits else 0
+#             # Calculate shift so that sample ends match
+#             shift = STS[s-1] - X[random_idx,0] if shift_limits else 0
 
-            STS[s*s_length:(s+1)*s_length] = X[random_idx,:] + shift
-            SCS[s*s_length:(s+1)*s_length] = Y[random_idx]
+#             STS[s*s_length:(s+1)*s_length] = X[random_idx,:] + shift
+#             SCS[s*s_length:(s+1)*s_length] = Y[random_idx]
 
-    if mode == "stratified":
+#     if mode == "stratified":
         
-        exc =  n_events//n_classes
+#         exc =  n_events//n_classes
 
-        if exc%event_strat_size != 0:
-            raise ValueError("The number of events per class must be a multiple of the event stratification size.")
+#         if exc%event_strat_size != 0:
+#             raise ValueError("The number of events per class must be a multiple of the event stratification size.")
     
-        if STS_events%exc != 0:
-            raise ValueError("The number of events in the STS must be a multiple of the number of events per class.")
+#         if STS_events%exc != 0:
+#             raise ValueError("The number of events in the STS must be a multiple of the number of events per class.")
 
-        event_idx = np.arange(X.shape[0])
+#         event_idx = np.arange(X.shape[0])
         
-        clist = []
-        for c in np.unique(Y):
-            Yc_idx = event_idx[Y==c]
-            rng.shuffle(Yc_idx)
-            clist.append(np.reshape(Yc_idx, (-1, event_strat_size)))
+#         clist = []
+#         for c in np.unique(Y):
+#             Yc_idx = event_idx[Y==c]
+#             rng.shuffle(Yc_idx)
+#             clist.append(np.reshape(Yc_idx, (-1, event_strat_size)))
 
-        strats = np.concatenate(clist, axis=1)
-        n_repeats = STS_events // n_events
+#         strats = np.concatenate(clist, axis=1)
+#         n_repeats = STS_events // n_events
 
-        cidx = 1 if add_first_event else 0
-        for strat in range(strats.shape[0]):
-            for _ in range(n_repeats):
-                for s in rng.permutation(strats[strat,:]):
+#         cidx = 1 if add_first_event else 0
+#         for strat in range(strats.shape[0]):
+#             for _ in range(n_repeats):
+#                 for s in rng.permutation(strats[strat,:]):
 
-                    # Calculate shift so that sample ends match
-                    shift = STS[cidx-1] - X[s,0] if shift_limits else 0
+#                     # Calculate shift so that sample ends match
+#                     shift = STS[cidx-1] - X[s,0] if shift_limits else 0
 
-                    STS[cidx*s_length:(cidx+1)*s_length] = X[s,:] + shift
-                    SCS[cidx*s_length:(cidx+1)*s_length] = Y[s]
+#                     STS[cidx*s_length:(cidx+1)*s_length] = X[s,:] + shift
+#                     SCS[cidx*s_length:(cidx+1)*s_length] = Y[s]
 
-                    # Calculate shift so that sample ends match
-                    cidx += 1
+#                     # Calculate shift so that sample ends match
+#                     cidx += 1
 
-    # Normalize the STS
-    STS = (STS - np.mean(STS))/np.std(STS)
+#     # Normalize the STS
+#     STS = (STS - np.mean(STS))/np.std(STS)
 
-    # Return the STS and the SCS
-    return STS, SCS
+#     # Return the STS and the SCS
+#     return STS, SCS
