@@ -50,12 +50,22 @@ class WrapperModel(LightningModule):
     dec_feats: int      # decoder feature hyperparam
     lr: float           # learning rate
 
-    def __init__(self, name, dtype, arch, task,
-        n_dims, n_classes, n_patterns,l_patterns,
+    def __init__(self, dtype, arch, task,
+        n_dims, n_classes, n_patterns, l_patterns,
         wdw_len, wdw_str, sts_str,
-        enc_feats, dec_feats, lr) -> None:
+        enc_feats, dec_feats, lr,
+        name=None) -> None:
 
         """ Wrapper for the PyTorch models used in the experiments. """
+
+        if name is None:
+            name = f"{dtype}_{arch}_{task}_wl{wdw_len}_ws{wdw_str}_ss{sts_str}"
+            if dtype == "ts":
+                name += f"_nd{n_dims}"
+            elif dtype == "img":
+                name += f"_np{n_patterns}_lp{l_patterns}"
+            if task == "cls":
+                name += f"_n{n_classes}"
 
         # save parameters as attributes
         super(WrapperModel).__init__(), self.__dict__.update(locals())

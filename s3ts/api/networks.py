@@ -14,12 +14,23 @@ from s3ts.models.wrapper import WrapperModel
 from s3ts.api.sts2dm import StaticDM
 from s3ts.legacy.modules import DFDataModule
 
+
+
 # default pl settings
 default_pl_kwargs: dict = {
     "default_root_dir": "training",
     "accelerator": "auto",
     "seed": 42
 }
+
+# default learning rate
+default_lr = 1E-4
+
+# default networks sizes
+default_dec_feats: int = 64
+default_enc_feats: dict[dict[int]] = { 
+    "ts": {"rnn": 40, "cnn": 48, "res": 16},
+    "img": {"cnn": 20, "res": 12}}
 
 # metrics settings
 metric_settings: dict = {
@@ -29,18 +40,19 @@ metric_settings: dict = {
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def create_model_from_DM(
-        dm: StaticDM,
-        dtype: str,
-        arch: str,
-        task: str,
-        enc_feats: int = None,
-        dec_feats: int = None,
-        lr: float = 1e-5
+def create_model_from_DM(dm: StaticDM, dtype: str, arch: str, task: str, name: str = None,
+        enc_feats: int = None, dec_feats: int = None, lr: float = default_lr
         ) -> WrapperModel:
     
-
+    # use defaults values if needed
+    if enc_feats is None:
+        enc_feats = default_enc_feats[dtype][arch]
+    if dec_feats is None:
+        dec_feats = default_dec_feats
+    
+    # return the model
     return WrapperModel(
+        name=name,
         dtype=dtype,
         arch=arch,
         task= task,
