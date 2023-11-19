@@ -4,9 +4,7 @@ from pytorch_lightning import LightningModule
 import torch.nn as nn
 import torch
 
-class CNN_DF(LightningModule):
-
-    """ Basic CNN for dissimilarity frames. """
+class CNN_IMG(LightningModule):
 
     def __init__(self, channels: int, wdw_size: int, ref_size: int,
                  n_feature_maps: int = 32):

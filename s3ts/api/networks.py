@@ -11,6 +11,7 @@ from pytorch_lightning import Trainer, seed_everything
 
 # in-package imports
 from s3ts.models.wrapper import WrapperModel
+from s3ts.api.sts2dm import StaticDM
 from s3ts.legacy.modules import DFDataModule
 
 # default pl settings
@@ -28,9 +29,27 @@ metric_settings: dict = {
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def create_model(
-        
+def create_model_from_DM(
+        dm: StaticDM,
         ) -> WrapperModel:
+    
+
+    return WrapperModel(
+        mode = mode,
+        arch = arch,
+        task: str,
+        n_classes: int,
+        n_patterns: int,
+        l_patterns: int,
+        window_length: int,
+        window_time_stride: int,
+        window_patt_stride: int,
+        stride_series: bool,
+        encoder_feats: int,
+        decoder_feats: int,
+        learning_rate: float,
+
+    )
     
 
     pass
