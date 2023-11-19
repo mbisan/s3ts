@@ -1,8 +1,6 @@
 #/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-""" Data modules for the S3TS project. """
-
 # torch / lightning imports
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import Dataset, DataLoader

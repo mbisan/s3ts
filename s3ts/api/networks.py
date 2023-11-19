@@ -31,28 +31,29 @@ metric_settings: dict = {
 
 def create_model_from_DM(
         dm: StaticDM,
+        dtype: str,
+        arch: str,
+        task: str,
+        enc_feats: int = None,
+        dec_feats: int = None,
+        lr: float = 1e-5
         ) -> WrapperModel:
     
 
     return WrapperModel(
-        mode = mode,
-        arch = arch,
-        task: str,
-        n_classes: int,
-        n_patterns: int,
-        l_patterns: int,
-        window_length: int,
-        window_time_stride: int,
-        window_patt_stride: int,
-        stride_series: bool,
-        encoder_feats: int,
-        decoder_feats: int,
-        learning_rate: float,
-
-    )
-    
-
-    pass
+        dtype=dtype,
+        arch=arch,
+        task= task,
+        wdw_len=dm.wdw_len,
+        wdw_str=dm.wdw_str,
+        sts_str=dm.sts_str,
+        n_dims=dm.n_dims,
+        n_classes=dm.n_classes,
+        n_patterns=dm.n_patterns,
+        l_patterns=dm.l_patterns,
+        enc_feats=enc_feats,
+        dec_feats=dec_feats,
+        lr=lr)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 

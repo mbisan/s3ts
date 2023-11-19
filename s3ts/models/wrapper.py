@@ -7,7 +7,6 @@ from __future__ import annotations
 
 # lightning
 from s3ts.models.decoders.linear import LinearDecoder
-from s3ts.models.decoders.lstm import LSTMDecoder
 from pytorch_lightning import LightningModule
 
 # base torch
@@ -20,13 +19,11 @@ import torch
 # architectures
 from s3ts.models.encoders.frames.CNN import CNN_IMG
 from s3ts.models.encoders.frames.RES import RES_IMG
-
 from s3ts.models.encoders.series.RNN import RNN_TS
 from s3ts.models.encoders.series.CNN import CNN_TS
 from s3ts.models.encoders.series.RES import RES_TS
 
 # numpy
-import logging as log
 import numpy as np
 
 
@@ -54,10 +51,9 @@ class WrapperModel(LightningModule):
     lr: float           # learning rate
 
     def __init__(self, name, dtype, arch, task,
-        n_classes, n_patterns,l_patterns,
+        n_dims, n_classes, n_patterns,l_patterns,
         wdw_len, wdw_str, sts_str,
-        enc_feats, dec_feats, lr
-        ) -> None:
+        enc_feats, dec_feats, lr) -> None:
 
         """ Wrapper for the PyTorch models used in the experiments. """
 
