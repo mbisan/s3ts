@@ -1,7 +1,7 @@
 #/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-""" Command Line Interface (CLI) for the S3TS package. """
+""" Command Line Interface (CLI) for the synthetic experiments. """
 
 # package imports
 from s3ts.legacy.training import run_model, save_results
@@ -11,59 +11,36 @@ from s3ts.experiments.setup import setup_train_dm
 from s3ts.experiments.setup import train_test_splits
 
 # standard library
-import multiprocessing as mp
 from pathlib import Path
 import logging as log
-import numpy as np
 import argparse
-import time, sys
-
-# torch configuration
-import torch
-torch.set_float32_matmul_precision("medium")
-
-from s3ts.experiments.synthetic
 
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='''Perform the experiments showcased in the article.''')
 
-    parser.add_argument('--dataset', type=str, required=True,
-        choices = ["ArrowHead", "CBF", "ECG200", "ECG5000", "GunPoint", "SyntheticControl", "Trace", "TwoLeadECG"],
+    # compulsory parameters
+    parser.add_argument('--dset', type=str, required=True,
         help='Name of the dataset from which create the DTWs')
-
-    parser.add_argument('--mode', type=str, required=True, choices=['ts', 'df', 'gf'],
-        help='Data representation (df: dissimilarity frames, ts: time series)')
-
-    parser.add_argument('--arch', type=str, required=True, choices=['nn', 'rnn', 'cnn', 'res', 'tcn', 'dfn'],
+    parser.add_argument('--dsrc', type=str, required=True, choices=['ts', 'df', 'gf'],
+        help=r'Data source for the model {ts: time series, df: dissimilairty frames, gf: gramian frames}')
+    parser.add_argument('--arch', type=str, required=True, choices=['nn', 'rnn', 'cnn', 'res'],
         help='Name of the architecture from which create the model')
-    
     parser.add_argument('--use_pretrain', type=bool, action=argparse.BooleanOptionalAction, 
                         default=False, help='Use pretrained encoder or not (df/gf mode only)')
-
     parser.add_argument('--pretrain_mode', type=bool, action=argparse.BooleanOptionalAction,  
                         default=False, help='Switch between train and pretrain mode')
+    parser.add_argument('--rho_dfs', type=float, default=0.1, help='Forgetting parameter (DF only)')
 
-    parser.add_argument('--rho_dfs', type=float, default=0.1,
-                        help='Value of the forgetting parameter for the DF representation')
-    
-    parser.add_argument('--window_length', type=int, default=10,
-                        help='Window legth for the encoder')
-    
-    parser.add_argument('--stride_series', type=bool, action=argparse.BooleanOptionalAction,  
-                        default=False, help='Stride the time series during pretrain')
+    # window parameters
+    parser.add_argument('--wlen', type=int, default=10, help='Window length')
+    parser.add_argument('--wdw_str', type=int, default=1, help='Window stride')
+    parser.add_argument('--str_str', type=bool, action=argparse.BooleanOptionalAction,  
+                        default=False, help='Whether to stride the stream during pretrain')
 
-    parser.add_argument('--window_time_stride', type=int, default=1,
-                        help='Window time stride used for the encoder')
-    
-    parser.add_argument('--window_patt_stride', type=int, default=1,
-                        help='Window pattern stride used for the encoder')
-    
-    parser.add_argument('--num_encoder_feats', type=int, default=32,
-                        help='Number of features used for the encoder.')
-    
-    parser.add_argument('--num_decoder_feats', type=int, default=64,
-                        help='Number of features used for the encoder.')
+    #
+    parser.add_argument('--enc_feats', type=int, default=None, help='Encoder complexity hyperparameter.')
+    parser.add_argument('--dec_feats', type=int, default=64, help='Decoder complexity hyperparameter.')
     
     parser.add_argument('--exc', type=int, default=16,
                         help='Number of events per class')
@@ -98,23 +75,11 @@ if __name__ == '__main__':
     parser.add_argument('--cv_rep', type=int, default=0,
                         help='Cross-validation repetition number')
 
-    parser.add_argument('--random_state', type=int, default=0,
-                        help='Global seed for the random number generators')
-    
-    parser.add_argument('--log_file', type=str, default="debug.log",
-                        help='Log file for the training')
-    
     parser.add_argument('--res_fname', type=str, default="results.csv",
                         help='Results file for the training')
     
     parser.add_argument('--train_dir', type=str, default="training/",
                         help='Directory for the training files')
-    
-    parser.add_argument('--storage_dir', type=str, default="storage/",
-                        help='Directory for the data storage')
-    
-    parser.add_argument('--num_workers', type=int, default=mp.cpu_count()//2,
-                        help='Number of workers for the data loaders')
 
     args = parser.parse_args()
    
