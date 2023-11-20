@@ -2,21 +2,28 @@
 # -*- coding: utf-8 -*-
 
 # torch / lightning imports
-from pytorch_lightning import LightningDataModule
+
 from torch.utils.data import Dataset, DataLoader
+from s3ts.api.dm.base import StreamingFramesDM
+
+
 import torchvision as tv
 import torch
+
+from s3ts.api.simulation import StreamSimulator
+
 
 # standard library imports
 import multiprocessing as mp
 import numpy as np
 
-class StaticDS(Dataset):
+
+
+class DynamicDS(Dataset):
 
     DM: torch.Tensor
     STS: torch.Tensor
     SCS: torch.Tensor
-    index: np.ndarray
     wdw_len: int
     wdw_str: int
     sts_str: bool
@@ -52,64 +59,58 @@ class StaticDS(Dataset):
 
         return {"frame": frame, "series": series, "label": label}
 
-class StaticDM(LightningDataModule):
+class DynamicDM(StreamingFramesDM):
 
     """ Data module for the experiments. """
 
-    STS: np.ndarray     # data stream
-    SCS: np.ndarray     # class stream
+    X: np.ndarray       # data stream
+    Y: np.ndarray       # class stream
     DM: np.ndarray      # dissimilarity matrix
 
-    wdw_len: int        # window length
-    wdw_str: int        # window stride
-    sts_str: bool       # stride the series too?
-
-    n_dims: int         # number of STS dimensions
-    n_classes: int      # number of classes
-    n_patterns: int     # number of patterns
-    l_patterns: int     # pattern size
-    
     data_split: dict[str: np.ndarray]    
                         # train / val / test split
+    nsamps: dict[str: np.ndarray]    
+                        # train / val / test nsamps
+    pskip: float        # probability to skip a frame
     batch_size: int     # dataloader batch size
     
     random_seed: int    # random seed
     num_workers: int    # dataloader nworkers
 
-    def __init__(self,
-            STS: np.ndarray, SCS: np.ndarray, DM: np.ndarray,    
+    def __init__(self, X: np.ndarray, Y: np.ndarray, 
+            patts: np.ndarray, img_type: str,    
             wdw_len: int, wdw_str: int, sts_str: bool,
-            data_split: dict, batch_size: int, 
-            random_state: int = 42, num_workers: int = mp.cpu_count()//2
+            batch_size: int, data_split: dict, 
+            nsamps: dict, pskip: float,
+            random_state: int = 42, 
+            num_workers: int = mp.cpu_count()//2
             ) -> None:
         
         # save parameters as attributes
         super().__init__(), self.__dict__.update(locals())
 
         # gather dataset info   
-        self.n_dims = STS.shape[0]
-        self.n_classes = len(np.unique(SCS))
-        self.n_patterns = DM.shape[0]
-        self.l_patterns = DM.shape[1]
+        self.n_dims = X.shape[1]
+        self.n_classes = len(np.unique(Y))
+        self.n_patterns = patts.shape[0]
+        self.l_patterns = patts.shape[2]
 
+        train_idx = self.data_split["train"]
+        val_idx = self.data_split["val"]
+        test_idx = self.data_split["test"]
+
+        for stage in ["train", "val", "test"]:
+
+            sim = StreamSimulator(X= X[data_split[stage]],
+                Y = X[data_split[stage]], patts=patts,
+                wdw_len=wdw_len, wdw_str=wdw_str,
+                infinite_STS=)
+            
+        
         # convert to tensors
         self.STS = torch.from_numpy(STS).to(torch.float32)
         self.SCS = torch.from_numpy(SCS).to(torch.int64)
         self.DM = torch.from_numpy(DM).to(torch.float32)
-
-        # generate datasets
-        self.update(wdw_len=wdw_len, wdw_str=wdw_str, sts_str=sts_str,
-            data_split=data_split, batch_size=batch_size)
-
-    def update(self, wdw_len: int = None, wdw_str: int = None, sts_str: bool = None,
-            data_split: dict = None, batch_size: int = None) -> None:
-
-        """ Generate datasets based on the frame parameters. """
-
-        # update values if provided
-        for var, val in locals().items():
-            if val is not None:
-                self.__dict__[var] = val
 
         if data_split is not None:
             margin = self.wdw_len*self.wdw_str+1
@@ -120,7 +121,6 @@ class StaticDM(LightningDataModule):
         train_idx = self.data_split["train"]
         val_idx = self.data_split["val"]
         test_idx = self.data_split["test"]
-        print(len(test_idx))
 
         DM_trans = tv.transforms.Normalize(
             self.DM[:,:,train_idx].mean(axis=[1,2]),

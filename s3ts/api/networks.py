@@ -11,7 +11,7 @@ from pytorch_lightning import Trainer, seed_everything
 
 # in-package imports
 from s3ts.models.wrapper import WrapperModel
-from s3ts.api.sts2dm import StaticDM
+from s3ts.api.dm.base import StreamingFramesDM
 
 # other imports
 import numpy as np
@@ -41,7 +41,7 @@ metric_settings: dict = {
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def create_model_from_DM(dm: StaticDM, dsrc: str, arch: str, task: str, name: str = None,
+def create_model_from_DM(dm:  StreamingFramesDM, dsrc: str, arch: str, task: str, name: str = None,
         enc_feats: int = None, dec_feats: int = None, lr: float = default_lr
         ) -> WrapperModel:
     
@@ -71,7 +71,7 @@ def create_model_from_DM(dm: StaticDM, dsrc: str, arch: str, task: str, name: st
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 def train_model(
-        dm: StaticDM, 
+        dm: StreamingFramesDM, 
         model: WrapperModel,
         max_epochs: int,
         pl_kwargs: dict = default_pl_kwargs,
@@ -102,7 +102,7 @@ def train_model(
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def test_model(dm: StaticDM, model: WrapperModel,
+def test_model(dm: StreamingFramesDM, model: WrapperModel,
         pl_kwargs: dict = default_pl_kwargs) -> dict:
     
     # choose metrics
@@ -119,7 +119,7 @@ def test_model(dm: StaticDM, model: WrapperModel,
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def get_test_preds(dm: StaticDM, model: WrapperModel,
+def get_test_preds(dm: StreamingFramesDM, model: WrapperModel,
         pl_kwargs: dict = default_pl_kwargs) -> tuple[np.ndarray, np.ndarray]:
     
     # choose metrics

@@ -1,4 +1,12 @@
+
+from s3ts.api.ucr import load_ucr_classification
+from s3ts.api.ts2sts import finite_random_STS
+from s3ts.api.ts2sts import compute_medoids
+from s3ts.api.dm.sts import StaticDM
+
+from pathlib import Path
 import numpy as np
+import time
 
 def train_test_splits(X: np.ndarray, Y: np.ndarray, 
         exc: int, nreps: int, random_state: int):
@@ -47,97 +55,97 @@ def train_test_splits(X: np.ndarray, Y: np.ndarray,
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def setup_train_dm(
-        X: np.ndarray, Y: np.ndarray, 
-        mode: str, patterns: np.ndarray,
-        train_idx: np.ndarray, test_idx: np.ndarray, 
-        test_sts_length: int, 
-        train_event_limit: int,
-        train_strat_size: int,
-        train_event_mult: int, 
-        rho_dfs: float, 
-        batch_size: int, val_size: float,
-        window_length: int,
-        stride_series: bool,
-        window_time_stride: int, 
-        window_patt_stride: int,
-        random_state: int,
-        num_workers: int = mp.cpu_count()//2,
-        ) -> DFDataModule:
+# def setup_train_dm(
+#         X: np.ndarray, Y: np.ndarray, 
+#         mode: str, patterns: np.ndarray,
+#         train_idx: np.ndarray, test_idx: np.ndarray, 
+#         test_sts_length: int, 
+#         train_event_limit: int,
+#         train_strat_size: int,
+#         train_event_mult: int, 
+#         rho_dfs: float, 
+#         batch_size: int, val_size: float,
+#         window_length: int,
+#         stride_series: bool,
+#         window_time_stride: int, 
+#         window_patt_stride: int,
+#         random_state: int,
+#         num_workers: int = mp.cpu_count()//2,
+#         ) -> DFDataModule:
 
-    """ Sets up the training DataModule."""
+#     """ Sets up the training DataModule."""
 
-    # Get the train, test and medoid events
-    X_train, Y_train = X[train_idx,:], Y[train_idx]
-    X_test, Y_test = X[test_idx,:], Y[test_idx]
+#     # Get the train, test and medoid events
+#     X_train, Y_train = X[train_idx,:], Y[train_idx]
+#     X_test, Y_test = X[test_idx,:], Y[test_idx]
 
-    # Validate the inputs
-    event_length = X_train.shape[1]     # Get the length of the time series
+#     # Validate the inputs
+#     event_length = X_train.shape[1]     # Get the length of the time series
 
-    # Check there is the same numbe of classes in train and test
-    if len(np.unique(Y_train)) != len(np.unique(Y_test)):
-        raise ValueError("The number of classes in train and test must be the same.")
+#     # Check there is the same numbe of classes in train and test
+#     if len(np.unique(Y_train)) != len(np.unique(Y_test)):
+#         raise ValueError("The number of classes in train and test must be the same.")
 
-    # Check there is the same number of events in each class in train
-    if len(np.unique(np.unique(Y_train, return_counts=True)[1])) != 1:
-        raise ValueError("The number of events in each class in train must be the same.")
+#     # Check there is the same number of events in each class in train
+#     if len(np.unique(np.unique(Y_train, return_counts=True)[1])) != 1:
+#         raise ValueError("The number of events in each class in train must be the same.")
 
-    # Check the number of events in each class in train is a multiple of the stratification size
-    if len(Y_train)%train_strat_size != 0:
-        raise ValueError("The number of events in each class in train must be a multiple of the stratification size.")
+#     # Check the number of events in each class in train is a multiple of the stratification size
+#     if len(Y_train)%train_strat_size != 0:
+#         raise ValueError("The number of events in each class in train must be a multiple of the stratification size.")
 
-    STS_nev_train = len(train_idx)*train_event_mult
-    STS_nev_test = test_sts_length
+#     STS_nev_train = len(train_idx)*train_event_mult
+#     STS_nev_test = test_sts_length
 
-    log.info("Generating the train STS")
-    STS_train, SCS_train = compute_STS(X_train, Y_train,        
-        shift_limits=True, STS_events=STS_nev_train, 
-        mode="stratified", event_strat_size=train_strat_size,
-        random_state=random_state, add_first_event=True)
+#     log.info("Generating the train STS")
+#     STS_train, SCS_train = compute_STS(X_train, Y_train,        
+#         shift_limits=True, STS_events=STS_nev_train, 
+#         mode="stratified", event_strat_size=train_strat_size,
+#         random_state=random_state, add_first_event=True)
     
-    log.info("Generating the test STS")
-    STS_test, SCS_test = compute_STS(X_test, Y_test,                
-        shift_limits=True, STS_events=STS_nev_test, mode="random", 
-        random_state=random_state, add_first_event=True)
+#     log.info("Generating the test STS")
+#     STS_test, SCS_test = compute_STS(X_test, Y_test,                
+#         shift_limits=True, STS_events=STS_nev_test, mode="random", 
+#         random_state=random_state, add_first_event=True)
 
-    if mode == "df" or mode == "ts":
-        log.info("Computing the train DM")
-        DM_train = compute_DM_optim(STS_train, patterns, rho_dfs)
-        log.info("Computing the test DM")
-        DM_test = compute_DM_optim(STS_test, patterns, rho_dfs)
-    elif mode == "gf":
-        log.info("Computing the train GM")
-        DM_train = compute_GM_optim(STS_train, patterns)
-        log.info("Computing the test GM")
-        DM_test = compute_GM_optim(STS_test, patterns)
+#     if mode == "df" or mode == "ts":
+#         log.info("Computing the train DM")
+#         DM_train = compute_DM_optim(STS_train, patterns, rho_dfs)
+#         log.info("Computing the test DM")
+#         DM_test = compute_DM_optim(STS_test, patterns, rho_dfs)
+#     elif mode == "gf":
+#         log.info("Computing the train GM")
+#         DM_train = compute_GM_optim(STS_train, patterns)
+#         log.info("Computing the test GM")
+#         DM_test = compute_GM_optim(STS_test, patterns)
 
-    # Remove the first sample from the STSs
-    STS_train, STS_test = STS_train[event_length:], STS_test[event_length:]
-    SCS_train, SCS_test = SCS_train[event_length:], SCS_test[event_length:]
-    DM_train, DM_test = DM_train[:,:,event_length:], DM_test[:,:,event_length:]
+#     # Remove the first sample from the STSs
+#     STS_train, STS_test = STS_train[event_length:], STS_test[event_length:]
+#     SCS_train, SCS_test = SCS_train[event_length:], SCS_test[event_length:]
+#     DM_train, DM_test = DM_train[:,:,event_length:], DM_test[:,:,event_length:]
 
-    # Remove events according to train_event_limit
-    limit_idx = event_length*train_event_limit
-    STS_train, STS_test = STS_train[:limit_idx], STS_test[:limit_idx]
-    SCS_train, SCS_test = SCS_train[:limit_idx], SCS_test[:limit_idx]
-    DM_train, DM_test = DM_train[:,:,:limit_idx], DM_test[:,:,:limit_idx]
+#     # Remove events according to train_event_limit
+#     limit_idx = event_length*train_event_limit
+#     STS_train, STS_test = STS_train[:limit_idx], STS_test[:limit_idx]
+#     SCS_train, SCS_test = SCS_train[:limit_idx], SCS_test[:limit_idx]
+#     DM_train, DM_test = DM_train[:,:,:limit_idx], DM_test[:,:,:limit_idx]
 
-    # Return the DataModule
-    return DFDataModule(
-        X_train=X_train, Y_train=Y_train, X_test=X_test, Y_test=Y_test,
-        STS_train=STS_train, SCS_train=SCS_train, DM_train=DM_train,
-        STS_test=STS_test, SCS_test=SCS_test, DM_test=DM_test,
-        event_length=event_length, patterns=patterns,
-        batch_size=batch_size, val_size=val_size, 
-        stride_series=stride_series, window_length=window_length,
-        window_time_stride=window_time_stride, 
-        window_patt_stride=window_patt_stride,
-        random_state=random_state, 
-        num_workers=num_workers)
+#     # Return the DataModule
+#     return DFDataModule(
+#         X_train=X_train, Y_train=Y_train, X_test=X_test, Y_test=Y_test,
+#         STS_train=STS_train, SCS_train=SCS_train, DM_train=DM_train,
+#         STS_test=STS_test, SCS_test=SCS_test, DM_test=DM_test,
+#         event_length=event_length, patterns=patterns,
+#         batch_size=batch_size, val_size=val_size, 
+#         stride_series=stride_series, window_length=window_length,
+#         window_time_stride=window_time_stride, 
+#         window_patt_stride=window_patt_stride,
+#         random_state=random_state, 
+#         num_workers=num_workers)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def setup_pretrain_dm(
+def static_pretrain_dm(
         X: np.ndarray, Y: np.ndarray,
         mode: str, patterns: np.ndarray, 
         sts_length: int, rho_dfs: float, 
@@ -147,16 +155,18 @@ def setup_pretrain_dm(
         window_patt_stride: int,
         random_state: int,
         stride_series: bool = False,
-        num_workers: int = mp.cpu_count()//2,
-        ) -> DFDataModule:
+        ) -> StaticDM:
 
     """ Prepare the pretraining DataModule. """
 
     # Get the length of the time series
     event_length = X.shape[1]
     
-    log.info("Generating the pretrain STS")
-    STS_pret, SCS_pret = compute_STS(X, Y,                
+    STS_pret, SCS_pret = finite_random_STS(X, Y, sts_length)
+    
+    
+    
+    compute_STS(X, Y,                
         shift_limits=True, STS_events=sts_length, 
         mode="random", random_state=random_state, 
         add_first_event=True)
@@ -188,8 +198,6 @@ def setup_pretrain_dm(
         num_workers=num_workers)
 
 
-
-
 def experiment_loop(
         # control parameters
         dset: str,
@@ -218,10 +226,8 @@ def experiment_loop(
         random_state: int,
         cv_rep: int,
         # Paths
-        log_file: Path,
         res_fname: str,
         train_dir: Path,
-        storage_dir: Path,
         train_exc_limit: int = None,
         ):
     
@@ -229,85 +235,67 @@ def experiment_loop(
 
     start_time = time.perf_counter()
 
-    for fold in ["datasets", "results", "encoders"]:
+    for fold in ["results"]:
         path = storage_dir / fold
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)
 
+    dset_dir = Path(__file__).parent.resolve()
+    encoder_folder = dset_dir = dset_dir.parent.parent / "encoders"
 
     # ~~~~~~~~~~~~ Sanity checks ~~~~~~~~~~~~
-
-    log.info("Performing sanity checks...")
-
-    # Check encoder parameters
+    print("Performing sanity checks...")
     if dsrc not in ["ts", "df", "gf"]:
-        raise ValueError(f"Invalid representation: {mode}")
+        raise ValueError(f"Invalid representation: {dsrc}")
     if arch not in ["nn", "rnn", "cnn", "res"]:
         raise ValueError(f"Invalid architecture: {arch}")
     valid_combinations = {"ts": ["nn", "rnn", "cnn", "res"], 
             "df": ["cnn", "res"], "gf": ["cnn", "res"]}
     if arch not in valid_combinations[dsrc]:
-        raise ValueError(f"Architecture {arch} not available for representation {mode}.")
-
-    # Check stride_series is false if mode is TS
-    if mode == "ts" and stride_series:
-        raise ValueError("Stride series must be False for ts mode.")
-
-    # Check all window parameters are positive integers
-    for val in [window_length, window_time_stride, window_patt_stride]:
+        raise ValueError(f"Architecture {arch} not available for '{dsrc}'.")
+    if dsrc == "ts" and str_sts:
+        raise ValueError("'str_sts' must be False for 'ts' dsrc.")
+    for val in [wdw_len, wdw_str]:
         if val < 1 or not isinstance(val, int):
-            raise ValueError("Window paramters must be positive integers.")
-    
-    # Check mode is 'df' if use_pretrain is True
-    if (use_pretrain and mode not in ["df", "gf"]) or (pretrain_mode and mode not in ["df", "gf"]):
-        raise ValueError("Pretraining is only available for df/gf modes.")
-
-    # Check pretrain_mode and use_pretrain are not both True
-    if use_pretrain and pretrain_mode:
-        raise ValueError("'pretrain_mode' is a previous step to 'use_pretrain', so they cannot be both True.")
-
-    # Get the path to the encoder
-    assert isinstance(stride_series, bool)
-    ss = 1 if stride_series else 0
-    enc_name = f"{dataset}_{mode}_{arch}_wl{window_length}_ts{window_time_stride}_ps{window_patt_stride}_ss{ss}"
-    encoder_path = storage_dir / "encoders" / (enc_name + ".pt")
-
-    if use_pretrain or pretrain_mode:
-        log.info(f"encoder_path: {encoder_path}")
-
-    # If not in pretrain_mode and use_pretrain, check the encoder exists
-    if use_pretrain and not pretrain_mode:
+            raise ValueError("Window parameters must be positive integers.")
+    if (pret and dsrc not in ["df", "gf"]) or (pret_mode and dsrc not in ["df", "gf"]):
+        raise ValueError("Pretrain only available for dsrc={'df','gf'}.")
+    if pret_mode and pret_mode:
+        raise ValueError("'pret_mode' is a pre-step to 'pret'")
+    enc_name = f"{dset}_{dsrc}_{arch}_wl{wdw_len}_ts{wdw_str}_ss{int(str_sts)}"
+    encoder_path = encoder_folder / (enc_name + ".pt")
+    if pret and not pret_mode:
         if not encoder_path.exists():
-            raise ValueError("Encoder not found. Please run pretrain mode first.")
-    
-    # If pretrain_mode, check the encoder does not exist already
-    if pretrain_mode:
+            raise ValueError("Encoder not found. Please run 'pret_mode' first.")
+    if pret_mode:
         if encoder_path.exists():
-            raise ValueError("Encoder already exists. Please delete it before running pretrain mode.")
-    
+            raise ValueError("Encoder already exists, program stopped.")
+    if pret or pret_mode:
+        print(f"encoder_path: {encoder_path}")
+    else:
+        encoder_path = None
+
     # If train_exc_limit is None, set it to exc
     if train_exc_limit is None:
         train_exc_limit = exc
-
     # Check the train_exc_limit is positive and not greater than exc
     if train_exc_limit > exc:
         raise ValueError("The train event limit cannot be greater than the number of events per class.")
     if train_exc_limit < 1:
         raise ValueError("The train event limit must be positive.")
 
-    # If use_pretrain is False, set encoder_path to None
-    if not pretrain_mode and not use_pretrain:
-        encoder_path = None
-        
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    # Download the dataset or load it from storage
-    # TODO add support for external datasets
-    X, Y, medoids, medoid_idx = download_dataset(dataset=dataset, storage_dir=storage_dir)
+    # load dataset
+    X, Y, mapping = load_ucr_classification(dset=dset)
+
+    # compute class medoids
+    meds, meds_idx = compute_medoids(X, Y, meds_per_class=1, metric="dtw")
+    patts = meds.squeeze(1)
 
     # If arch is 'nn', set the window length to the length of the samples
     if arch == "nn":
-        window_length = X.shape[1]
+        wsw_len = X.shape[2]
 
     if pretrain_mode:
         # Get directory and version
