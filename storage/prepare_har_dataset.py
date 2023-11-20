@@ -88,5 +88,59 @@ def prepare_harth(dataset_dir):
             print(f"\twith size (min) {min(event_length[c])}, (max) {max(event_length[c])}, (mean) {np.mean(event_length[c])}")
             print(f"\t{counts[c]} observations ({(counts[c]/total):.2f})")
 
+
+def prepare_uci_har(dataset_dir, split = "both"):
+    # Dataset is already split into windows (128-point windows, or 2.56s at 20ms per observation), with 50% (64-points) overlap
+    # recover the STS, we assume no data points are missing
+
+    assert split in ["both", "train", "test"]
+
+    if split == "both":
+        prepare_uci_har(dataset_dir, split="train")
+        prepare_uci_har(dataset_dir, split="test")
+        return 0
+    
+    labels = np.loadtxt(os.path.join(dataset_dir, "UCI HAR Dataset", split, f"y_{split}.txt"))
+
+    # load data
+    files = os.listdir(os.path.join(dataset_dir, "UCI HAR Dataset", split, "Inertial Signals"))
+    data = {}
+
+    for file in files:
+        data[file] = []
+        with open(os.path.join(dataset_dir, "UCI HAR Dataset", split, "Inertial Signals", file)) as f:
+            for line in f:
+                data[file].append(list(map(lambda x: float(x), line.strip().split())))
+        data[file] = np.array(data[file])
+
+    obs, ws = data[files[0]].shape
+    overlap = ws//2
+    total_points = (obs + 1) * overlap
+
+    # recover STS and SCS
+    STS = np.empty((total_points, len(files)))
+    SCS = np.empty(total_points)
+
+    for j, file in enumerate(files):
+        for i in range(obs):
+            STS[i*overlap:(i+1)*overlap, j] = data[file][i,:overlap]
+            SCS[i*overlap:(i+1)*overlap] = labels[i]
+        STS[obs*overlap:, j] = data[file][obs - 1,overlap:]
+        SCS[obs*overlap:] = labels[obs - 1]
+
+    # split into subjects
+    subject = np.loadtxt(os.path.join(dataset_dir, "UCI HAR Dataset", split, f"subject_{split}.txt"))
+    splits = [0] + list(np.nonzero(np.diff(subject).reshape(-1))[0] + 1) + [subject.size]
+
+    save_path = os.path.join(dataset_dir, "UCI HAR Dataset", split)
+
+    for split in range(len(splits) - 1):
+        with open(os.path.join(save_path, f"subject_{int(subject[splits[split]])}_sensor.npy"), "wb") as f:
+            np.save(f, STS[splits[split]:(splits[split+1])])
+                    
+        with open(os.path.join(save_path, f"subject_{int(subject[splits[split]])}_class.npy"), "wb") as f:
+            np.save(f, SCS[splits[split]:(splits[split+1])])
+            
+
 if __name__ == "__main__":
     prepare_harth("storage/datasets/HARTH")
