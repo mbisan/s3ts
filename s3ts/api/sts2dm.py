@@ -20,14 +20,14 @@ class StaticDS(Dataset):
     wdw_len: int
     wdw_str: int
     sts_str: bool
-    DM_transform: torch.nn.Module
-    STS_transform: torch.nn.Module
+    DM_trans: torch.nn.Module
+    STS_trans: torch.nn.Module
 
     def __init__(self, DM, STS, SCS, wdw_len, wdw_str, sts_str,
             index=None, DM_trans=None, STS_trans=None) -> None:
         
         # save parameters as attributes
-        super(StaticDS).__init__(), self.__dict__.update(locals())
+        super().__init__(), self.__dict__.update(locals())
 
     def __len__(self) -> int:
         return len(self.index)
@@ -38,15 +38,15 @@ class StaticDS(Dataset):
         idx = self.index[idx]
         # frame
         frame = self.DM[:,::self.wdw_str,idx - self.wdw_len*self.wdw_str+1:idx+1:self.wdw_str]
-        if self.DM_transform:
-            frame = self.DM_transform(frame)
+        if self.DM_trans:
+            frame = self.DM_trans(frame)
         # series
         if self.sts_str:
             series = self.STS[:,idx-self.wdw_len*self.wdw_str+1:idx+1:self.wdw_str]
         else:
             series = self.STS[:,idx-self.wdw_len*self.wdw_str+1:idx+1]
-        if self.STS_transform:
-            series = self.STS_transform(series)
+        if self.STS_trans:
+            series = self.STS_trans(series)
         # label
         label = self.SCS[idx]
 
@@ -84,7 +84,7 @@ class StaticDM(LightningDataModule):
             ) -> None:
         
         # save parameters as attributes
-        super(StaticDM).__init__(), self.__dict__.update(locals())
+        super().__init__(), self.__dict__.update(locals())
 
         # gather dataset info   
         self.n_dims = STS.shape[0]
@@ -94,7 +94,7 @@ class StaticDM(LightningDataModule):
 
         # convert to tensors
         self.STS = torch.from_numpy(STS).to(torch.float32)
-        self.SCS = torch.from_numpy(SCS).to(torch.int8)
+        self.SCS = torch.from_numpy(SCS).to(torch.int64)
         self.DM = torch.from_numpy(DM).to(torch.float32)
 
         # generate datasets
@@ -114,12 +114,13 @@ class StaticDM(LightningDataModule):
         if data_split is not None:
             margin = self.wdw_len*self.wdw_str+1
             for split in data_split:
-                if margin > len(data_split[split]):
+                if margin < len(data_split[split]):
                     data_split[split] = data_split[split][margin:]
 
         train_idx = self.data_split["train"]
         val_idx = self.data_split["val"]
         test_idx = self.data_split["test"]
+        print(len(test_idx))
 
         DM_trans = tv.transforms.Normalize(
             self.DM[:,:,train_idx].mean(axis=[1,2]),
@@ -150,3 +151,10 @@ class StaticDM(LightningDataModule):
         return DataLoader(self.ds_test, batch_size=self.batch_size, 
             num_workers=self.num_workers, shuffle=False,
             pin_memory=True, persistent_workers=True)
+    
+    def predict_dataloader(self) -> DataLoader:
+        """ Returns the test DataLoader. """
+        return DataLoader(self.ds_test, batch_size=self.batch_size, 
+            num_workers=self.num_workers, shuffle=False,
+            pin_memory=True, persistent_workers=True)
+    

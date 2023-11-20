@@ -12,9 +12,10 @@ from pytorch_lightning import Trainer, seed_everything
 # in-package imports
 from s3ts.models.wrapper import WrapperModel
 from s3ts.api.sts2dm import StaticDM
-from s3ts.legacy.modules import DFDataModule
 
-
+# other imports
+import numpy as np
+import torch
 
 # default pl settings
 default_pl_kwargs: dict = {
@@ -34,26 +35,26 @@ default_enc_feats: dict[dict[int]] = {
 
 # metrics settings
 metric_settings: dict = {
-    "reg": {"all": ["mse", "r2"], "target": "mse", "mode": "min"},
-    "cls": {"all": ["acc", "f1", "auroc"], "target": "acc", "mode": "max"}
+    "reg": {"all": ["mse", "r2"], "target": "val_mse", "mode": "min"},
+    "cls": {"all": ["acc", "f1", "auroc"], "target": "val_acc", "mode": "max"}
 }
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def create_model_from_DM(dm: StaticDM, dtype: str, arch: str, task: str, name: str = None,
+def create_model_from_DM(dm: StaticDM, dsrc: str, arch: str, task: str, name: str = None,
         enc_feats: int = None, dec_feats: int = None, lr: float = default_lr
         ) -> WrapperModel:
     
     # use defaults values if needed
     if enc_feats is None:
-        enc_feats = default_enc_feats[dtype][arch]
+        enc_feats = default_enc_feats[dsrc][arch]
     if dec_feats is None:
         dec_feats = default_dec_feats
     
     # return the model
     return WrapperModel(
         name=name,
-        dtype=dtype,
+        dsrc=dsrc,
         arch=arch,
         task= task,
         wdw_len=dm.wdw_len,
@@ -69,28 +70,8 @@ def create_model_from_DM(dm: StaticDM, dtype: str, arch: str, task: str, name: s
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def test_model(
-        dm: DFDataModule,        
-        model: WrapperModel,
-        pl_kwargs: dict = default_pl_kwargs
-        ) -> dict:
-    
-    # choose metrics
-    metrics = metric_settings[model.target]
-
-    # set up the trainer   
-    tr = Trainer(default_root_dir=pl_kwargs["default_root_dir"],  
-        accelerator=pl_kwargs["accelerator"])
-    
-    # test the model
-    data = tr.test(model, datamodule=dm)
-
-    return {f"test_{m}": data[0][f"test_{m}"] for m in metrics}
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-
 def train_model(
-        dm: DFDataModule, 
+        dm: StaticDM, 
         model: WrapperModel,
         max_epochs: int,
         pl_kwargs: dict = default_pl_kwargs,
@@ -100,11 +81,11 @@ def train_model(
     seed_everything(pl_kwargs["seed"], workers=True)
 
     # choose metrics
-    metrics = metric_settings[model.target]
+    metrics = metric_settings[model.task]
 
     # set up the trainer
-    ckpt = ModelCheckpoint(monitor=metrics["target"], mode=metrics["mode"])    
-    tr = Trainer(default_root_dir=pl_kwargs["default_root_dir"],  
+    ckpt = ModelCheckpoint(monitor=metrics['target'], mode=metrics["mode"])    
+    tr = Trainer(default_root_dir=pl_kwargs["default_root_dir"], 
     accelerator=pl_kwargs["accelerator"], callbacks=[ckpt], max_epochs=max_epochs,
     logger=TensorBoardLogger(save_dir=pl_kwargs["default_root_dir"], name=model.name))
 
@@ -117,6 +98,50 @@ def train_model(
     # run the validation with the final weights
     data = tr.validate(model, datamodule=dm)
 
-    return model, {f"test_{m}": data[0][f"test_{m}"] for m in metrics}
+    return model, {f"val_{m}": data[0][f"val_{m}"] for m in metrics["all"]}
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+def test_model(dm: StaticDM, model: WrapperModel,
+        pl_kwargs: dict = default_pl_kwargs) -> dict:
+    
+    # choose metrics
+    metrics = metric_settings[model.task]
+
+    # set up the trainer   
+    tr = Trainer(default_root_dir=pl_kwargs["default_root_dir"],  
+        accelerator=pl_kwargs["accelerator"], logger=[])
+    
+    # test the model
+    data = tr.test(model, datamodule=dm)
+
+    return {f"test_{m}": data[0][f"test_{m}"] for m in metrics["all"]}
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+def get_test_preds(dm: StaticDM, model: WrapperModel,
+        pl_kwargs: dict = default_pl_kwargs) -> tuple[np.ndarray, np.ndarray]:
+    
+    # choose metrics
+    metrics = metric_settings[model.task]
+
+    # set up the trainer   
+    tr = Trainer(default_root_dir=pl_kwargs["default_root_dir"],  
+        accelerator=pl_kwargs["accelerator"], logger=[])
+    
+    # test the model
+    preds = tr.predict(model, datamodule=dm, return_predictions=True)
+    preds = torch.stack([pred for batch in preds for pred in batch]).numpy()
+
+    # grab test data samples as numpy array
+    data = []
+    if model.task == "reg":
+        for i in range(len(dm.ds_test)):
+            data.append(dm.ds_test[i]["series"].numpy())
+    if model.task == "cls":
+        for i in range(len(dm.ds_test)):
+            data.append(dm.ds_test[i]["label"].numpy())
+    data = np.array(data)
+
+    return data, preds
+

@@ -1,169 +1,103 @@
-""" Functions to generate an STS dataset from a batch TS dataset. """
-
 # /usr/bin/env python3
 # # -*- coding: utf-8 -*-
 
-""" File containing the function to download a dataset from UCR/UEA archive. """
-
-# standard library
-from s3ts.legacy.series import compute_medoids
+import aeon.datasets as aeon
 from pathlib import Path
-import logging as log
-import warnings
-
-# basic dependencies
 import numpy as np 
 
-# sktime
-#with warnings.catch_warnings():
-from aeon.datasets import load_classification
-
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def download_ucr(dataset: str, storage_dir: Path) -> tuple[np.ndarray, np.ndarray]:
-
-    """ Load dataset from UCR/UEA time series archive. 
-    If the dataset is not already downloaded, it will be downloaded and cached.
-    If the dataset is already downloaded, it will be loaded from the cache.
+def load_ucr_classification(dset: str,
+        ) -> tuple[np.ndarray, np.ndarray, dict]:
     
-    Parameters
-    ----------
-    dataset : str
-        Name of the dataset to download.
-    dir_cache : Path
-        Path to the cache directory.
+    dset_dir = Path(__file__).parent.resolve()
+    dset_dir = dset_dir.parent.parent / "datasets"
+    dset_file = dset_dir /f"{dset}.npz"
 
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray]
-        Tuple containing the dataset features and labels.
-    """
-
-    # Create cache directory if it does not exist
-    datasets_dir = storage_dir / "datasets"
-    
-    if not datasets_dir.exists():
-        datasets_dir.mkdir(parents=True)
-
-    # Define cache file
-    dset_file = datasets_dir /f"{dataset}.npz"
-
-    # Check if dataset is already downloaded
     if dset_file.exists():
-        # Load dataset from cache
-        log.info(f"Loading '{dataset}' from cache...")
-        with np.load(dset_file) as data:
-            X, Y = data["X"], data["Y"] 
-            medoids, medoid_idx = data["medoids"], data["medoid_idx"]
+        # load dataset from cache
+        print(f"Loading '{dset}' from cache...")
+        with np.load(dset_file, allow_pickle=True) as data:
+            X, Y, mapping = data["X"], data["Y"], data["mapping"]
     else:
-        # Download TS dataset from UCR UEA
-        log.info(f"Downloading '{dataset}' from UCR/UEA...")
-        with warnings.catch_warnings():
-            # X, Y = load_UCR_UEA_dataset(name=dataset, 
-            #                         return_type="np2d",
-            #                         return_X_y=True)
-            X, Y = load_classification(name=dataset, split=None, return_metadata=False)
-            X = X[:,0,:] # retain only 1 dimension
-            
+        # download TS dataset from UCR
+        print(f"Downloading '{dset}' from UCR...")
+        X, Y = aeon.load_classification(name=dset, split=None, return_metadata=False)
         X: np.ndarray = X.astype(np.float32)
-        Y: np.ndarray = Y.astype(np.int8)
-
-        # Ensure the dataset is normalized
-        X = (X - X.mean(axis=1, keepdims=True)) / X.std(axis=1, keepdims=True)
-
-        # Ensure labels are integers
         Yn = np.zeros_like(Y, dtype=np.int8)
+        mapping = dict()
         for i, y in enumerate(np.unique(Y)):
+            mapping[i] = Y
             Yn[Y == y] = i
         Y = Yn
 
-        # exceptions
-        X, Y = dset_exceptions(dataset, X, Y)
-        medoids, medoid_idx = compute_medoids(X, Y)
+        # # exceptions
+        # X, Y = dset_exceptions(dset, X, Y)
 
-        # Cache dataset
-        np.savez_compressed(dset_file, X=X, Y=Y, medoids=medoids, medoid_idx=medoid_idx)
-
-    # Get the number of classes
-    n_classes = len(np.unique(Y))
-
-    # Get the number of samples
-    n_samples = X.shape[0]
-
-    # Get the length of each sample
-    s_length = X.shape[1]
-
-    # Do some logging
-    log.info(f"Number of samples: {n_samples}")
-    log.info(f"Number of classes: {n_classes}")
-    log.info(f"Sample length: {s_length}")
+        # save the dataset
+        np.savez_compressed(dset_file, 
+            X=X, Y=Y, mapping=mapping)
 
     # Return dataset features and labels
-    return X, Y, medoids, medoid_idx
+    return X, Y, mapping
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-def dset_exceptions(dataset: str, X: np.ndarray, Y: np.ndarray):
+# def dset_exceptions(dataset: str, X: np.ndarray, Y: np.ndarray):
 
-    """ Exceptions for datasets. """
+#     """ Exceptions for datasets. """
 
-    if dataset == "Plane":
+#     if dataset == "Plane":
 
-        # remove class 4
-        for i in [4]:
-            X = X[Y != i]
-            Y = Y[Y != i]
+#         # remove class 4
+#         for i in [4]:
+#             X = X[Y != i]
+#             Y = Y[Y != i]
 
-        # ensure label consistency
-        Yn = np.zeros_like(Y, dtype=np.int8)
-        for i, y in enumerate(np.unique(Y)):
-            Yn[Y == y] = i
-        Y = Yn
+#         # ensure label consistency
+#         Yn = np.zeros_like(Y, dtype=np.int8)
+#         for i, y in enumerate(np.unique(Y)):
+#             Yn[Y == y] = i
+#         Y = Yn
 
-    elif dataset == "Trace":
+#     elif dataset == "Trace":
         
-        # remove classes 2 and 3
-        X = X[Y != 2]
-        Y = Y[Y != 2]
-        X = X[Y != 3]
-        Y = Y[Y != 3]
+#         # remove classes 2 and 3
+#         X = X[Y != 2]
+#         Y = Y[Y != 2]
+#         X = X[Y != 3]
+#         Y = Y[Y != 3]
 
-        # ensure label consistency
-        Yn = np.zeros_like(Y, dtype=np.int8)
-        for i, y in enumerate(np.unique(Y)):
-            Yn[Y == y] = i
-        Y = Yn
+#         # ensure label consistency
+#         Yn = np.zeros_like(Y, dtype=np.int8)
+#         for i, y in enumerate(np.unique(Y)):
+#             Yn[Y == y] = i
+#         Y = Yn
     
-    elif dataset == "OSULeaf":
+#     elif dataset == "OSULeaf":
         
-        # remove class 5
-        X = X[Y != 5]
-        Y = Y[Y != 5]
+#         # remove class 5
+#         X = X[Y != 5]
+#         Y = Y[Y != 5]
 
-        # ensure label consistency
-        Yn = np.zeros_like(Y, dtype=np.int8)
-        for i, y in enumerate(np.unique(Y)):
-            Yn[Y == y] = i
-        Y = Yn
+#         # ensure label consistency
+#         Yn = np.zeros_like(Y, dtype=np.int8)
+#         for i, y in enumerate(np.unique(Y)):
+#             Yn[Y == y] = i
+#         Y = Yn
 
-    elif dataset == "ECG5000":
+#     elif dataset == "ECG5000":
         
-        # remove class 4
-        X = X[Y != 4]
-        Y = Y[Y != 4]
+#         # remove class 4
+#         X = X[Y != 4]
+#         Y = Y[Y != 4]
 
-        # ensure label consistency
-        Yn = np.zeros_like(Y, dtype=np.int8)
-        for i, y in enumerate(np.unique(Y)):
-            Yn[Y == y] = i
-        Y = Yn
+#         # ensure label consistency
+#         Yn = np.zeros_like(Y, dtype=np.int8)
+#         for i, y in enumerate(np.unique(Y)):
+#             Yn[Y == y] = i
+#         Y = Yn
 
-    return X, Y
+#     return X, Y
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-
-def load_ucr():
-
-
-    pass
