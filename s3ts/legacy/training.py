@@ -12,7 +12,7 @@ import torch
 # in-package imports
 from s3ts.models.neighbors import knn_dtw_predict
 from s3ts.models.wrapper import WrapperModel
-from s3ts.data.modules import DFDataModule
+from s3ts.legacy.modules import DFDataModule
 
 # standard library
 from pathlib import Path

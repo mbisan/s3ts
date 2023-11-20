@@ -7,7 +7,7 @@
 
 from sktime.classification.distance_based import KNeighborsTimeSeriesClassifier
 from sklearn.metrics import accuracy_score, f1_score
-from s3ts.data.modules import DFDataModule
+from s3ts.legacy.modules import DFDataModule
 from tqdm import tqdm
 import numpy as np
 

@@ -40,9 +40,7 @@ class ResidualBlock(LightningModule):
         block = torch.add(block, shortcut)
         return nn.functional.relu(block)
 
-class RES_DF(LightningModule):
-
-    """ Residual CNN for dissimilarity frames. """
+class RES_IMG(LightningModule):
 
     def __init__(self, channels: int, wdw_size: int, ref_size: int,
                  n_feature_maps: int = 32):
