@@ -117,6 +117,10 @@ def prepare_uci_har(dataset_dir, split = "both"):
     overlap = ws//2
     total_points = (obs + 1) * overlap
 
+    files.sort()
+    # OPTIONAL remove total acceleration
+    files = files[:-3]
+
     # recover STS and SCS
     STS = np.empty((total_points, len(files)))
     SCS = np.empty(total_points)
@@ -130,17 +134,17 @@ def prepare_uci_har(dataset_dir, split = "both"):
 
     # split into subjects
     subject = np.loadtxt(os.path.join(dataset_dir, "UCI HAR Dataset", split, f"subject_{split}.txt"))
-    splits = [0] + list(np.nonzero(np.diff(subject).reshape(-1))[0] + 1) + [subject.size]
+    splits = [0] + list(np.nonzero(np.diff(subject).reshape(-1))[0] + 1) + [subject.size+1]
 
     save_path = os.path.join(dataset_dir, "UCI HAR Dataset", split)
 
     for split in range(len(splits) - 1):
         with open(os.path.join(save_path, f"subject_{int(subject[splits[split]])}_sensor.npy"), "wb") as f:
-            np.save(f, STS[splits[split]:(splits[split+1])])
+            np.save(f, STS[splits[split]*overlap:(splits[split+1])*overlap])
                     
         with open(os.path.join(save_path, f"subject_{int(subject[splits[split]])}_class.npy"), "wb") as f:
-            np.save(f, SCS[splits[split]:(splits[split+1])])
+            np.save(f, SCS[splits[split]*overlap:(splits[split+1])*overlap])
             
 
 if __name__ == "__main__":
-    prepare_harth("storage/datasets/HARTH")
+    prepare_uci_har("storage/datasets/UCI-HAR")
