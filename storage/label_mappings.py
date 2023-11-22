@@ -12,3 +12,12 @@ HARTH_LABELS = {
     130: "cycling_sit_idle",
     140: "cycling_stand_idle"
 }
+
+UCI_HAR_LABELS = {
+    1: "WALKING",
+    2: "WALKING_UPSTAIRS",
+    3: "WALKING_DOWNSTAIRS",
+    4: "SITTING",
+    5: "STANDING",
+    6: "LAYING",
+}
