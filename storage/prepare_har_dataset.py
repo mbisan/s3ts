@@ -147,4 +147,5 @@ def prepare_uci_har(dataset_dir, split = "both"):
             
 
 if __name__ == "__main__":
-    prepare_uci_har("storage/datasets/UCI-HAR")
+    prepare_uci_har("./datasets/UCI-HAR")
+    prepare_harth("./datasets/HARTH")

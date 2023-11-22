@@ -77,4 +77,5 @@ def unpack(dataset_name = "all", dataset_dir=None):
 
 
 if __name__ == "__main__":
+    download("all", "./datasets")
     unpack("all", "./datasets")
