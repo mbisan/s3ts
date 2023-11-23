@@ -1,81 +1,167 @@
 import os
-import wget
+import numpy as np
 
-import zipfile
-import gzip
+class STSDataset:
 
-DATASETS = {
-    "WARD": "https://people.eecs.berkeley.edu/~yang/software/WAR/WARD1.zip",
-    "HASC": "http://bit.ly/i0ivEz",
-    "UCI-HAR": "https://archive.ics.uci.edu/static/public/240/human+activity+recognition+using+smartphones.zip",
-    "WISDM": "https://www.cis.fordham.edu/wisdm/includes/datasets/latest/WISDM_ar_latest.tar.gz", # tar.gz
-    "USC-HAD": "https://sipi.usc.edu/had/USC-HAD.zip",
-    "OPPORTUNITY": "https://archive.ics.uci.edu/static/public/226/opportunity+activity+recognition.zip",
-    "UMAFall": "https://figshare.com/ndownloader/articles/4214283/versions/7",
-    "UDC-HAR": "https://lbd.udc.es/research/real-life-HAR-dataset/data_raw.zip",
-    "HARTH": "http://www.archive.ics.uci.edu/static/public/779/harth.zip",
-    "UniMiB-SHAR": "https://www.dropbox.com/s/x2fpfqj0bpf8ep6/UniMiB-SHAR.zip?dl=1",
-    "REALDISP": "https://archive.ics.uci.edu/static/public/305/realdisp+activity+recognition+dataset.zip",
-    "DAPHNET-FOG": "https://archive.ics.uci.edu/static/public/245/daphnet+freezing+of+gait.zip",
-    "MHEALTH": "https://archive.ics.uci.edu/static/public/319/mhealth+dataset.zip",
-    "TempestaTMD": "https://tempesta.cs.unibo.it/projects/us-tm2017/static/dataset/raw_data/raw_data.tar.gz" # tar
-}
+    def __init__(self,
+            wsize: int = 10,
+            wstride: int = 1,
+            ) -> None:
+        super().__init__()
 
-def download(dataset_name = "all", dataset_dir=None):
+        '''
+            Base class for STS dataset
 
-    if dataset_name == "all":
-        for name in DATASETS.keys():
-            download(dataset_name=name, dataset_dir=dataset_dir)
-        return None
+            Inputs:
+                wsize: window size
+                wstride: window stride
+        '''
+
+        self.wsize = wsize
+        self.wstride = wstride
+
+        self.splits = None
+
+        self.STS = None
+        self.SCS = None
+
+        self.indices = None
+
+    def __len__(self):
+        return self.indices.shape[0]
     
-    assert dataset_name in DATASETS.keys()
+    def __getitem__(self, index: int) -> tuple[np.ndarray, np.ndarray]:
 
-    if not os.path.exists(f"{dataset_dir}/{dataset_name}"):
-        os.mkdir(f"{dataset_dir}/{dataset_name}")
+        first = self.indices[index]-self.wsize*self.wstride
+        last = self.indices[index]
 
-    #check if directory is empty
-    if not os.listdir(f"{dataset_dir}/{dataset_name}/"):
-        # download zipped dataset
-        print(f"Downloading dataset {dataset_name}")
-        file = wget.download(DATASETS[dataset_name], out=f"{dataset_dir}/{dataset_name}/")
-        print(f"{dataset_name} downloaded to {file}")
-
-def unpack(dataset_name = "all", dataset_dir=None):
-
-    if dataset_name == "all":
-        for name in DATASETS.keys():
-            unpack(dataset_name=name, dataset_dir=dataset_dir)
-        return None
-
-    if not os.path.exists(f"{dataset_dir}/{dataset_name}") or not os.listdir(f"{dataset_dir}/{dataset_name}/"):
-        return print(f"Dataset is not downloaded to {dataset_dir}/{dataset_name}/")
+        return self.STS[first:last:self.wstride,:], self.SCS[first:last:self.wstride]
     
-    assert dataset_name in DATASETS.keys()
-    assert os.path.exists(f"{dataset_dir}/{dataset_name}")
+    def sliceFromArrayOfIndices(self, indexes: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        assert len(indexes.shape) == 1 # only accept 1-dimensional arrays
 
-    files = os.listdir(f"{dataset_dir}/{dataset_name}")
-    assert len(files) > 0
+        return_sts = np.empty((indexes.shape[0], self.wsize, self.STS.shape[-1]))
+        return_scs = np.empty((indexes.shape[0], self.wsize))
 
-    if len(files) > 1:
-        return print(f"Dataset {dataset_name} already unpacked")
+        for i, id in enumerate(indexes):
+            ts, c = self[id]
+            return_scs[i] = c
+            return_sts[i] = ts
 
-    if dataset_name in ["WISDM", "TempestaTMD"]:
-        # use gzip to decompress
-        pass
-    else:
-        print(os.path.join(f"{dataset_dir}/{dataset_name}", files[-1]))
-        # use zipfile to decompress
-        with zipfile.ZipFile(os.path.join(f"{dataset_dir}/{dataset_name}", files[-1]), "r") as zip_ref:
-            zip_ref.extractall(f"{dataset_dir}/{dataset_name}")
+        return return_sts, return_scs
+    
+    def getSameClassWindowIndex(self):
 
-        # unpack zip files inside zip file
-        files_new = os.listdir(f"{dataset_dir}/{dataset_name}")
-        for new_file in files_new:
-            if new_file[-3:] == "zip" and new_file not in files:
-                with zipfile.ZipFile(os.path.join(f"{dataset_dir}/{dataset_name}", new_file), "r") as zip_ref:
-                    zip_ref.extractall(f"{dataset_dir}/{dataset_name}")
+        id = []
+        cl = []
+        for i, ix in enumerate(self.indices):
+            if np.unique(self.SCS[(ix-self.wsize*self.wstride):ix]).shape[0] == 1:
+                id.append(i)
+                cl.append(self.SCS[ix])
+        
+        return np.array(id), np.array(cl)
+    
+class UCI_HARDataset(STSDataset):
 
+    def __init__(self,
+            dataset_dir: str = None,
+            split: str = "train",
+            wsize: int = 10,
+            wstride: int = 1,
+            normalize: bool = True
+            ) -> None:
+        super().__init__()
+
+        '''
+            UCI-HAR dataset handler
+
+            Inputs:
+                dataset_dir: Directory of the prepare_har_dataset.py
+                    processed dataset.
+                split: "train" or "test"
+                wsize: window size
+                wstride: window stride
+        '''
+
+        # load dataset
+        files = filter(
+            lambda x: "sensor.npy" in x,
+            os.listdir(os.path.join(dataset_dir, "UCI HAR Dataset", split)))
+        
+        splits = [0]
+
+        STS = []
+        SCS = []
+        for f in files:
+            sensor_data = np.load(os.path.join(dataset_dir, "UCI HAR Dataset", split, f))
+            STS.append(sensor_data)
+            SCS.append(np.load(os.path.join(dataset_dir, "UCI HAR Dataset", split, f.replace("sensor", "class"))))
+
+            splits.append(splits[-1] + sensor_data.shape[0])
+
+        self.splits = np.array(splits)
+
+        self.STS = np.concatenate(STS)
+        self.SCS = np.concatenate(SCS)
+
+        self.indices = np.arange(self.SCS.shape[0])
+        for i in range(wsize * wstride):
+            self.indices[self.splits[:-1] + i] = 0
+        self.indices = self.indices[np.nonzero(self.indices)]
+
+class HARTHDataset(STSDataset):
+
+    def __init__(self,
+            dataset_dir: str = None,
+            wsize: int = 10,
+            wstride: int = 1,
+            normalize: bool = True
+            ) -> None:
+        super().__init__()
+
+        '''
+            HARTH dataset handler
+
+            Inputs:
+                dataset_dir: Directory of the prepare_har_dataset.py
+                    processed dataset.
+                wsize: window size
+                wstride: window stride
+        '''
+
+        # load dataset
+        files = filter(
+            lambda x: ".csv" in x,
+            os.listdir(os.path.join(dataset_dir, "harth")))
+        
+        splits = [0]
+
+        STS = []
+        SCS = []
+        for f in files:
+            # get separated STS
+            segments = filter(
+                lambda x: "acc" in x,
+                os.listdir(os.path.join(dataset_dir, f[:-4])))
+
+            for s in segments:
+
+                sensor_data = np.load(os.path.join(dataset_dir, f[:-4], s))
+                STS.append(sensor_data)
+                label_data = np.load(os.path.join(dataset_dir, f[:-4], s.replace("acc", "label")))
+                SCS.append(label_data)
+
+                splits.append(splits[-1] + sensor_data.shape[0])
+
+        self.splits = np.array(splits)
+
+        self.STS = np.concatenate(STS)
+        self.SCS = np.concatenate(SCS)
+
+        self.indices = np.arange(self.SCS.shape[0])
+        for i in range(wsize * wstride):
+            self.indices[self.splits[:-1] + i] = 0
+        self.indices = self.indices[np.nonzero(self.indices)]
 
 if __name__ == "__main__":
-    download("all", "./datasets")
-    unpack("all", "./datasets")
+    ds = HARTHDataset("./datasets/HARTH/", wsize=64, wstride=1)
