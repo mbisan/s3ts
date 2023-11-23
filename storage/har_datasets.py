@@ -61,6 +61,13 @@ class STSDataset:
         
         return np.array(id), np.array(cl)
     
+    def normalizeSTS(self, mode):
+        self.mean = self.STS.mean(0)
+        self.percentile5 = np.percentile(self.STS, 5, axis=0)
+        self.percentile95 = np.percentile(self.STS, 95, axis=0)
+
+        self.STS = (self.STS - self.mean) / (self.percentile95 - self.percentile5)
+    
 class UCI_HARDataset(STSDataset):
 
     def __init__(self,
@@ -70,7 +77,7 @@ class UCI_HARDataset(STSDataset):
             wstride: int = 1,
             normalize: bool = True
             ) -> None:
-        super().__init__()
+        super().__init__(wsize=wsize, wstride=wstride)
 
         '''
             UCI-HAR dataset handler
@@ -109,6 +116,9 @@ class UCI_HARDataset(STSDataset):
             self.indices[self.splits[:-1] + i] = 0
         self.indices = self.indices[np.nonzero(self.indices)]
 
+        if normalize:
+            self.normalizeSTS("normal")
+
 class HARTHDataset(STSDataset):
 
     def __init__(self,
@@ -117,7 +127,7 @@ class HARTHDataset(STSDataset):
             wstride: int = 1,
             normalize: bool = True
             ) -> None:
-        super().__init__()
+        super().__init__(wsize=wsize, wstride=wstride)
 
         '''
             HARTH dataset handler
@@ -162,6 +172,9 @@ class HARTHDataset(STSDataset):
         for i in range(wsize * wstride):
             self.indices[self.splits[:-1] + i] = 0
         self.indices = self.indices[np.nonzero(self.indices)]
+
+        if normalize:
+            self.normalizeSTS("normal")
 
 if __name__ == "__main__":
     ds = HARTHDataset("./datasets/HARTH/", wsize=64, wstride=1)
