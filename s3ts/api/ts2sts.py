@@ -62,7 +62,7 @@ def finite_random_STS(
 
     return STS, SCS
 
-def infite_random_STS(
+def inf_random_STS(
         X: np.ndarray, Y: np.ndarray, seed: int = 42
         ) -> tuple[np.ndarray, np.ndarray]:
     
