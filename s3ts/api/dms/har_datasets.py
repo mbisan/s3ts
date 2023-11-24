@@ -18,7 +18,8 @@ class DFDataset(Dataset):
     def __init__(self, 
             stsds: STSDataset = None,
             patterns: np.ndarray = None,
-            w: float = 0.1) -> None:
+            w: float = 0.1,
+            dm_transform = None) -> None:
         super().__init__()
 
         self.stsds = stsds
@@ -30,6 +31,7 @@ class DFDataset(Dataset):
             raise Exception(f"Cache directory not empty, please clean the directory {self.cache_dir}")
 
         self.patterns = patterns
+        self.dm_transform = dm_transform
 
         assert self.patterns.shape[1] == self.stsds.wsize
 
@@ -68,6 +70,11 @@ class DFDataset(Dataset):
 
         temp = np.load(os.path.join(self.cache_dir, f"part{s}.npy"))
 
+        dm = torch.from_numpy(temp[:, first:last:self.stsds.wstride, :])
+
+        if not self.dm_transform is None:
+            dm = self.dm_transform(dm)
+
         return (torch.from_numpy(temp[:, first:last:self.stsds.wstride, :]), 
                 self.stsds.STS[first:last:self.stsds.wstride, :], 
                 self.stsds.SCS[id])
@@ -89,7 +96,7 @@ class DFDatasetCopy(Dataset):
     def __del__(self):
         del self.dfds
 
-class StaticDM(StreamingFramesDM):
+class LDFDataset(StreamingFramesDM):
 
     """ Data module for the experiments. """
 
@@ -140,9 +147,9 @@ class StaticDM(StreamingFramesDM):
         self.dfds.stsds.STS = torch.from_numpy(self.dfds.stsds.STS).to(torch.float32)
         self.dfds.stsds.SCS = torch.from_numpy(self.dfds.stsds.SCS).to(torch.int64)
 
-        train_indices = self.dfds.stsds.indices[self.data_split["train"](self.dfds.stsds.indices)]
-        test_indices = self.dfds.stsds.indices[self.data_split["test"](self.dfds.stsds.indices)]
-        val_indices = self.dfds.stsds.indices[self.data_split["val"](self.dfds.stsds.indices)]
+        train_indices = self.dfds.stsds.indices[data_split["train"](self.dfds.stsds.indices)]
+        test_indices = self.dfds.stsds.indices[data_split["test"](self.dfds.stsds.indices)]
+        val_indices = self.dfds.stsds.indices[data_split["val"](self.dfds.stsds.indices)]
 
         self.ds_train = DFDatasetCopy(self.dfds, train_indices)
         self.ds_test = DFDatasetCopy(self.dfds, test_indices)
