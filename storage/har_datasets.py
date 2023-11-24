@@ -1,7 +1,9 @@
 import os
 import numpy as np
 
-class STSDataset:
+from torch.utils.data import Dataset
+
+class STSDataset(Dataset):
 
     def __init__(self,
             wsize: int = 10,
