@@ -10,7 +10,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning import Trainer, seed_everything
 
 # in-package imports
-from s3ts.models.wrapper import WrapperModel
+from s3ts.api.nets.wrapper import WrapperModel
 from s3ts.api.dm.base import StreamingFramesDM
 
 # other imports
