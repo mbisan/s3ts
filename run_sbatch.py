@@ -4,7 +4,7 @@
 """ Automatic sbatch training script for the paper's experiments. """
 
 from s3ts.presets import HIPATIA_LARGE as PRESET
-from s3ts.hooks import sbatch_hook
+from s3ts.exp.slurm import sbatch_hook
 
 # Common settings
 # ~~~~~~~~~~~~~~~~~~~~~~~
