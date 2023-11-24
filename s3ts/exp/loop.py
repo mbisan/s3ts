@@ -2,7 +2,7 @@
 from s3ts.api.ucr import load_ucr_classification
 from s3ts.api.ts2sts import finite_random_STS
 from s3ts.api.ts2sts import compute_medoids
-from s3ts.api.dm.sts import StaticDM
+from s3ts.api.dms.simple_sts import StaticDM
 
 from pathlib import Path
 import numpy as np
