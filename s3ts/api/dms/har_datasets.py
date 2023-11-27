@@ -55,6 +55,7 @@ class DFDataset(Dataset):
             for s in range(self.stsds.splits.shape[0] - 1):
                 save_path = os.path.join(self.cache_dir, f"part{s}.npy")
                 self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path)
+                self.DM.append(np.load(save_path, mmap_mode="r"))
 
     def _compute_dm_cache(self, pattern, split, save_path):
         DM = compute_DM(self.stsds.STS[:, split[0]:split[1]], pattern, rho=self.rho)
@@ -83,12 +84,9 @@ class DFDataset(Dataset):
         first = id - self.stsds.wsize*self.stsds.wstride - self.stsds.splits[s]
         last = id - self.stsds.splits[s]
 
-        if self.ram:
-            temp = self.DM[s][:, :, first:last:self.stsds.wstride] * 1
-        else:
-            temp = np.load(os.path.join(self.cache_dir, f"part{s}.npy"))[:, :, first:last:self.stsds.wstride] * 1 # *1 so that a new buffer is created
+        temp = self.DM[s][:, :, first:last:self.stsds.wstride] * 1
 
-        dm = torch.from_numpy(temp).float()
+        dm = torch.from_numpy(temp)
 
         if not self.dm_transform is None:
             dm = self.dm_transform(dm)
