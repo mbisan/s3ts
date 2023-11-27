@@ -37,12 +37,12 @@ class STSDataset(Dataset):
         first = self.indices[index]-self.wsize*self.wstride
         last = self.indices[index]
 
-        return self.STS[first:last:self.wstride,:], self.SCS[first:last:self.wstride]
+        return self.STS[:, first:last:self.wstride], self.SCS[first:last:self.wstride]
     
     def sliceFromArrayOfIndices(self, indexes: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         assert len(indexes.shape) == 1 # only accept 1-dimensional arrays
 
-        return_sts = np.empty((indexes.shape[0], self.wsize, self.STS.shape[-1]))
+        return_sts = np.empty((indexes.shape[0], self.wsize, self.STS.shape[0]))
         return_scs = np.empty((indexes.shape[0], self.wsize))
 
         for i, id in enumerate(indexes):
@@ -64,9 +64,9 @@ class STSDataset(Dataset):
         return np.array(id), np.array(cl)
     
     def normalizeSTS(self, mode):
-        self.mean = self.STS.mean(0)
-        self.percentile5 = np.percentile(self.STS, 5, axis=0)
-        self.percentile95 = np.percentile(self.STS, 95, axis=0)
+        self.mean = np.expand_dims(self.STS.mean(1), 1)
+        self.percentile5 = np.expand_dims(np.percentile(self.STS, 5, axis=1), 1)
+        self.percentile95 = np.expand_dims(np.percentile(self.STS, 95, axis=1), 1)
 
         self.STS = (self.STS - self.mean) / (self.percentile95 - self.percentile5)
     
@@ -77,7 +77,8 @@ class UCI_HARDataset(STSDataset):
             split: str = "train",
             wsize: int = 10,
             wstride: int = 1,
-            normalize: bool = True
+            normalize: bool = True,
+            label_mapping: np.ndarray = None
             ) -> None:
         super().__init__(wsize=wsize, wstride=wstride)
 
@@ -110,8 +111,13 @@ class UCI_HARDataset(STSDataset):
 
         self.splits = np.array(splits)
 
-        self.STS = np.concatenate(STS)
-        self.SCS = np.concatenate(SCS)
+        self.label_mapping = label_mapping
+
+        self.STS = np.concatenate(STS).T
+        self.SCS = np.concatenate(SCS).astype(np.int32)
+
+        if not self.label_mapping is None:
+            self.SCS = self.label_mapping[self.SCS]
 
         self.indices = np.arange(self.SCS.shape[0])
         for i in range(wsize * wstride):
@@ -167,8 +173,8 @@ class HARTHDataset(STSDataset):
 
         self.splits = np.array(splits)
 
-        self.STS = np.concatenate(STS)
-        self.SCS = np.concatenate(SCS)
+        self.STS = np.concatenate(STS).T
+        self.SCS = np.concatenate(SCS).astype(np.int32)
 
         self.indices = np.arange(self.SCS.shape[0])
         for i in range(wsize * wstride):

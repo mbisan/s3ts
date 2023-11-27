@@ -8,6 +8,8 @@ from s3ts.api.encodings import compute_DM
 import torchvision as tv
 import torch
 
+import sys
+
 # standard library imports
 import multiprocessing as mp
 import numpy as np
@@ -22,6 +24,10 @@ class DFDataset(Dataset):
             dm_transform = None) -> None:
         super().__init__()
 
+        '''
+            patterns: shape (n_shapes, channels, pattern_size)
+        '''
+
         self.stsds = stsds
 
         self.cache_dir = os.path.join(os.getcwd(), "df_cache")
@@ -33,8 +39,6 @@ class DFDataset(Dataset):
         self.patterns = patterns
         self.dm_transform = dm_transform
 
-        assert self.patterns.shape[1] == self.stsds.wsize
-
         self.rho = w
 
         for s in range(self.stsds.splits.shape[0] - 1):
@@ -42,10 +46,10 @@ class DFDataset(Dataset):
             self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path)
 
     def _compute_dm_cache(self, pattern, split, save_path):
-        DM = compute_DM(self.stsds.STS[split[0]:split[1]].T, pattern.transpose(0, 2, 1), rho=self.rho)
+        DM = compute_DM(self.stsds.STS[:, split[0]:split[1]], pattern, rho=self.rho)
 
         with open(save_path, "wb") as f:
-            np.save(f, DM.transpose((0, 2, 1)))
+            np.save(f, DM)
 
     def __del__(self):
         print("called del")
@@ -68,15 +72,15 @@ class DFDataset(Dataset):
         first = id - self.stsds.wsize*self.stsds.wstride - self.stsds.splits[s]
         last = id - self.stsds.splits[s]
 
-        temp = np.load(os.path.join(self.cache_dir, f"part{s}.npy"))
+        temp = np.load(os.path.join(self.cache_dir, f"part{s}.npy"))[:, :, first:last:self.stsds.wstride] * 1 # *1 so that a new buffer is created
 
-        dm = torch.from_numpy(temp[:, first:last:self.stsds.wstride, :])
+        dm = torch.from_numpy(temp).float()
 
         if not self.dm_transform is None:
             dm = self.dm_transform(dm)
 
-        return (torch.from_numpy(temp[:, first:last:self.stsds.wstride, :]), 
-                self.stsds.STS[first:last:self.stsds.wstride, :], 
+        return (dm, 
+                self.stsds.STS[:, first:last:self.stsds.wstride], 
                 self.stsds.SCS[id])
 
 class DFDatasetCopy(Dataset):
@@ -91,7 +95,9 @@ class DFDatasetCopy(Dataset):
         return self.indices.shape[0]
     
     def __getitem__(self, index) -> tuple[torch.Tensor, torch.Tensor, int]:
-        return self.dfds[self.indices[index]]
+
+        df, ts, c = self.dfds[self.indices[index]]
+        return {"frame": df, "series": ts, "label": c}
     
     def __del__(self):
         del self.dfds
@@ -136,16 +142,19 @@ class LDFDataset(StreamingFramesDM):
         self.dfds = dfds
         self.wdw_len = self.dfds.stsds.wsize
         self.wdw_str = self.dfds.stsds.wstride
+        self.sts_str = False
 
         # gather dataset info   
         self.n_dims = self.dfds.stsds.STS.shape[1]
         self.n_classes = len(np.unique(self.dfds.stsds.SCS))
         self.n_patterns = self.dfds.patterns.shape[0]
-        self.l_patterns = self.dfds.patterns.shape[1] # same as window lenght
+        self.l_patterns = self.dfds.patterns.shape[2]
 
         # convert to tensors
-        self.dfds.stsds.STS = torch.from_numpy(self.dfds.stsds.STS).to(torch.float32)
-        self.dfds.stsds.SCS = torch.from_numpy(self.dfds.stsds.SCS).to(torch.int64)
+        if not torch.is_tensor(self.dfds.stsds.STS):
+            self.dfds.stsds.STS = torch.from_numpy(self.dfds.stsds.STS).to(torch.float32)
+        if not torch.is_tensor(self.dfds.stsds.SCS):
+            self.dfds.stsds.SCS = torch.from_numpy(self.dfds.stsds.SCS).to(torch.int64)
 
         train_indices = self.dfds.stsds.indices[data_split["train"](self.dfds.stsds.indices)]
         test_indices = self.dfds.stsds.indices[data_split["test"](self.dfds.stsds.indices)]
