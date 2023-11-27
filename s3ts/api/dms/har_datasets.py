@@ -16,6 +16,8 @@ import numpy as np
 
 from storage.har_datasets import STSDataset
 
+import hashlib
+
 class DFDataset(Dataset):
     def __init__(self, 
             stsds: STSDataset = None,
@@ -32,13 +34,8 @@ class DFDataset(Dataset):
         self.stsds = stsds
         self.ram = ram
 
-        self.cache_dir = None
-        if not self.ram:
-            self.cache_dir = os.path.join(os.getcwd(), "df_cache")
-            if not os.path.exists(self.cache_dir):
-                os.mkdir(self.cache_dir)
-            elif len(os.listdir(self.cache_dir)) > 0:
-                raise Exception(f"Cache directory not empty, please clean the directory {self.cache_dir}")
+        if not patterns.flags.c_contiguous:
+            patterns = patterns.copy(order="c")
 
         self.patterns = patterns
         self.dm_transform = dm_transform
@@ -47,14 +44,28 @@ class DFDataset(Dataset):
 
         self.DM = []
 
+        self.cache_dir = None
+        if not self.ram:
+            hash = hashlib.sha1(self.stsds.STS.data)
+            hash.update(patterns.data)
+
+            self.cache_dir = os.path.join(os.getcwd(), "cache" + hash.hexdigest())
+            if not os.path.exists(self.cache_dir):
+                os.mkdir(self.cache_dir)
+            elif len(os.listdir(self.cache_dir)) > 0:
+                print("Loading cached dissimilarity frames...")
+
         if self.ram:
             for s in range(self.stsds.splits.shape[0] - 1):
                 DM = torch.from_numpy(compute_DM(self.stsds.STS[:, self.stsds.splits[s]:self.stsds.splits[s+1]], self.patterns, rho=self.rho))
                 self.DM.append(DM)
         else:
             for s in range(self.stsds.splits.shape[0] - 1):
-                save_path = os.path.join(self.cache_dir, f"part{s}.pt")
-                self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path)
+                save_path = os.path.join(self.cache_dir, f"part{s}.npy")
+
+                if not os.path.exists(save_path):
+                    self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path)
+
                 self.DM.append(torch.from_numpy(np.load(save_path, mmap_mode="r")))
 
     def _compute_dm_cache(self, pattern, split, save_path):

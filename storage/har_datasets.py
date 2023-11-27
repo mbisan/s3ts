@@ -159,11 +159,10 @@ class UCI_HARDataset(STSDataset):
 
         self.splits = np.array(splits)
 
-        self.label_mapping = label_mapping
-
         self.STS = np.concatenate(STS).T
         self.SCS = np.concatenate(SCS).astype(np.int32)
 
+        self.label_mapping = label_mapping
         if not self.label_mapping is None:
             self.SCS = self.label_mapping[self.SCS]
 
@@ -181,7 +180,8 @@ class HARTHDataset(STSDataset):
             dataset_dir: str = None,
             wsize: int = 10,
             wstride: int = 1,
-            normalize: bool = True
+            normalize: bool = True,
+            label_mapping: np.ndarray = None
             ) -> None:
         super().__init__(wsize=wsize, wstride=wstride)
 
@@ -222,7 +222,11 @@ class HARTHDataset(STSDataset):
         self.splits = np.array(splits)
 
         self.STS = np.concatenate(STS).T
-        self.SCS = np.concatenate(SCS).astype(np.int32)
+        self.SCS = np.squeeze(np.concatenate(SCS).astype(np.int32))
+
+        self.label_mapping = label_mapping
+        if not self.label_mapping is None:
+            self.SCS = self.label_mapping[self.SCS]
 
         self.indices = np.arange(self.SCS.shape[0])
         for i in range(wsize * wstride):
