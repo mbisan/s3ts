@@ -21,7 +21,8 @@ class DFDataset(Dataset):
             stsds: STSDataset = None,
             patterns: np.ndarray = None,
             w: float = 0.1,
-            dm_transform = None) -> None:
+            dm_transform = None,
+            ram: bool = False) -> None:
         super().__init__()
 
         '''
@@ -29,21 +30,31 @@ class DFDataset(Dataset):
         '''
 
         self.stsds = stsds
+        self.ram = ram
 
-        self.cache_dir = os.path.join(os.getcwd(), "df_cache")
-        if not os.path.exists(self.cache_dir):
-            os.mkdir(self.cache_dir)
-        elif len(os.listdir(self.cache_dir)) > 0:
-            raise Exception(f"Cache directory not empty, please clean the directory {self.cache_dir}")
+        self.cache_dir = None
+        if not self.ram:
+            self.cache_dir = os.path.join(os.getcwd(), "df_cache")
+            if not os.path.exists(self.cache_dir):
+                os.mkdir(self.cache_dir)
+            elif len(os.listdir(self.cache_dir)) > 0:
+                raise Exception(f"Cache directory not empty, please clean the directory {self.cache_dir}")
 
         self.patterns = patterns
         self.dm_transform = dm_transform
 
         self.rho = w
 
-        for s in range(self.stsds.splits.shape[0] - 1):
-            save_path = os.path.join(self.cache_dir, f"part{s}.npy")
-            self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path)
+        self.DM = []
+
+        if self.ram:
+            for s in range(self.stsds.splits.shape[0] - 1):
+                DM = compute_DM(self.stsds.STS[:, self.stsds.splits[s]:self.stsds.splits[s+1]], self.patterns, rho=self.rho)
+                self.DM.append(DM)
+        else:
+            for s in range(self.stsds.splits.shape[0] - 1):
+                save_path = os.path.join(self.cache_dir, f"part{s}.npy")
+                self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path)
 
     def _compute_dm_cache(self, pattern, split, save_path):
         DM = compute_DM(self.stsds.STS[:, split[0]:split[1]], pattern, rho=self.rho)
@@ -72,7 +83,10 @@ class DFDataset(Dataset):
         first = id - self.stsds.wsize*self.stsds.wstride - self.stsds.splits[s]
         last = id - self.stsds.splits[s]
 
-        temp = np.load(os.path.join(self.cache_dir, f"part{s}.npy"))[:, :, first:last:self.stsds.wstride] * 1 # *1 so that a new buffer is created
+        if self.ram:
+            temp = self.DM[s][:, :, first:last:self.stsds.wstride] * 1
+        else:
+            temp = np.load(os.path.join(self.cache_dir, f"part{s}.npy"))[:, :, first:last:self.stsds.wstride] * 1 # *1 so that a new buffer is created
 
         dm = torch.from_numpy(temp).float()
 
