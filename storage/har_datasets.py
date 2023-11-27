@@ -3,6 +3,9 @@ import numpy as np
 
 from torch.utils.data import Dataset
 
+from s3ts.api.ts2sts import compute_medoids
+from tslearn.clustering import TimeSeriesKMeans
+
 class STSDataset(Dataset):
 
     def __init__(self,
@@ -42,7 +45,7 @@ class STSDataset(Dataset):
     def sliceFromArrayOfIndices(self, indexes: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         assert len(indexes.shape) == 1 # only accept 1-dimensional arrays
 
-        return_sts = np.empty((indexes.shape[0], self.wsize, self.STS.shape[0]))
+        return_sts = np.empty((indexes.shape[0], self.STS.shape[0], self.wsize))
         return_scs = np.empty((indexes.shape[0], self.wsize))
 
         for i, id in enumerate(indexes):
@@ -69,7 +72,52 @@ class STSDataset(Dataset):
         self.percentile95 = np.expand_dims(np.percentile(self.STS, 95, axis=1), 1)
 
         self.STS = (self.STS - self.mean) / (self.percentile95 - self.percentile5)
+
+# Methods to obtain patterns
+
+def sts_medoids(dataset: STSDataset, n = 100, random_seed: int = 45):
+    np.random.seed(random_seed)
+
+    window_id, window_lb = dataset.getSameClassWindowIndex()
+
+    selected_w = []
+    selected_c = []
+
+    for i, c in enumerate(np.unique(window_lb)):
+        # get the random windows for the class c
+
+        rw = np.random.choice(window_id[window_lb == c].reshape(-1), n)
+
+        ts, cs = dataset.sliceFromArrayOfIndices(rw)
+
+        selected_w.append(ts)
+        selected_c.append(np.full(n, c, np.int32))
+
+    selected_w = np.concatenate(selected_w) # (n, dims, len)
+    meds, meds_id = compute_medoids(selected_w, np.concatenate(selected_c, axis=0))
+
+    return meds[:,0,:,:]
+
+def sts_barycenter(dataset: STSDataset, n: int = 100, random_seed: int = 45):
+    np.random.seed(random_seed)
     
+    window_id, window_lb = dataset.getSameClassWindowIndex()
+    selected = np.empty((np.unique(window_lb).shape[0], dataset.STS.shape[0], dataset.wsize))
+
+    for i, c in enumerate(np.unique(window_lb)):
+        # get the random windows for the class c
+
+        rw = np.random.choice(window_id[window_lb == c].reshape(-1), n)
+
+        ts, cs = dataset.sliceFromArrayOfIndices(rw)
+
+        km = TimeSeriesKMeans(n_clusters=1, verbose=True, random_state=1, metric="dtw", n_jobs=-1)
+        km.fit(np.transpose(ts, (0, 2, 1)))
+
+        selected[i] = km.cluster_centers_[0].T
+
+    return selected
+
 class UCI_HARDataset(STSDataset):
 
     def __init__(self,
