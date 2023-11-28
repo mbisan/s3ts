@@ -8,8 +8,6 @@ import wget
 
 import zipfile
 
-from label_mappings import *
-
 DATASETS = {
     "WARD": "https://people.eecs.berkeley.edu/~yang/software/WAR/WARD1.zip",
     "HASC": "http://bit.ly/i0ivEz",
