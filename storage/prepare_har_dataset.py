@@ -224,9 +224,54 @@ def prepare_uci_har(dataset_dir, split = "both"):
             np.save(f, SCS[splits[split]*overlap:(splits[split+1])*overlap])
             
 
-if __name__ == "__main__":
-    download("all", "./datasets")
-    unpack("all", "./datasets")
+def prepare_mhealth(dataset_dir):
+    files = os.listdir(os.path.join(dataset_dir, "MHEALTHDATASET")) # contains .log files
+    # Filter the files
+    files = [f for f in files if ".log" in f]
+    assert len(files) == 10 # dataset has 10 subjects
 
-    prepare_uci_har("./datasets/UCI-HAR")
-    prepare_harth("./datasets/HARTH")
+    # Assume no missing data
+    # extract features
+    columns = [
+        "chest_acc_x", "chest_acc_y", "chest_acc_z",
+        "ecg_1", "ecg_2",
+        "lankle_acc_x", "lankle_acc_y", "lankle_acc_z",
+        "lankle_gyro_x", "lankle_gyro_y", "lankle_gyro_z",
+        "lankle_mag_x", "lankle_mag_y", "lankle_mag_z", 
+        "rankle_acc_x", "rankle_acc_y", "rankle_acc_z",
+        "rankle_gyro_x", "rankle_gyro_y", "rankle_gyro_z",
+        "rankle_mag_x", "rankle_mag_y", "rankle_mag_z",
+        "label" 
+    ]
+
+    for i, f in enumerate(files):
+        ds = pandas.read_csv(os.path.join(dataset_dir, "MHEALTHDATASET", f), header=None, sep="\t")
+        ds.columns = columns
+
+        # save acc and other sensor data separately
+        with open(os.path.join(dataset_dir, f"acc_subject{i}.npz"), "wb") as savefile:
+            np.save(savefile, ds[["chest_acc_x", "chest_acc_y", "chest_acc_z",
+                                  "lankle_acc_x", "lankle_acc_y", "lankle_acc_z",
+                                  "rankle_acc_x", "rankle_acc_y", "rankle_acc_z"]].to_numpy())
+        
+        with open(os.path.join(dataset_dir, f"mag_subject{i}.npz"), "wb") as savefile:
+            np.save(savefile, ds[["lankle_mag_x", "lankle_mag_y", "lankle_mag_z",
+                                  "rankle_mag_x", "rankle_mag_y", "rankle_mag_z"]].to_numpy())
+            
+        with open(os.path.join(dataset_dir, f"gyro_subject{i}.npz"), "wb") as savefile:
+            np.save(savefile, ds[["lankle_gyro_x", "lankle_gyro_y", "lankle_gyro_z",
+                                  "rankle_gyro_x", "rankle_gyro_y", "rankle_gyro_z"]].to_numpy())
+
+        with open(os.path.join(dataset_dir, f"ecg_subject{i}.npz"), "wb") as savefile:
+            np.save(savefile, ds[["ecg_1", "ecg_2"]].to_numpy())
+
+        with open(os.path.join(dataset_dir, f"labels_subject{i}.npz"), "wb") as savefile:
+            np.save(savefile, ds[["label"]].to_numpy())    
+
+if __name__ == "__main__":
+    # download("all", "./datasets")
+    # unpack("all", "./datasets")
+
+    # prepare_uci_har("./datasets/UCI-HAR")
+    # prepare_harth("./datasets/HARTH")
+    prepare_mhealth("./datasets/MHEALTH")

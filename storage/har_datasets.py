@@ -236,5 +236,77 @@ class HARTHDataset(STSDataset):
         if normalize:
             self.normalizeSTS("normal")
 
+class MHEALTHDataset(STSDataset):
+
+    def __init__(self,
+            dataset_dir: str = None,
+            sensor: str = "",
+            wsize: int = 10,
+            wstride: int = 1,
+            normalize: bool = True,
+            label_mapping: np.ndarray = None
+            ) -> None:
+        super().__init__(wsize=wsize, wstride=wstride)
+
+        '''
+            MHEALTH dataset handler
+
+            Inputs:
+                dataset_dir: Directory of the prepare_har_dataset.py
+                    processed dataset.
+                sensor: what sensor data to load, if empty string, all sensors are used
+                wsize: window size
+                wstride: window stride
+        '''
+
+        assert sensor in ("", "acc", "ecg", "gyro", "mag")
+
+        # load dataset
+        files = filter(
+            lambda x: "labels" in x,
+            os.listdir(os.path.join(dataset_dir)))
+        
+        splits = [0]
+
+        STS = []
+        SCS = []
+        for f in files:
+
+            subject = f.replace("labels_", "")
+            # get separated STS
+            data = filter(
+                lambda x: (sensor in x) and (not "labels" in x) and (subject in x),
+                os.listdir(dataset_dir))
+            
+            data = sorted(data)
+
+            sensor_data = []
+            for s in data:
+                sensor_data.append(np.load(os.path.join(dataset_dir, s)))
+
+            sensor_data = np.hstack(sensor_data) # concatenate columns
+            STS.append(sensor_data)
+
+            SCS.append(np.load(os.path.join(dataset_dir, f)))
+            
+            splits.append(splits[-1] + sensor_data.shape[0])
+
+        self.splits = np.array(splits)
+
+        self.STS = np.concatenate(STS).T
+        self.SCS = np.squeeze(np.concatenate(SCS).astype(np.int32))
+
+        self.label_mapping = label_mapping
+        if not self.label_mapping is None:
+            self.SCS = self.label_mapping[self.SCS]
+
+        self.indices = np.arange(self.SCS.shape[0])
+        for i in range(wsize * wstride):
+            self.indices[self.splits[:-1] + i] = 0
+        self.indices = self.indices[np.nonzero(self.indices)]
+
+        if normalize:
+            self.normalizeSTS("normal")
+
 if __name__ == "__main__":
     ds = HARTHDataset("./datasets/HARTH/", wsize=64, wstride=1)
