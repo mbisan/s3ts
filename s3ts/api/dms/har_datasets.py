@@ -73,14 +73,6 @@ class DFDataset(Dataset):
         with open(save_path, "wb") as f:
             np.save(f, DM)
 
-    def __del__(self):
-        print("called del")
-        # clean cache
-        if not self.cache_dir is None:
-            [os.remove(os.path.join(self.cache_dir, f)) for f in os.listdir(self.cache_dir) if ".npy" in f]
-            if len(os.listdir(self.cache_dir)) == 0:
-                os.rmdir(self.cache_dir)
-
     def __len__(self):
         return len(self.stsds)
 

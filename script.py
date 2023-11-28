@@ -2,6 +2,8 @@
 import numpy as np
 import torch
 
+from time import time
+
 # %%
 from storage.har_datasets import *
 from s3ts.api.dms.har_datasets import LDFDataset, DFDataset
@@ -19,8 +21,18 @@ label_mapping = np.zeros(7)
 label_mapping[1:] = np.arange(6)
 
 ds = UCI_HARDataset("./datasets/UCI-HAR/", split="train", wsize=64, normalize=True, label_mapping=label_mapping)
-meds = sts_medoids(ds, 1000)
+
+print("Computing medoids")
+a = time()
+meds = sts_medoids(ds, 500)
+b = time()-a
+print(f"Finished in {b//3600}:{(b%3600)//60}:{(b%3600)%60}.{round(b%1, 3)}")
+
+print("Computing/loading DF")
+a = time()
 dfds = DFDataset(ds, patterns=meds, w=0.1, dm_transform=None, ram=False)
+b = time()-a
+print(f"Finished in {b//3600}:{(b%3600)//60}:{(b%3600)%60}.{round(b%1, 3)}")
 
 # %%
 DM = []
@@ -44,17 +56,19 @@ data_split = {
     "test": lambda x: x>=375000
 }
 
-dm = LDFDataset(dfds, data_split=data_split, batch_size=32, random_seed=42, num_workers=8)
+dm = LDFDataset(dfds, data_split=data_split, batch_size=32, random_seed=42, num_workers=16)
 
 # %%
-len(dm.ds_train) + len(dm.ds_val) + len(dm.ds_test)
+print(f"Total points in the dataset: {len(dm.ds_train) + len(dm.ds_val) + len(dm.ds_test)}")
 
 # %%
 model = create_model_from_DM(dm, name=None, 
         dsrc="img", arch="cnn", task="cls")
 
 # %%
-model, data = train_model(dm, model, max_epochs=2)
+print("Training start")
+
+model, data = train_model(dm, model, max_epochs=20)
 print(data)
 
 
