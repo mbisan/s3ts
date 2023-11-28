@@ -46,8 +46,7 @@ class DFDataset(Dataset):
 
         self.cache_dir = None
         if not self.ram:
-            hash = hashlib.sha1(self.stsds.STS.data)
-            hash.update(patterns.data)
+            hash = hashlib.sha1(patterns.data)
 
             self.cache_dir = os.path.join(os.getcwd(), "cache" + hash.hexdigest())
             if not os.path.exists(self.cache_dir):
