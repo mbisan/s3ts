@@ -24,7 +24,7 @@ ds = UCI_HARDataset("./datasets/UCI-HAR/", split="train", wsize=64, normalize=Tr
 
 print("Computing medoids")
 a = time()
-meds = sts_medoids(ds, 500)[np.array([0,3])]
+meds = sts_medoids(ds, 500)
 print(f"Finished in {str_time(time()-a)}")
 
 print("Computing/loading DF")
