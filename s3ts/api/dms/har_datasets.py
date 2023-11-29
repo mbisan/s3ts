@@ -179,7 +179,7 @@ class LDFDataset(StreamingFramesDM):
     def train_dataloader(self) -> DataLoader:
         """ Returns the training DataLoader. """
         return DataLoader(self.ds_train, batch_size=self.batch_size, 
-            num_workers=self.num_workers, shuffle=False,
+            num_workers=self.num_workers, shuffle=True,
             pin_memory=True, persistent_workers=True)
 
     def val_dataloader(self) -> DataLoader:

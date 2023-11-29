@@ -24,7 +24,7 @@ ds = UCI_HARDataset("./datasets/UCI-HAR/", split="train", wsize=64, normalize=Tr
 
 print("Computing medoids")
 a = time()
-meds = sts_medoids(ds, 500)
+meds = sts_medoids(ds, 500)[np.array([0,3])]
 print(f"Finished in {str_time(time()-a)}")
 
 print("Computing/loading DF")
@@ -56,7 +56,7 @@ dm = LDFDataset(dfds, data_split=data_split, batch_size=32, random_seed=42, num_
 print(f"Total points in the dataset: {len(dm.ds_train) + len(dm.ds_val) + len(dm.ds_test)}")
 
 model = create_model_from_DM(dm, name=None, 
-        dsrc="img", arch="cnn", task="cls")
+        dsrc="img", arch="cnn", task="cls", enc_feats=64)
 
 print("Training start")
 
