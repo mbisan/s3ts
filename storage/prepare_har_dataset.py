@@ -160,7 +160,7 @@ def prepare_harth(dataset_dir):
     print(f"Total number of observations: {total}")
 
     for c in counts.keys():
-            print(f"{len(event_length[c])} events in class {HARTH_LABELS[c]},")
+            print(f"{len(event_length[c])} events in class {c},")
             print(f"\twith size (min) {min(event_length[c])}, (max) {max(event_length[c])}, (mean) {np.mean(event_length[c])}")
             print(f"\t{counts[c]} observations ({(counts[c]/total):.2f})")
 
