@@ -1,6 +1,7 @@
 from numba import jit, prange
 from math import sqrt
 import numpy as np
+import torch
 
 # Disimilarity Frames
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -69,6 +70,50 @@ def compute_DM(
 
     # Return the DM
     return DM
+
+@torch.jit.script
+def fill_dtw(DM: torch.Tensor, w: float) -> torch.Tensor:
+    for j in range(1, DM.shape[2]):
+        for i in range(1, DM.shape[1]):
+            values = torch.stack([w*DM[:, i, j-1], DM[:, i-1, j], w*DM[:, i-1, j-1]], dim=0)
+            DM[:, i, j] += torch.min(values, dim=0)[0]
+    return DM
+
+@jit(nopython=True, parallel=True)
+def fill_dtw(DM: torch.Tensor, w: float) -> torch.Tensor:
+    for p in prange(DM.shape[0]):
+        for j in prange(1, DM.shape[2]):
+            for i in prange(1, DM.shape[1]):
+                DM[p, i, j] += min([w*DM[p, i, j-1], DM[p, i-1, j], w*DM[p, i-1, j-1]])
+    return DM
+
+def compute_oDTW(
+        STS: np.ndarray, 
+        patts: np.ndarray, 
+        rho: float, 
+        ) -> np.ndarray:
+    
+    '''
+        STS has shape (c, n)
+        patts has shape (n_patts, c, m)
+        rho: weight of the o-DTW for the (-m)-th element in the STS
+    '''
+
+    assert STS.shape[0] == patts.shape[1]
+
+    lpatts: int = patts.shape[2]
+    w: float = rho**(1/lpatts)
+
+    # Compute point-wise distances
+    DM = np.sum(np.square(STS[None,:,None,:] - patts[:,:,:,None]), axis=1, dtype=np.float32) # DM of shape (n_patts, m, n)
+
+    DM[:,0,:] = np.cumsum(DM[:,0,:], axis=1)
+    DM[:,:,0] = np.cumsum(DM[:,:,0], axis=1)
+    
+    DM = fill_dtw(DM, w)
+
+    # Return the DM
+    return np.sqrt(DM)
 
 # Gramian Frames
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
