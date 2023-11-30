@@ -4,7 +4,7 @@ import os
 
 from torch.utils.data import Dataset, DataLoader
 from s3ts.api.dms.base import StreamingFramesDM
-from s3ts.api.encodings import compute_DM
+from s3ts.api.encodings import compute_DM, compute_oDTW
 import torchvision as tv
 import torch
 
@@ -68,7 +68,7 @@ class DFDataset(Dataset):
                 self.DM.append(torch.from_numpy(np.load(save_path, mmap_mode="r")))
 
     def _compute_dm_cache(self, pattern, split, save_path):
-        DM = compute_DM(self.stsds.STS[:, split[0]:split[1]], pattern, rho=self.rho)
+        DM = compute_oDTW(self.stsds.STS[:, split[0]:split[1]], pattern, rho=self.rho)
 
         with open(save_path, "wb") as f:
             np.save(f, DM)

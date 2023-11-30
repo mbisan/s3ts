@@ -70,6 +70,7 @@ def compute_DM(
 
     # Return the DM
     return DM
+
 @jit(nopython=True, parallel=True)
 def fill_dtw(DM: np.ndarray, w: float) -> None:
     for p in prange(DM.shape[0]):
@@ -83,7 +84,7 @@ def compute_pointwise_ED2(DM: np.ndarray, STS: np.ndarray, patts: np.ndarray) ->
     for p in prange(DM.shape[0]):
         for i in range(DM.shape[1]):
             for j in range(DM.shape[2]):
-                DM[p, i, j] = np.sum(np.square(STS[:, j] - patts[p, :, j]))
+                DM[p, i, j] = np.sum(np.square(STS[:, j] - patts[p, :, i]))
 
 def compute_oDTW(
         STS: np.ndarray, 
