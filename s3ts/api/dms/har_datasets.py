@@ -45,19 +45,22 @@ class DFDataset(Dataset):
         self.DM = []
 
         self.cache_dir = None
-        if not self.ram:
-            hash = hashlib.sha1(patterns.data)
+        hash = hashlib.sha1(patterns.data)
+        self.cache_dir = os.path.join(os.getcwd(), "cache" + hash.hexdigest())
 
-            self.cache_dir = os.path.join(os.getcwd(), "cache" + hash.hexdigest())
-            if not os.path.exists(self.cache_dir):
-                os.mkdir(self.cache_dir)
-            elif len(os.listdir(self.cache_dir)) > 0:
-                print("Loading cached dissimilarity frames...")
+        if not os.path.exists(self.cache_dir):
+            os.mkdir(self.cache_dir)
+        elif len(os.listdir(self.cache_dir)) > 0:
+            print("Loading cached dissimilarity frames if available...")
 
         if self.ram:
             for s in range(self.stsds.splits.shape[0] - 1):
-                DM = torch.from_numpy(compute_oDTW(self.stsds.STS[:, self.stsds.splits[s]:self.stsds.splits[s+1]], self.patterns, rho=self.rho))
-                self.DM.append(DM)
+                save_path = os.path.join(self.cache_dir, f"part{s}.npy")
+
+                if not os.path.exists(save_path):
+                    self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path)
+
+                self.DM.append(torch.from_numpy(np.load(save_path)))
         else:
             for s in range(self.stsds.splits.shape[0] - 1):
                 save_path = os.path.join(self.cache_dir, f"part{s}.npy")

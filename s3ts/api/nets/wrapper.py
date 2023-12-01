@@ -159,19 +159,19 @@ class WrapperModel(LightningModule):
         # return loss
         return loss.to(torch.float32)
 
-    def training_step(self, batch: torch.Tensor, batch_idx: int):
+    def training_step(self, batch: dict[str: torch.Tensor], batch_idx: int):
         """ Training step. """
         return self._inner_step(batch, stage="train")
         
-    def validation_step(self, batch: torch.Tensor, batch_idx: int):
+    def validation_step(self, batch: dict[str: torch.Tensor], batch_idx: int):
         """ Validation step. """
         return self._inner_step(batch, stage="val")
 
-    def test_step(self, batch: torch.Tensor, batch_idx: int):
+    def test_step(self, batch: dict[str: torch.Tensor], batch_idx: int):
         """ Validation step. """
         return self._inner_step(batch, stage="test")
 
-    def predict_step(self, batch: torch.Tensor, batch_idx: int):
+    def predict_step(self, batch: dict[str: torch.Tensor], batch_idx: int):
         """ Predict step. """
         if self.dsrc == "img":
             output = self(batch["frame"])
