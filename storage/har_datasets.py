@@ -166,7 +166,7 @@ class StreamingTimeSeriesCopy(Dataset):
     def __getitem__(self, index) -> tuple[torch.Tensor, torch.Tensor, int]:
 
         ts, c = self.stsds[self.indices[index]]
-        return {"series": ts, "label": c}
+        return {"series": ts, "label": c[-1]}
     
     def __del__(self):
         del self.stsds

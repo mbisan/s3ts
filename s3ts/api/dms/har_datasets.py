@@ -56,7 +56,7 @@ class DFDataset(Dataset):
 
         if self.ram:
             for s in range(self.stsds.splits.shape[0] - 1):
-                DM = torch.from_numpy(compute_DM(self.stsds.STS[:, self.stsds.splits[s]:self.stsds.splits[s+1]], self.patterns, rho=self.rho))
+                DM = torch.from_numpy(compute_oDTW(self.stsds.STS[:, self.stsds.splits[s]:self.stsds.splits[s+1]], self.patterns, rho=self.rho))
                 self.DM.append(DM)
         else:
             for s in range(self.stsds.splits.shape[0] - 1):
