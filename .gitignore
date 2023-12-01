@@ -139,3 +139,4 @@ results/
 storage/datasets
 datasets
 cache*
+lightning_logs
