@@ -4,14 +4,27 @@ import torch
 def dtw_compute(dist_tensor: torch.Tensor, grad_tensor: torch.Tensor, w: float) -> None:
     for i in range(1, dist_tensor.shape[2]):
         for j in range(1, dist_tensor.shape[3]):
-            # elements has shape (n, k, 3)
-            elements = torch.stack([w * dist_tensor[:, :, i, j-1], dist_tensor[:, :, i-1, j], w * dist_tensor[:, :, i-1, j-1]], dim=2)
+            # elements has shape (3, n, k)
+            elements = torch.stack([w * dist_tensor[:, :, i, j-1], dist_tensor[:, :, i-1, j], w * dist_tensor[:, :, i-1, j-1]], dim=0)
 
-            value, id = torch.min(elements, dim=2) # shape (n, k)
+            value, id = torch.min(elements, dim=0) # shape (n, k)
 
             dist_tensor[:,:, i, j] += value
 
             grad_tensor[id==0][:, :, i, j] += w * grad_tensor[id==0][:, :, i, j-1]
+
+@torch.jit.script
+def dtw_compute_faster(dist_tensor: torch.Tensor, grad_tensor: torch.Tensor, w: float) -> None:
+    for i in range(1, dist_tensor.shape[0]):
+        for j in range(1, dist_tensor.shape[1]):
+            # elements has shape (3, n, k)
+            elements = torch.stack([w * dist_tensor[i, j-1], dist_tensor[i-1, j], w * dist_tensor[i-1, j-1]], dim=0)
+
+            value, id = torch.min(elements, dim=0) # shape (n, k)
+
+            dist_tensor[i, j] += value
+
+            grad_tensor[:, i, j][:, id == 0] += w * grad_tensor[:, i, j][:, id == 0]
 
 @torch.jit.script
 def dtw_compute_by_index(dist_tensor: torch.Tensor, grad_tensor: torch.Tensor, w: float, n: int, s: int) -> None:
@@ -56,11 +69,43 @@ def torch_dtw_fast(x: torch.Tensor, y: torch.Tensor, w: float, eps: float = 1e-5
 
     return DTW.sqrt(), p_diff
 
+@torch.jit.script
+def torch_dtw_faster(x: torch.Tensor, y: torch.Tensor, w: float, eps: float = 1e-5):
+    # shape of x (n, dim, x_len) y (m, dim, y_len)
+
+    # reorder dimensions
+    x = torch.permute(x, (1, 2, 0)) # contiguous copy of x of shape (dim, x_len, n)
+    y = torch.permute(y, (1, 2, 0)) # contiguous copy of x of shape (dim, y_len, m)
+
+    # performs convolution-like operation, for each kernel the DF
+    # (of shape (kernel_size, T)) is computed, then summed across channels
+    # x has shape (batch, c, time_dimension)
+
+    # compute pairwise diffs (squared)
+    p_diff = x[:, None, :, :, None] - y[:, :, None, None, :] # shape (d, Kernel_size, T, n, n_kernel)
+    euc_d = torch.square(p_diff).sum(0) # shape (kernel_size, T, n, n_kernel)
+
+    # compute dtw
+    DTW = euc_d.clone()
+    DTW[0,:,:,:] = torch.cumsum(DTW[0,:,:,:], dim=0)
+    DTW[:,0,:,:] = torch.cumsum(DTW[:,0,:,:], dim=0)
+
+    # p_diff contains the partial derivatives of DTW[i, j, n, k] wrt K[d, i, n] (dims (d, i, j, n, k))
+    p_diff = p_diff / torch.sqrt(euc_d[None, :, :, :, :] + eps)
+
+    dtw_compute_faster(DTW, p_diff, w)
+
+    # recover dimensions
+    DTW = torch.permute(DTW, (2, 3, 0, 1))
+    p_diff = torch.permute(p_diff, (3, 4, 0, 1, 2))
+
+    return DTW.sqrt(), p_diff
+
 class torch_dtw(torch.autograd.Function):
 
     @staticmethod
     def forward(x, y, w):
-        DTW, p_diff = torch_dtw_fast(x, y, w)
+        DTW, p_diff = torch_dtw_faster(x, y, w)
         return DTW, p_diff
     
     @staticmethod
