@@ -8,6 +8,8 @@ from s3ts.api.encodings import compute_DM, compute_oDTW
 import torchvision as tv
 import torch
 
+import h5py
+
 import sys
 
 # standard library imports
@@ -53,25 +55,23 @@ class DFDataset(Dataset):
         elif len(os.listdir(self.cache_dir)) > 0:
             print("Loading cached dissimilarity frames if available...")
 
-        if self.ram:
-            for s in range(self.stsds.splits.shape[0] - 1):
-                save_path = os.path.join(self.cache_dir, f"part{s}.npy")
+        for s in range(self.stsds.splits.shape[0] - 1):
+            save_path = os.path.join(self.cache_dir, f"part{s}.npz")
 
-                if not os.path.exists(save_path):
-                    self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path)
+            if not os.path.exists(save_path):
+                self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path)
 
+            if self.ram:
                 self.DM.append(torch.from_numpy(np.load(save_path)))
-        else:
-            for s in range(self.stsds.splits.shape[0] - 1):
-                save_path = os.path.join(self.cache_dir, f"part{s}.npy")
-
-                if not os.path.exists(save_path):
-                    self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path)
-
+            else:
                 self.DM.append(torch.from_numpy(np.load(save_path, mmap_mode="r")))
 
     def _compute_dm_cache(self, pattern, split, save_path):
         DM = compute_oDTW(self.stsds.STS[:, split[0]:split[1]], pattern, rho=self.rho)
+
+        # put time dimension in the first dimension
+        DM = np.ascontiguousarray(np.transpose(DM, (2, 0, 1)))
+        # therefore, DM has dimensions (n, num_frames, patt_len)
 
         with open(save_path, "wb") as f:
             np.save(f, DM)
@@ -89,7 +89,8 @@ class DFDataset(Dataset):
         first = id - self.stsds.wsize*self.stsds.wstride - self.stsds.splits[s]
         last = id - self.stsds.splits[s]
 
-        dm = self.DM[s][:, :, first:last:self.stsds.wstride] * 1
+        dm = self.DM[s][first:last:self.stsds.wstride] * 1
+        dm = torch.permute(dm, (1, 2, 0)) # recover the dimensions of dm (n_frames, patt_len, n)
 
         if not self.dm_transform is None:
             dm = self.dm_transform(dm)
