@@ -17,12 +17,12 @@ def dtw_compute(dist_tensor: torch.Tensor, grad_tensor: torch.Tensor, w: float) 
 def dtw_compute_faster(dist_tensor: torch.Tensor, grad_tensor: torch.Tensor, w: float) -> None:
     for i in range(1, dist_tensor.shape[0]):
         for j in range(1, dist_tensor.shape[1]):
-            # elements has shape (3, n, k)
-            value, id = torch.stack([w * dist_tensor[i, j-1], dist_tensor[i-1, j], w * dist_tensor[i-1, j-1]], dim=0).min(dim=0) # shape (n, k)
+            value = torch.minimum(w * torch.minimum(dist_tensor[i, j-1], dist_tensor[i-1, j-1]), dist_tensor[i-1, j])
+            id = (w * dist_tensor[i, j-1] < dist_tensor[i-1, j]) & (dist_tensor[i, j-1] < dist_tensor[i-1, j-1])
 
             dist_tensor[i, j] += value
 
-            grad_tensor[id==0][:, :, i, j] += w * grad_tensor[id==0][:, :, i, j-1]
+            grad_tensor[id][:, :, i, j] += w * grad_tensor[id][:, :, i, j-1]
 
 @torch.jit.script
 def dtw_compute_by_index(dist_tensor: torch.Tensor, grad_tensor: torch.Tensor, w: float, n: int, s: int) -> None:
