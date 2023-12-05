@@ -7,6 +7,7 @@ import os
 import wget
 
 import zipfile
+import tarfile
 
 DATASETS = {
     "WARD": "https://people.eecs.berkeley.edu/~yang/software/WAR/WARD1.zip",
@@ -50,6 +51,10 @@ def unpack(dataset_name = "all", dataset_dir=None):
         for name in DATASETS.keys():
             unpack(dataset_name=name, dataset_dir=dataset_dir)
         return None
+    
+    if dataset_name in ["WISDM"]:
+        unpack_wisdm(dataset_dir)
+        return 0
 
     if not os.path.exists(f"{dataset_dir}/{dataset_name}") or not os.listdir(f"{dataset_dir}/{dataset_name}/"):
         return print(f"Dataset is not downloaded to {dataset_dir}/{dataset_name}/")
@@ -78,6 +83,17 @@ def unpack(dataset_name = "all", dataset_dir=None):
             if new_file[-3:] == "zip" and new_file not in files:
                 with zipfile.ZipFile(os.path.join(f"{dataset_dir}/{dataset_name}", new_file), "r") as zip_ref:
                     zip_ref.extractall(f"{dataset_dir}/{dataset_name}")
+
+def unpack_wisdm(dataset_dir):
+    ds_dir = os.path.join(dataset_dir, "WISDM")
+    assert os.path.exists(ds_dir)
+
+    files = os.listdir(ds_dir)
+    assert len(files) == 1
+
+    f = tarfile.open(os.path.join(ds_dir, files[0]))
+
+    f.extractall(ds_dir)
 
 ############################################################################################
 
@@ -266,10 +282,47 @@ def prepare_mhealth(dataset_dir):
         with open(os.path.join(dataset_dir, f"labels_subject{i}.npz"), "wb") as savefile:
             np.save(savefile, ds[["label"]].to_numpy())    
 
+def prepare_wisdm(dataset_dir):
+    data_dir = os.path.join(dataset_dir, "WISDM_ar_v1.1")
+    assert os.path.exists(data_dir)
+
+    # clean original csv
+    with open(os.path.join(data_dir, "WISDM_ar_v1.1_raw.txt"), "r") as f:
+        data = f.read()
+    lines = list(map(lambda x: x.strip().strip(","), data.split(";")))
+
+    data_new = "\n".join(lines)
+    with open(os.path.join(data_dir, "clean.csv"), "w") as f:
+        f.write(data_new)
+    
+    act_label = {'Downstairs':0, 'Jogging':1, 'Sitting':2, 'Standing':3, 'Upstairs':4, 'Walking':5}
+    df = pandas.read_csv(os.path.join(data_dir, "clean.csv"), 
+        header=None, names=["USER", "ACTIVITY", "TIMESTAMP", "acc_x", "acc_y", "acc_z"])
+    
+    df = df.dropna()
+
+    for user_id in df["USER"].unique():
+        user = df[df["USER"] == user_id]
+        usersorted = user.sort_values("TIMESTAMP")
+
+        acc_data = usersorted[["acc_x", "acc_y", "acc_z"]].to_numpy()
+        timestamps = usersorted["TIMESTAMP"].to_numpy() / 50000000
+        diff_ts = np.diff(timestamps)
+
+        assert np.sum((diff_ts<1.05)*(diff_ts>0.95))
+
+        labels = list(map(lambda x: act_label[x], usersorted["ACTIVITY"]))
+
+        with open(os.path.join(dataset_dir, f"subject_{user_id}_sensor.npy"), "wb") as f:
+            np.save(f, acc_data)
+        with open(os.path.join(dataset_dir, f"subject_{user_id}_class.npy"), "wb") as f:
+            np.save(f, np.array(labels, dtype=int))
+
 if __name__ == "__main__":
     # download("all", "./datasets")
     # unpack("all", "./datasets")
 
     # prepare_uci_har("./datasets/UCI-HAR")
     # prepare_harth("./datasets/HARTH")
-    prepare_mhealth("./datasets/MHEALTH")
+    # prepare_mhealth("./datasets/MHEALTH")
+    prepare_wisdm("./datasets/WISDM")
