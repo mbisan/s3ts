@@ -318,6 +318,10 @@ def prepare_wisdm(dataset_dir):
         with open(os.path.join(dataset_dir, f"subject_{user_id}_class.npy"), "wb") as f:
             np.save(f, np.array(labels, dtype=int))
 
+
+def prepare_realdisp(dataset_dir):
+    pass
+
 if __name__ == "__main__":
     # download("all", "./datasets")
     # unpack("all", "./datasets")
