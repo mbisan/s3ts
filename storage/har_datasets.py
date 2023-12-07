@@ -565,7 +565,7 @@ class REALDISPDataset(STSDataset):
         self.splits = np.array(splits)
 
         self.STS = np.concatenate(STS).T
-        self.SCS = np.concatenate(SCS).astype(np.int32)
+        self.SCS = np.concatenate(SCS).astype(np.int32).reshape(-1)
 
         self.label_mapping = label_mapping
         if not self.label_mapping is None:

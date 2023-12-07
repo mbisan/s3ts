@@ -1,3 +1,5 @@
+import numpy as np
+
 HARTH_LABELS = {
     1: "walking",
     2: "running",
@@ -13,6 +15,13 @@ HARTH_LABELS = {
     140: "cycling_stand_idle"
 }
 
+harth_label_mapping = np.zeros(141)
+harth_label_mapping[1:9] = np.arange(8)
+harth_label_mapping[13] = 8
+harth_label_mapping[14] = 9
+harth_label_mapping[130] = 10
+harth_label_mapping[140] = 11
+
 UCI_HAR_LABELS = {
     1: "WALKING",
     2: "WALKING_UPSTAIRS",
@@ -21,3 +30,6 @@ UCI_HAR_LABELS = {
     5: "STANDING",
     6: "LAYING",
 }
+
+ucihar_label_mapping = np.zeros(7)
+ucihar_label_mapping[1:] = np.arange(6)
