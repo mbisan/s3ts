@@ -173,20 +173,47 @@ class StreamingTimeSeriesCopy(Dataset):
     def __del__(self):
         del self.stsds
 
+def return_indices_train(x, subjects, subject_splits):
+    out = np.ones_like(x, dtype=bool)
+    for s in subjects:
+        out = out & ((x<subject_splits[s]) | (x>subject_splits[s+1]))
+    return out
+
+def return_indices_test(x, subjects, subject_splits):
+    out = np.zeros_like(x, dtype=bool)
+    for s in subjects:
+        out = out | ((x>subject_splits[s]) & (x<subject_splits[s+1]))
+    return out
+
+# series splitting functions
+
 def split_by_test_subject(sts, subject):
     if hasattr(sts, "subject_indices"):
         subject_splits = sts.subject_indices
     else:
         subject_splits = list(sts.splits)
     
-    if subject > len(subject_splits) - 1:
-        raise Exception(f"No subject with index {subject}")
-    
-    return {
-        "train": lambda x: (x<subject_splits[subject]) | (x>subject_splits[subject+1]),
-        "val": lambda x: (x>subject_splits[subject]) & (x<subject_splits[subject+1]),
-        "test": lambda x: (x>subject_splits[subject]) & (x<subject_splits[subject+1])
-    }
+    if isinstance(subject, list):
+
+        for s in subject:
+            if s > len(subject_splits) - 1:
+                raise Exception(f"No subject with index {s}")
+
+        return {
+            "train": lambda x: return_indices_train(x, subjects=subject, subject_splits=subject_splits),
+            "val": lambda x: return_indices_test(x, subjects=subject, subject_splits=subject_splits),
+            "test": lambda x: return_indices_test(x, subjects=subject, subject_splits=subject_splits),
+        }
+
+    else:
+        if subject > len(subject_splits) - 1:
+            raise Exception(f"No subject with index {subject}")
+        
+        return {
+            "train": lambda x: (x<subject_splits[subject]) | (x>subject_splits[subject+1]),
+            "val": lambda x: (x>subject_splits[subject]) & (x<subject_splits[subject+1]),
+            "test": lambda x: (x>subject_splits[subject]) & (x<subject_splits[subject+1])
+        }
 
 # Load datasets predefined
 
@@ -213,23 +240,33 @@ class UCI_HARDataset(STSDataset):
                 wstride: window stride
         '''
 
-        # load dataset
-        files = list(filter(
-            lambda x: "sensor.npy" in x,
-            os.listdir(os.path.join(dataset_dir, "UCI HAR Dataset", split)))
-        )
-        files.sort()
-
+        assert split in ("both", "train", "test")
+        if split == "both":
+            split = ["train", "test"]
+        else:
+            split = [split]
+        
         splits = [0]
 
         STS = []
         SCS = []
-        for f in files:
-            sensor_data = np.load(os.path.join(dataset_dir, "UCI HAR Dataset", split, f))
-            STS.append(sensor_data)
-            SCS.append(np.load(os.path.join(dataset_dir, "UCI HAR Dataset", split, f.replace("sensor", "class"))))
 
-            splits.append(splits[-1] + sensor_data.shape[0])
+        for s in split:
+
+            # load dataset
+            files = list(filter(
+                lambda x: "sensor.npy" in x,
+                os.listdir(os.path.join(dataset_dir, "UCI HAR Dataset", s)))
+            )
+            files.sort()
+
+
+            for f in files:
+                sensor_data = np.load(os.path.join(dataset_dir, "UCI HAR Dataset", s, f))
+                STS.append(sensor_data)
+                SCS.append(np.load(os.path.join(dataset_dir, "UCI HAR Dataset", s, f.replace("sensor", "class"))))
+
+                splits.append(splits[-1] + sensor_data.shape[0])
 
         self.splits = np.array(splits)
 
