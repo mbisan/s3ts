@@ -105,6 +105,8 @@ def prepare_harth(dataset_dir):
     event_length = {}
 
     for dir, _, files in os.walk(os.path.join(dataset_dir, "harth")):
+        files.sort()
+
         for i, file in enumerate(files):
             print(file)
             ds = pandas.read_csv(os.path.join(dir, file))
@@ -196,6 +198,8 @@ def prepare_uci_har(dataset_dir, split = "both"):
 
     # load data
     files = os.listdir(os.path.join(dataset_dir, "UCI HAR Dataset", split, "Inertial Signals"))
+    files.sort()
+
     data = {}
 
     for file in files:
@@ -242,6 +246,8 @@ def prepare_mhealth(dataset_dir):
     files = os.listdir(os.path.join(dataset_dir, "MHEALTHDATASET")) # contains .log files
     # Filter the files
     files = [f for f in files if ".log" in f]
+    files.sort()
+
     assert len(files) == 10 # dataset has 10 subjects
 
     # Assume no missing data
@@ -301,7 +307,7 @@ def prepare_wisdm(dataset_dir):
     
     df = df.dropna()
 
-    for user_id in df["USER"].unique():
+    for user_id in df["USER"].unique(): # order of appearance in the file, so it does not change
         user = df[df["USER"] == user_id]
         usersorted = user.sort_values("TIMESTAMP")
 
@@ -320,7 +326,52 @@ def prepare_wisdm(dataset_dir):
 
 
 def prepare_realdisp(dataset_dir):
-    pass
+    files = [f for f in os.listdir(dataset_dir) if "subject" in f]
+    ideal = list(filter(lambda x: "ideal" in x, files))
+    self = list(filter(lambda x: "self" in x, files))
+    mutual = list(filter(lambda x: "mutual" in x, files))
+    ideal.sort()
+    self.sort()
+    mutual.sort()
+
+    assert len(ideal) == 17
+
+    if not os.path.exists(os.path.join(dataset_dir, "cleaned")):
+        os.mkdir(os.path.join(dataset_dir, "cleaned"))
+    
+    for file in ideal:
+        user = file.replace("_ideal.log", "")
+        self = file.replace("ideal", "self")
+        mutual_data_files = [f for f in mutual if user+"_" in f]
+
+        extract_and_save_sensor_data(os.path.join(dataset_dir, file), user, "ideal")
+        extract_and_save_sensor_data(os.path.join(dataset_dir, self), user, "self")
+        for mutual_file in mutual_data_files:
+            extract_and_save_sensor_data(os.path.join(dataset_dir, mutual_file), user, mutual_file.replace(".log", "").replace(user + "_", ""))
+
+def extract_and_save_sensor_data(directory, user, mode):
+    data = pandas.read_csv(directory, sep="\t", header=None)
+
+    # save accelerometer data by position of the sensor and sensor info
+    # i.e. one file per sensor location (RUA or LLA, for example) and one file per sensor (ACC or GYRO, for instance)
+
+    positions = ["RLA", "RUA", "BACK", "LUA", "LLA", "RC", "RT", "LT", "LC"]
+    sensor = ["acc_x", "acc_y", "acc_z", 
+              "gyro_x", "gyro_y", "gyro_z", 
+              "mag_x", "mag_y", "mag_z", 
+              "q1", "q2", "q3", "q4"]
+
+    for i, position in enumerate(positions):
+        for j, s in enumerate(["acc", "gyro", "mag", "q"]):
+            with open(os.path.join(os.path.dirname(directory), "cleaned", f"{user}_{mode}_{position}_{s}.npy"), "wb") as f:
+                if j == 3:
+                    numpy_data = data[[i*13+2+3*j, i*13+3+3*j, i*13+4+3*j, i*13+5+3*j]].to_numpy(dtype=np.float32)
+                else:
+                    numpy_data = data[[i*13+2+3*j, i*13+3+3*j, i*13+4+3*j]].to_numpy(dtype=np.float32)
+                np.save(f, numpy_data)
+
+    with open(os.path.join(os.path.dirname(directory), "cleaned", f"{user}_{mode}_labels.npy"), "wb") as f:
+        np.save(f, data[[119]].to_numpy(dtype=np.int64))
 
 if __name__ == "__main__":
     # download("all", "./datasets")
