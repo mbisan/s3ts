@@ -173,6 +173,21 @@ class StreamingTimeSeriesCopy(Dataset):
     def __del__(self):
         del self.stsds
 
+def split_by_test_subject(sts, subject):
+    if hasattr(sts, "subject_indices"):
+        subject_splits = sts.subject_indices
+    else:
+        subject_splits = list(sts.splits)
+    
+    if subject > len(subject_splits) - 1:
+        raise Exception(f"No subject with index {subject}")
+    
+    return {
+        "train": lambda x: (x<subject_splits[subject]) | (x>subject_splits[subject+1]),
+        "val": lambda x: (x>subject_splits[subject]) & (x<subject_splits[subject+1]),
+        "test": lambda x: (x>subject_splits[subject]) & (x<subject_splits[subject+1])
+    }
+
 # Load datasets predefined
 
 class UCI_HARDataset(STSDataset):
@@ -263,7 +278,7 @@ class HARTHDataset(STSDataset):
         
         splits = [0]
 
-        self.subject_indices = []
+        self.subject_indices = [0]
 
         STS = []
         SCS = []
@@ -490,7 +505,7 @@ class REALDISPDataset(STSDataset):
         STS = []
         SCS = []
 
-        self.subject_indices = []
+        self.subject_indices = [0]
 
         for subject in subjects:
             # files_to_load
