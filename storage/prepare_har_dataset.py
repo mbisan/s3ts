@@ -380,4 +380,5 @@ if __name__ == "__main__":
     # prepare_uci_har("./datasets/UCI-HAR")
     # prepare_harth("./datasets/HARTH")
     # prepare_mhealth("./datasets/MHEALTH")
-    prepare_wisdm("./datasets/WISDM")
+    # prepare_wisdm("./datasets/WISDM")
+    prepare_realdisp("./datasets/REALDISP")
