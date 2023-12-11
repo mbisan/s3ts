@@ -374,22 +374,22 @@ def extract_and_save_sensor_data(directory, user, mode):
         np.save(f, data[[119]].to_numpy(dtype=np.int64))
 
 if __name__ == "__main__":
-    download("UCI-HAR", "./datasets")
-    download("HARTH", "./datasets")
-    download("MHEALTH", "./datasets")
+    #download("UCI-HAR", "./datasets")
+    #download("HARTH", "./datasets")
+    #download("MHEALTH", "./datasets")
     download("WISDM", "./datasets")
-    download("REALDISP", "./datasets")
+    #download("REALDISP", "./datasets")
 
-    unpack("UCI-HAR", "./datasets")
-    unpack("HARTH", "./datasets")
-    unpack("MHEALTH", "./datasets")
+    #unpack("UCI-HAR", "./datasets")
+    #unpack("HARTH", "./datasets")
+    #unpack("MHEALTH", "./datasets")
     unpack("WISDM", "./datasets")
-    unpack("REALDISP", "./datasets")
+    #unpack("REALDISP", "./datasets")
 
-    prepare_uci_har("./datasets/UCI-HAR")
-    prepare_harth("./datasets/HARTH")
-    prepare_mhealth("./datasets/MHEALTH")
+    #prepare_uci_har("./datasets/UCI-HAR")
+    #prepare_harth("./datasets/HARTH")
+    #prepare_mhealth("./datasets/MHEALTH")
     prepare_wisdm("./datasets/WISDM")
-    prepare_realdisp("./datasets/REALDISP")
+    #prepare_realdisp("./datasets/REALDISP")
 
     pass
