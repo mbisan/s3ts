@@ -12,6 +12,7 @@ from s3ts.api.nets.encoders.frames.RES import RES_IMG
 from s3ts.api.nets.encoders.series.RNN import RNN_TS
 from s3ts.api.nets.encoders.series.CNN import CNN_TS
 from s3ts.api.nets.encoders.series.RES import RES_TS
+from s3ts.api.nets.encoders.frames.simpleCNN import SimpleCNN
 from s3ts.api.nets.decoders.linear import LinearDecoder
 
 # base torch
@@ -22,7 +23,7 @@ import torch.nn as nn
 import numpy as np
 import torch
 
-encoder_dict = {"img": {"cnn": CNN_IMG, "res": RES_IMG},
+encoder_dict = {"img": {"cnn": CNN_IMG, "res": RES_IMG, "simplecnn": SimpleCNN},
     "ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS}}
 
 class WrapperModel(LightningModule):

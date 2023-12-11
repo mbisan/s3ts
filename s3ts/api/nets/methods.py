@@ -31,7 +31,7 @@ default_lr = 1E-4
 default_dec_feats: int = 64
 default_enc_feats: dict[dict[int]] = { 
     "ts": {"rnn": 40, "cnn": 48, "res": 16},
-    "img": {"cnn": 20, "res": 12}}
+    "img": {"cnn": 20, "res": 12, "simplecnn": 32}}
 
 # metrics settings
 metric_settings: dict = {
