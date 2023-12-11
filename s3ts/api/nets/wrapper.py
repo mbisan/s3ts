@@ -118,6 +118,12 @@ class WrapperModel(LightningModule):
             bsize = x.shape[0]
             x = x.reshape((bsize, self.n_dims, -1))
         return x
+    
+    def logits(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.encoder(x)
+        x = self.flatten(x)
+        x = self.decoder(x)
+        return x
 
     def _inner_step(self, batch: dict[str: torch.Tensor], stage: str = None):
 
@@ -125,15 +131,15 @@ class WrapperModel(LightningModule):
 
         # Forward pass
         if self.dsrc == "img":
-            output = self(batch["frame"])
+            output = self.logits(batch["frame"])
         elif self.dsrc == "ts":
-            output = self(batch["series"])
+            output = self.logits(batch["series"])
 
         # Compute the loss and metrics
         if self.task == "cls":
-            oh_label: torch.Tensor = F.one_hot(batch["label"], 
-                                        num_classes=self.n_classes)
-            loss = F.cross_entropy(output, oh_label.to(torch.float32))
+            # oh_label: torch.Tensor = F.one_hot(batch["label"], 
+            #                             num_classes=self.n_classes)
+            loss = F.cross_entropy(output, batch["label"])
             acc = self.__getattr__(f"{stage}_acc")(output, batch["label"])
             f1  = self.__getattr__(f"{stage}_f1")(output, batch["label"])
             if stage != "train":
