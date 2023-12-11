@@ -11,21 +11,24 @@ class SimpleCNN(torch.nn.Module):
         self.wdw_size = wdw_size
         self.n_feature_maps = n_feature_maps
 
-        layer1_input = ref_size%2
-        layer2_input = (layer1_input-3)//2
-        layer3_input = (layer2_input-3)//2
+        layer_input = [ref_size]
+        layer_kernel_size = [0]
+        layer_n_kernels = [channels, n_feature_maps//2]
+        while layer_input[-1] > 1:
+            layer_kernel_size.append(min(4 if layer_input[-1]%2 else 5, layer_input[-1]))
+            layer_input.append((layer_input[-1]-3)//2)
+            layer_n_kernels.append(layer_n_kernels[-1]*2)
 
-        self.model = torch.nn.Sequential(
-            torch.nn.Conv2d(in_channels=channels, out_channels=n_feature_maps//2, kernel_size=5 if layer1_input%2==0 else 4),
-            torch.nn.ReLU(),
-            torch.nn.MaxPool2d(kernel_size=2),
-            torch.nn.Conv2d(in_channels=n_feature_maps//2, out_channels=n_feature_maps, kernel_size=5 if layer2_input%2==0 else 4),
-            torch.nn.ReLU(),
-            torch.nn.MaxPool2d(kernel_size=2),
-            torch.nn.Conv2d(in_channels=n_feature_maps, out_channels=n_feature_maps*2, kernel_size=5 if layer3_input%2==0 else 4),
-            torch.nn.ReLU(),
-            torch.nn.MaxPool2d(kernel_size=2),
-        )
+        self.model = torch.nn.Sequential()
+
+        for i in range(1, len(layer_input)):
+            self.model.append(
+                torch.nn.Conv2d(in_channels=layer_n_kernels[i-1], out_channels=layer_n_kernels[i], kernel_size=layer_kernel_size[i])
+            )
+            self.model.append(torch.nn.ReLU())
+
+            if i!=(len(layer_input)-1):
+                self.model.append(torch.nn.MaxPool2d(kernel_size=2))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
