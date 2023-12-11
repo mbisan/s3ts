@@ -23,8 +23,18 @@ class SimpleCNN(torch.nn.Module):
             torch.nn.MaxPool2d(kernel_size=2),
         )
 
+        x = torch.rand((1, self.channels, self.ref_size, self.wdw_size))
+        out = self.model(x)
+
+        self.out = torch.nn.Sequential(
+            torch.nn.Conv2d(in_channels=n_feature_maps*2, out_channels=n_feature_maps*2, kernel_size=out.shape[2]//2 if (out.shape[2]//2)%2==0 else out.shape[2]//2 + 1),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(kernel_size=2)
+        )
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.model(x)
+        x= self.model(x)
+        return self.out(x)
 
     def get_output_shape(self) -> torch.Size:
         x = torch.rand((1, self.channels, self.ref_size, self.wdw_size))
