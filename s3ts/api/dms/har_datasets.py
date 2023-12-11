@@ -172,9 +172,10 @@ class LDFDataset(StreamingFramesDM):
         if not torch.is_tensor(self.dfds.stsds.SCS):
             self.dfds.stsds.SCS = torch.from_numpy(self.dfds.stsds.SCS).to(torch.int64)
 
-        train_indices = self.dfds.stsds.indices[data_split["train"](self.dfds.stsds.indices)]
-        test_indices = self.dfds.stsds.indices[data_split["test"](self.dfds.stsds.indices)]
-        val_indices = self.dfds.stsds.indices[data_split["val"](self.dfds.stsds.indices)]
+        total_observations = self.dfds.stsds.indices.shape[0]
+        train_indices = np.arange(total_observations)[data_split["train"](self.dfds.stsds.indices)]
+        test_indices = np.arange(total_observations)[data_split["test"](self.dfds.stsds.indices)]
+        val_indices = np.arange(total_observations)[data_split["val"](self.dfds.stsds.indices)]
 
         self.ds_train = DFDatasetCopy(self.dfds, train_indices)
         self.ds_test = DFDatasetCopy(self.dfds, test_indices)
