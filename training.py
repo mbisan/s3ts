@@ -13,7 +13,7 @@ def main(args):
         compute_n=args.compute_n, subjects_for_test=args.subjects_for_test)
 
     model = create_model_from_DM(dm, name=None, 
-        dsrc="img", arch=args.encoder_architecture, task="cls")
+        dsrc="img", arch=args.encoder_architecture, task="cls", lr=args.lr)
     
     model, data = train_model(dm, model, max_epochs=args.max_epochs)
     print(data)
@@ -43,6 +43,7 @@ if __name__ == "__main__":
     parser.add_argument("--encoder_architecture", default="cnn", type=str, 
         help="Architecture used for the encoder")
     parser.add_argument("--max_epochs", default=10, type=int)
+    parser.add_argument("--lr", default=1e-3, type=float)
 
     args = parser.parse_args()
     
