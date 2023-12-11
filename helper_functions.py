@@ -64,19 +64,19 @@ def load_dmdataset(
     print("Computing/loading dissimilarity frames...")
     dfds = DFDataset(ds, patterns=meds, w=0.1, dm_transform=None, ram=False)
 
+    data_split = split_by_test_subject(ds, subjects_for_test)
+
     if normalize:
         # get average values of the DM
         DM = []
         np.random.seed(42)
-        for i in np.random.choice(np.arange(len(dfds)), compute_n):
+        for i in np.random.choice(np.arange(len(dfds))[data_split["train"](dfds.stsds.indices)], compute_n):
             dm, _, _ = dfds[i]
             DM.append(dm)
         DM = torch.stack(DM)
 
         dm_transform = Normalize(mean=DM.mean(dim=[0, 2, 3]), std=DM.std(dim=[0, 2, 3]))
         dfds.dm_transform = dm_transform
-
-    data_split = split_by_test_subject(ds, subjects_for_test)
 
     dm = LDFDataset(dfds, data_split=data_split, batch_size=batch_size, random_seed=42, num_workers=num_workers)
 

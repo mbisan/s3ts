@@ -11,30 +11,24 @@ class SimpleCNN(torch.nn.Module):
         self.wdw_size = wdw_size
         self.n_feature_maps = n_feature_maps
 
+        layer1_input = ref_size%2
+        layer2_input = (layer1_input-3)//2
+        layer3_input = (layer2_input-3)//2
+
         self.model = torch.nn.Sequential(
-            torch.nn.Conv2d(in_channels=channels, out_channels=n_feature_maps//2, kernel_size=3, padding="same"),
+            torch.nn.Conv2d(in_channels=channels, out_channels=n_feature_maps//2, kernel_size=5 if layer1_input%2==0 else 4),
             torch.nn.ReLU(),
             torch.nn.MaxPool2d(kernel_size=2),
-            torch.nn.Conv2d(in_channels=n_feature_maps//2, out_channels=n_feature_maps, kernel_size=3, padding="same"),
+            torch.nn.Conv2d(in_channels=n_feature_maps//2, out_channels=n_feature_maps, kernel_size=5 if layer2_input%2==0 else 4),
             torch.nn.ReLU(),
             torch.nn.MaxPool2d(kernel_size=2),
-            torch.nn.Conv2d(in_channels=n_feature_maps, out_channels=n_feature_maps*2, kernel_size=3, padding="same"),
+            torch.nn.Conv2d(in_channels=n_feature_maps, out_channels=n_feature_maps*2, kernel_size=5 if layer3_input%2==0 else 4),
             torch.nn.ReLU(),
             torch.nn.MaxPool2d(kernel_size=2),
-        )
-
-        x = torch.rand((1, self.channels, self.ref_size, self.wdw_size))
-        out = self.model(x)
-
-        self.out = torch.nn.Sequential(
-            torch.nn.Conv2d(in_channels=n_feature_maps*2, out_channels=n_feature_maps*2, kernel_size=out.shape[2]//2 if (out.shape[2]//2)%2==0 else out.shape[2]//2 + 1),
-            torch.nn.ReLU(),
-            torch.nn.MaxPool2d(kernel_size=2)
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x= self.model(x)
-        return self.out(x)
+        return self.model(x)
 
     def get_output_shape(self) -> torch.Size:
         x = torch.rand((1, self.channels, self.ref_size, self.wdw_size))
