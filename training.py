@@ -13,7 +13,7 @@ def main(args):
         compute_n=args.compute_n, subjects_for_test=args.subjects_for_test)
 
     model = create_model_from_DM(dm, name=None, 
-        dsrc="img", arch=args.encoder_architecture, task="cls", lr=args.lr)
+        dsrc="img", arch=args.encoder_architecture, task="cls", lr=args.lr, enc_feats=args.encoder_features, dec_feats=args.decoder_features)
     
     model, data = train_model(dm, model, max_epochs=args.max_epochs)
     print(data)
