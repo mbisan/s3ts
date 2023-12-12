@@ -30,15 +30,16 @@ def create_jobs(mode, batch_size, window_size, window_stride, learning_rate, enc
 
 cd $HOME/s3ts
 
-conda activate dev
+source $HOME/.bashrc
+source activate dev
 
-python training.py --dataset {dataset} --window_size {window_size} --window_stride {window_stride} \\
---pattern_size {window_size//2 if mode == "dtw" else window_size} \\
+python training.py --dataset {dataset} --window_size {window_size*2 if mode=="dtw" else window_size} --window_stride {window_stride} \\
+--pattern_size {window_size} \\
 --subjects_for_test {" ".join([str(subject) for subject in subjects_for_test])} \\
 --encoder_architecture {encoder} --encoder_features {encoder_features} \\
 --decoder_architecture {decoder} --decoder_features {decoder_features} --decoder_layers 0 \\
 --mode {mode} \\
---batch_size {batch_size} --lr {learning_rate}
+--batch_size {batch_size} --lr {learning_rate} --num_workers 8
 '''
 
 if __name__ == "__main__":
