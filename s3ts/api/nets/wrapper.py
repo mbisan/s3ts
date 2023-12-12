@@ -14,6 +14,7 @@ from s3ts.api.nets.encoders.series.CNN import CNN_TS
 from s3ts.api.nets.encoders.series.RES import RES_TS
 from s3ts.api.nets.encoders.frames.simpleCNN import SimpleCNN
 from s3ts.api.nets.decoders.linear import LinearDecoder
+from s3ts.api.nets.decoders.mlp import MultiLayerPerceptron
 
 # base torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -25,6 +26,8 @@ import torch
 
 encoder_dict = {"img": {"cnn": CNN_IMG, "res": RES_IMG, "simplecnn": SimpleCNN},
     "ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS}}
+
+decoder_dict = {"linear": LinearDecoder, "mlp": MultiLayerPerceptron}
 
 class WrapperModel(LightningModule):
 
@@ -46,10 +49,10 @@ class WrapperModel(LightningModule):
     dedsrcc_feats: int      # decoder feature hyperparam
     lr: float           # learning rate
 
-    def __init__(self, dsrc, arch, task,
+    def __init__(self, dsrc, arch, dec_arch, task,
         n_dims, n_classes, n_patterns, l_patterns,
         wdw_len, wdw_str, sts_str,
-        enc_feats, dec_feats, lr,
+        enc_feats, dec_feats, dec_layers, lr,
         name=None) -> None:
 
         """ Wrapper for the PyTorch models used in the experiments. """
@@ -89,8 +92,8 @@ class WrapperModel(LightningModule):
         elif self.task == "reg":
             out_feats = self.wdw_len if self.sts_str else self.wdw_len*self.wdw_str
             out_feats = out_feats*n_dims
-        self.decoder = LinearDecoder(inp_feats=inp_feats, 
-            hid_feats=dec_feats, out_feats=out_feats, hid_layers=2)
+        self.decoder = decoder_dict[dec_arch](inp_feats=inp_feats, 
+            hid_feats=dec_feats, out_feats=out_feats, hid_layers=dec_layers)
 
         # create softmax and flatten layers
         self.flatten = nn.Flatten(start_dim=1)

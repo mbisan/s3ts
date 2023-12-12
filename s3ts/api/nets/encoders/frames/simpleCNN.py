@@ -13,7 +13,7 @@ class SimpleCNN(torch.nn.Module):
 
         layer_input = [ref_size]
         layer_kernel_size = [0]
-        layer_n_kernels = [channels, n_feature_maps//2]
+        layer_n_kernels = [channels, n_feature_maps]
         
         while layer_input[-1] > 3:
             layer_kernel_size.append(4 if layer_input[-1]%2 else 3)

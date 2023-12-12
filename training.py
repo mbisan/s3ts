@@ -13,7 +13,9 @@ def main(args):
         compute_n=args.compute_n, subjects_for_test=args.subjects_for_test)
 
     model = create_model_from_DM(dm, name=None, 
-        dsrc="img", arch=args.encoder_architecture, task="cls", lr=args.lr, enc_feats=args.encoder_features, dec_feats=args.decoder_features)
+        dsrc="img", arch=args.encoder_architecture, dec_arch=args.decoder_architecture,
+        task="cls", lr=args.lr, enc_feats=args.encoder_features, 
+        dec_feats=args.decoder_features, dec_layers=args.decoder_layers)
     
     model, data = train_model(dm, model, max_epochs=args.max_epochs)
     print(data)
@@ -42,10 +44,14 @@ if __name__ == "__main__":
         help="Subjects reserved for testing and validation")
     parser.add_argument("--encoder_architecture", default="cnn", type=str, 
         help="Architecture used for the encoder")
+    parser.add_argument("--decoder_architecture", default="mlp", type=str,
+        help="Architecture of the decoder, mlp with hidden_layers 0 is equivatent to linear")
     parser.add_argument("--max_epochs", default=10, type=int)
     parser.add_argument("--lr", default=1e-3, type=float)
-    parser.add_argument("--decoder_features", default=None, type=int)
+    parser.add_argument("--decoder_features", default=None, type=int,
+        help="Number of features on decoder hidden layers, ignored when decoder_layers is 0")
     parser.add_argument("--encoder_features", default=None, type=int)
+    parser.add_argument("--decoder_layers", default=1, type=int)
 
     args = parser.parse_args()
     
