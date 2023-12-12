@@ -32,7 +32,7 @@ cd $HOME/s3ts
 
 conda activate dev
 
-python train.py --dataset {dataset} --window_size {window_size} --window_stride {window_stride} \\
+python training.py --dataset {dataset} --window_size {window_size} --window_stride {window_stride} \\
 --pattern_size {window_size//2 if mode == "dtw" else window_size} \\
 --subjects_for_test {" ".join([str(subject) for subject in subjects_for_test])} \\
 --encoder_architecture {encoder} --encoder_features {encoder_features} \\
