@@ -17,8 +17,7 @@ WINDOW_STRIDES = [1, 2, 3]
 def create_jobs(mode, batch_size, window_size, window_stride, learning_rate, encoder, encoder_features, decoder, decoder_features):
 
     jobname = f"job_{mode}_{encoder}{encoder_features}_{decoder}{decoder_features}_lr{learning_rate}_wsize{window_size}_wstride{window_stride}_bs{batch_size}"
-    return jobname, f'''
-#!/bin/bash
+    return jobname, f'''#!/bin/bash
 
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
