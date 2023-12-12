@@ -14,10 +14,14 @@ class SimpleCNN(torch.nn.Module):
         layer_input = [ref_size]
         layer_kernel_size = [0]
         layer_n_kernels = [channels, n_feature_maps//2]
-        while layer_input[-1] > 1:
-            layer_kernel_size.append(min(4 if layer_input[-1]%2 else 5, layer_input[-1]))
-            layer_input.append((layer_input[-1]-3)//2)
+        
+        while layer_input[-1] > 3:
+            layer_kernel_size.append(4 if layer_input[-1]%2 else 3)
+            layer_input.append((layer_input[-1]-layer_kernel_size[-1]+1)//2)
             layer_n_kernels.append(layer_n_kernels[-1]*2)
+
+        layer_kernel_size.append(layer_input[-1])
+        layer_input.append(1)
 
         self.model = torch.nn.Sequential()
 

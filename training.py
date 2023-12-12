@@ -44,6 +44,8 @@ if __name__ == "__main__":
         help="Architecture used for the encoder")
     parser.add_argument("--max_epochs", default=10, type=int)
     parser.add_argument("--lr", default=1e-3, type=float)
+    parser.add_argument("--decoder_features", default=None, type=int)
+    parser.add_argument("--encoder_features", default=None, type=int)
 
     args = parser.parse_args()
     
