@@ -46,6 +46,8 @@ if __name__ == "__main__":
     if not os.path.exists("cache_jobs"):
         os.mkdir(os.path.join("./", "cache_jobs"))
 
+    jobs = []
+
     for mode in MODES:
         for batch_size in BATCH_SIZES:
             for window_size in WINDOW_SIZES:
@@ -56,6 +58,11 @@ if __name__ == "__main__":
                                 for decoder in DECODERS:
                                     for decoder_features in DECODER_FEATURES:
                                         jobname, job = create_jobs(mode, batch_size, window_size, window_stride, learning_rate, encoder, encoder_features, decoder, decoder_features)
-
+                                        
+                                        jobs.append("sbatch " + jobname + ".job")
                                         with open(os.path.join("./", "cache_jobs", jobname + ".job"), "w") as f:
                                             f.write(job)
+
+    bash_script = "#!\\bin\\bash\n" + "\n".join(jobs)
+    with open(os.path.join("./", "cache_jobs", "launch.sh"), "w") as f:
+        f.write(bash_script)
