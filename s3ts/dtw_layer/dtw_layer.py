@@ -9,7 +9,7 @@ class DTWLayer(torch.nn.Module):
         if not l_out is None:
             self.l_out = l_patts
         else:
-            self.l_out = l_patts
+            self.l_out = l_out
 
         self.w: torch.float32 = rho ** (1/l_patts)
         self.patts = torch.nn.Parameter(torch.randn(n_patts, d_patts, l_patts))

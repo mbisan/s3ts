@@ -12,10 +12,11 @@ def main(args):
             args.dataset, dataset_home_directory=args.dataset_dir, batch_size=args.batch_size, num_workers=args.num_workers, 
             window_size=args.window_size, window_stride=args.window_stride, normalize=args.normalize, pattern_size=args.pattern_size, 
             compute_n=args.compute_n, subjects_for_test=args.subjects_for_test)
-    elif args.mode == "ts":
+    elif args.mode in ["ts", "dtw"]:
         dm = load_tsdataset(
             args.dataset, dataset_home_directory=args.dataset_dir, batch_size=args.batch_size, num_workers=args.num_workers, 
-            window_size=args.window_size, window_stride=args.window_stride, normalize=args.normalize, subjects_for_test=args.subjects_for_test)
+            window_size=args.window_size, window_stride=args.window_stride, normalize=args.normalize, pattern_size=args.pattern_size,
+            subjects_for_test=args.subjects_for_test)
 
     model = create_model_from_DM(dm, name=None, 
         dsrc=args.mode, arch=args.encoder_architecture, dec_arch=args.decoder_architecture,
@@ -58,7 +59,7 @@ if __name__ == "__main__":
     parser.add_argument("--encoder_features", default=None, type=int)
     parser.add_argument("--decoder_layers", default=1, type=int)
     parser.add_argument("--mode", default="img", type=str,
-        help="Mode of training, options: ts for time series as input for the model, img (default) for dissimilarity frames as input")
+        help="Mode of training, options: ts for time series as input for the model, img (default) for dissimilarity frames as input, dtw for dtw-layer encoding")
 
     args = parser.parse_args()
     

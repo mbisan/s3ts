@@ -37,12 +37,12 @@ class LSTSDataset(LightningDataModule):
         self.wdw_str = self.stsds.wstride
         self.sts_str = False
 
-        self.n_patterns = None
         self.l_patterns = None
 
         # gather dataset info   
         self.n_dims = self.stsds.STS.shape[0]
         self.n_classes = len(np.unique(self.stsds.SCS))
+        self.n_patterns = self.n_classes
 
         # convert to tensors
         if not torch.is_tensor(self.stsds.STS):

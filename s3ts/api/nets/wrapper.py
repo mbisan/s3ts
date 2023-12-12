@@ -17,6 +17,8 @@ from s3ts.api.nets.encoders.series.simpleCNN import SimpleCNN_TS
 from s3ts.api.nets.decoders.linear import LinearDecoder
 from s3ts.api.nets.decoders.mlp import MultiLayerPerceptron
 
+from s3ts.dtw_layer.dtw_layer import DTWLayer
+
 # base torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn import functional as F
@@ -26,7 +28,8 @@ import numpy as np
 import torch
 
 encoder_dict = {"img": {"cnn": CNN_IMG, "res": RES_IMG, "simplecnn": SimpleCNN_IMG},
-    "ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS, "simplecnn": SimpleCNN_TS}}
+    "ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS, "simplecnn": SimpleCNN_TS},
+    "dtw": {"cnn": CNN_IMG, "res": RES_IMG, "simplecnn": SimpleCNN_IMG}}
 
 decoder_dict = {"linear": LinearDecoder, "mlp": MultiLayerPerceptron}
 
@@ -79,7 +82,11 @@ class WrapperModel(LightningModule):
             ref_size, channels = l_patterns, n_patterns
         elif dsrc == "ts":
             ref_size, channels = 1, self.n_dims
- 
+        elif dsrc == "dtw":
+            self.dtw_layer = DTWLayer(n_patts=n_patterns, d_patts=self.n_dims, l_patts=l_patterns, l_out=l_patterns, rho=0.01)
+            ref_size, channels = l_patterns, self.n_patterns
+            self.wdw_len = ref_size
+
         encoder = enc_arch(channels=channels, ref_size=ref_size, 
             wdw_size=self.wdw_len, n_feature_maps=self.enc_feats)
         
@@ -114,6 +121,8 @@ class WrapperModel(LightningModule):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """ Forward pass. """
+        if self.dsrc == "dtw":
+            x = self.dtw_layer(x)
         x = self.encoder(x)
         x = self.flatten(x)
         x = self.decoder(x)
@@ -125,6 +134,8 @@ class WrapperModel(LightningModule):
         return x
     
     def logits(self, x: torch.Tensor) -> torch.Tensor:
+        if self.dsrc == "dtw":
+            x = self.dtw_layer(x)
         x = self.encoder(x)
         x = self.flatten(x)
         x = self.decoder(x)
@@ -137,7 +148,7 @@ class WrapperModel(LightningModule):
         # Forward pass
         if self.dsrc == "img":
             output = self.logits(batch["frame"])
-        elif self.dsrc == "ts":
+        elif self.dsrc == "ts" or self.dsrc == "dtw":
             output = self.logits(batch["series"])
 
         # Compute the loss and metrics
