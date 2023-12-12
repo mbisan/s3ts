@@ -12,7 +12,8 @@ from s3ts.api.nets.encoders.frames.RES import RES_IMG
 from s3ts.api.nets.encoders.series.RNN import RNN_TS
 from s3ts.api.nets.encoders.series.CNN import CNN_TS
 from s3ts.api.nets.encoders.series.RES import RES_TS
-from s3ts.api.nets.encoders.frames.simpleCNN import SimpleCNN
+from s3ts.api.nets.encoders.frames.simpleCNN import SimpleCNN_IMG
+from s3ts.api.nets.encoders.series.simpleCNN import SimpleCNN_TS
 from s3ts.api.nets.decoders.linear import LinearDecoder
 from s3ts.api.nets.decoders.mlp import MultiLayerPerceptron
 
@@ -24,8 +25,8 @@ import torch.nn as nn
 import numpy as np
 import torch
 
-encoder_dict = {"img": {"cnn": CNN_IMG, "res": RES_IMG, "simplecnn": SimpleCNN},
-    "ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS}}
+encoder_dict = {"img": {"cnn": CNN_IMG, "res": RES_IMG, "simplecnn": SimpleCNN_IMG},
+    "ts": {"rnn": RNN_TS, "cnn": CNN_TS, "res": RES_TS, "simplecnn": SimpleCNN_TS}}
 
 decoder_dict = {"linear": LinearDecoder, "mlp": MultiLayerPerceptron}
 

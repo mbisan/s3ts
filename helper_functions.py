@@ -7,23 +7,12 @@ str_time = lambda b: f"{int(b//3600):02d}:{int((b%3600)//60):02d}:{int((b%3600)%
 # dataset imports
 from storage.har_datasets import *
 from s3ts.api.dms.har_datasets import LDFDataset, DFDataset
+from s3ts.dtw_layer.lightningstsds import LSTSDataset
 from storage.label_mappings import *
 from torchvision.transforms import Normalize
 
-def load_dmdataset(
-        dataset_name,
-        dataset_home_directory = None,
-        batch_size = 16,
-        num_workers = 1,
-        window_size = 32,
-        window_stride = 1,
-        normalize = True,
-        pattern_size = None,
-        compute_n = 500,
-        subjects_for_test = None):
-    
-    pattern_size = window_size
-    
+def load_dataset(dataset_name, dataset_home_directory, window_size, window_stride, normalize):
+ 
     if dataset_home_directory is None:
         dataset_home_directory = "./datasets"
 
@@ -48,6 +37,24 @@ def load_dmdataset(
         ds = MHEALTHDataset(
             os.path.join(dataset_home_directory, dataset_name), sensor="acc",
             wsize=window_size, wstride=window_stride, normalize=normalize, label_mapping=harth_label_mapping)
+    
+    return ds
+
+def load_dmdataset(
+        dataset_name,
+        dataset_home_directory = None,
+        batch_size = 16,
+        num_workers = 1,
+        window_size = 32,
+        window_stride = 1,
+        normalize = True,
+        pattern_size = None,
+        compute_n = 500,
+        subjects_for_test = None):
+    
+    pattern_size = window_size
+    
+    ds = load_dataset(dataset_name, dataset_home_directory, window_size, window_stride, normalize)
         
     print(f"Loaded dataset {dataset_name} with a total of {len(ds)} observations for window size {window_size}")
 
@@ -79,6 +86,29 @@ def load_dmdataset(
         dfds.dm_transform = dm_transform
 
     dm = LDFDataset(dfds, data_split=data_split, batch_size=batch_size, random_seed=42, num_workers=num_workers)
+
+    print(f"Using {len(dm.ds_train)} observations for training and {len(dm.ds_val)} observations for validation and test")
+
+    return dm
+
+
+def load_tsdataset(
+        dataset_name,
+        dataset_home_directory = None,
+        batch_size = 16,
+        num_workers = 1,
+        window_size = 32,
+        window_stride = 1,
+        normalize = True,
+        subjects_for_test = None):
+    
+    ds = load_dataset(dataset_name, dataset_home_directory, window_size, window_stride, normalize)
+        
+    print(f"Loaded dataset {dataset_name} with a total of {len(ds)} observations for window size {window_size}")
+
+    data_split = split_by_test_subject(ds, subjects_for_test)
+
+    dm = LSTSDataset(ds, data_split=data_split, batch_size=batch_size, random_seed=42, num_workers=num_workers)
 
     print(f"Using {len(dm.ds_train)} observations for training and {len(dm.ds_val)} observations for validation and test")
 

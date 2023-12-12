@@ -7,13 +7,18 @@ from argparse import ArgumentParser
 
 def main(args):
 
-    dm = load_dmdataset(
-        args.dataset, dataset_home_directory=args.dataset_dir, batch_size=args.batch_size, num_workers=args.num_workers, 
-        window_size=args.window_size, window_stride=args.window_stride, normalize=args.normalize, pattern_size=args.pattern_size, 
-        compute_n=args.compute_n, subjects_for_test=args.subjects_for_test)
+    if args.mode == "img":
+        dm = load_dmdataset(
+            args.dataset, dataset_home_directory=args.dataset_dir, batch_size=args.batch_size, num_workers=args.num_workers, 
+            window_size=args.window_size, window_stride=args.window_stride, normalize=args.normalize, pattern_size=args.pattern_size, 
+            compute_n=args.compute_n, subjects_for_test=args.subjects_for_test)
+    elif args.mode == "ts":
+        dm = load_tsdataset(
+            args.dataset, dataset_home_directory=args.dataset_dir, batch_size=args.batch_size, num_workers=args.num_workers, 
+            window_size=args.window_size, window_stride=args.window_stride, normalize=args.normalize, subjects_for_test=args.subjects_for_test)
 
     model = create_model_from_DM(dm, name=None, 
-        dsrc="img", arch=args.encoder_architecture, dec_arch=args.decoder_architecture,
+        dsrc=args.mode, arch=args.encoder_architecture, dec_arch=args.decoder_architecture,
         task="cls", lr=args.lr, enc_feats=args.encoder_features, 
         dec_feats=args.decoder_features, dec_layers=args.decoder_layers)
     
@@ -52,6 +57,8 @@ if __name__ == "__main__":
         help="Number of features on decoder hidden layers, ignored when decoder_layers is 0")
     parser.add_argument("--encoder_features", default=None, type=int)
     parser.add_argument("--decoder_layers", default=1, type=int)
+    parser.add_argument("--mode", default="img", type=str,
+        help="Mode of training, options: ts for time series as input for the model, img (default) for dissimilarity frames as input")
 
     args = parser.parse_args()
     

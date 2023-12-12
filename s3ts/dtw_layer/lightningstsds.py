@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from storage.har_datasets import StreamingTimeSeries, StreamingTimeSeriesCopy
+from storage.har_datasets import StreamingTimeSeriesCopy, STSDataset
 
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
@@ -19,7 +19,7 @@ class LSTSDataset(LightningDataModule):
     batch_size: int     # dataloader batch size
 
     def __init__(self,
-            stsds: StreamingTimeSeries,    
+            stsds: STSDataset,    
             data_split: dict, batch_size: int, 
             random_seed: int = 42, 
             num_workers: int = 1
@@ -37,8 +37,11 @@ class LSTSDataset(LightningDataModule):
         self.wdw_str = self.stsds.wstride
         self.sts_str = False
 
+        self.n_patterns = None
+        self.l_patterns = None
+
         # gather dataset info   
-        self.n_dims = self.stsds.STS.shape[1]
+        self.n_dims = self.stsds.STS.shape[0]
         self.n_classes = len(np.unique(self.stsds.SCS))
 
         # convert to tensors
@@ -47,9 +50,10 @@ class LSTSDataset(LightningDataModule):
         if not torch.is_tensor(self.stsds.SCS):
             self.stsds.SCS = torch.from_numpy(self.stsds.SCS).to(torch.int64)
 
-        train_indices = self.stsds.indices[data_split["train"](self.stsds.indices)]
-        test_indices = self.stsds.indices[data_split["test"](self.stsds.indices)]
-        val_indices = self.stsds.indices[data_split["val"](self.stsds.indices)]
+        total_observations = self.stsds.indices.shape[0]
+        train_indices = np.arange(total_observations)[data_split["train"](self.stsds.indices)]
+        test_indices = np.arange(total_observations)[data_split["test"](self.stsds.indices)]
+        val_indices = np.arange(total_observations)[data_split["val"](self.stsds.indices)]
 
         self.ds_train = StreamingTimeSeriesCopy(self.stsds, train_indices)
         self.ds_test = StreamingTimeSeriesCopy(self.stsds, test_indices)
