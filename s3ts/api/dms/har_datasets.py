@@ -16,7 +16,7 @@ import sys
 import multiprocessing as mp
 import numpy as np
 
-from storage.har_datasets import STSDataset
+from storage.har_datasets import STSDataset, reduce_imbalance
 
 import hashlib
 
@@ -145,7 +145,8 @@ class LDFDataset(StreamingFramesDM):
             dfds: DFDataset,    
             data_split: dict, batch_size: int, 
             random_seed: int = 42, 
-            num_workers: int = mp.cpu_count()//2
+            num_workers: int = mp.cpu_count()//2,
+            reduce_train_imbalance: bool = False
             ) -> None:
 
         '''
@@ -187,6 +188,9 @@ class LDFDataset(StreamingFramesDM):
         train_indices = np.arange(total_observations)[data_split["train"](self.dfds.stsds.indices)]
         test_indices = np.arange(total_observations)[data_split["test"](self.dfds.stsds.indices)]
         val_indices = np.arange(total_observations)[data_split["val"](self.dfds.stsds.indices)]
+
+        if reduce_train_imbalance:
+            train_indices = reduce_imbalance(train_indices, self.dfds.stsds.SCS[self.dfds.stsds.indices[train_indices]], seed=random_seed)
 
         self.ds_train = DFDatasetCopy(self.dfds, train_indices)
         self.ds_test = DFDatasetCopy(self.dfds, test_indices)

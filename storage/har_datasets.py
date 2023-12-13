@@ -173,6 +173,19 @@ class StreamingTimeSeriesCopy(Dataset):
     def __del__(self):
         del self.stsds
 
+def reduce_imbalance(indices, labels, seed = 42):
+    rng = torch.Generator()
+    rng.manual_seed(seed)
+
+    cl, counts = torch.unique(labels, return_counts=True)
+    mean = counts.float().mean()
+
+    mask = torch.ones_like(labels, dtype=bool)
+    for id in torch.argwhere(counts > mean):
+        mask[labels == cl[id]] = torch.rand(counts[id], generator=rng) < mean/counts[id]
+    
+    return indices[mask]
+
 def return_indices_train(x, subjects, subject_splits):
     out = np.ones_like(x, dtype=bool)
     for s in subjects:

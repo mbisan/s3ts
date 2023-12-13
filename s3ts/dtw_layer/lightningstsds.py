@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from storage.har_datasets import StreamingTimeSeriesCopy, STSDataset
+from storage.har_datasets import StreamingTimeSeriesCopy, STSDataset, reduce_imbalance
 
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
@@ -22,7 +22,8 @@ class LSTSDataset(LightningDataModule):
             stsds: STSDataset,    
             data_split: dict, batch_size: int, 
             random_seed: int = 42, 
-            num_workers: int = 1
+            num_workers: int = 1,
+            reduce_train_imbalance: bool = False
             ) -> None:
 
         # save parameters as attributes
@@ -54,6 +55,9 @@ class LSTSDataset(LightningDataModule):
         train_indices = np.arange(total_observations)[data_split["train"](self.stsds.indices)]
         test_indices = np.arange(total_observations)[data_split["test"](self.stsds.indices)]
         val_indices = np.arange(total_observations)[data_split["val"](self.stsds.indices)]
+
+        if reduce_train_imbalance:
+            train_indices = reduce_imbalance(train_indices, self.dfds.stsds.SCS[self.dfds.stsds.indices[train_indices]], seed=random_seed)
 
         self.ds_train = StreamingTimeSeriesCopy(self.stsds, train_indices)
         self.ds_test = StreamingTimeSeriesCopy(self.stsds, test_indices)
