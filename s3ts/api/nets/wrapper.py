@@ -83,7 +83,7 @@ class WrapperModel(LightningModule):
         elif dsrc == "ts":
             ref_size, channels = 1, self.n_dims
         elif dsrc == "dtw":
-            self.dtw_layer = DTWLayer(n_patts=n_patterns, d_patts=self.n_dims, l_patts=l_patterns, l_out=l_patterns, rho=0.01)
+            self.dtw_layer = DTWLayer(n_patts=enc_feats, d_patts=self.n_dims, l_patts=l_patterns, l_out=l_patterns, rho=0.01)
             ref_size, channels = l_patterns, self.n_patterns
             self.wdw_len = ref_size
 

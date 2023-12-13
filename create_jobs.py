@@ -4,19 +4,21 @@ dataset = "WISDM"
 subjects_for_test = [30, 31, 32, 33, 34, 35]
 epochs = 10
 
-BATCH_SIZES = [128]
+BATCH_SIZES = [64*3]
 LEARNING_RATES = [1e-3]
-ENCODERS = ["cnn", "simplecnn"]
+ENCODERS = ["simplecnn"]
 ENCODER_FEATURES = [8]
-DECODERS = ["linear", "mlp"]
+DECODERS = ["mlp"]
 MODES = ["dtw", "img", "ts"]
 DECODER_FEATURES = [16]
-WINDOW_SIZES = [20]
-WINDOW_STRIDES = [1, 2, 3]
+WINDOW_SIZES = [30]
+WINDOW_STRIDES = [1, 2]
+DECODER_LAYERS = 1
 
 def create_jobs(mode, batch_size, window_size, window_stride, learning_rate, encoder, encoder_features, decoder, decoder_features):
 
-    jobname = f"job_{mode}_{encoder}{encoder_features}_{decoder}{decoder_features}_lr{learning_rate}_wsize{window_size}_wstride{window_stride}_bs{batch_size}"
+    jobname = f"job_{mode}_{encoder}{encoder_features}_{decoder}{decoder_features}_{DECODER_LAYERS}" + \
+              f"_lr{learning_rate}_wsize{window_size}_wstride{window_stride}_bs{batch_size}"
     return jobname, f'''#!/bin/bash
 
 #SBATCH --nodes=1
@@ -37,7 +39,7 @@ python training.py --dataset {dataset} --window_size {window_size*2 if mode=="dt
 --pattern_size {window_size} \\
 --subjects_for_test {" ".join([str(subject) for subject in subjects_for_test])} \\
 --encoder_architecture {encoder} --encoder_features {encoder_features} \\
---decoder_architecture {decoder} --decoder_features {decoder_features} --decoder_layers 0 \\
+--decoder_architecture {decoder} --decoder_features {decoder_features} --decoder_layers {DECODER_LAYERS} \\
 --mode {mode} \\
 --batch_size {batch_size} --lr {learning_rate} --num_workers 8
 '''

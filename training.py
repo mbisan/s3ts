@@ -18,7 +18,11 @@ def main(args):
             window_size=args.window_size, window_stride=args.window_stride, normalize=args.normalize, pattern_size=args.pattern_size,
             subjects_for_test=args.subjects_for_test)
 
-    model = create_model_from_DM(dm, name=None, 
+    modelname = f"model_{args.dataset}_{args.mode}_{args.encoder_architecture}{args.encoder_features}_" + \
+                f"{args.decoder_architecture}{args.decoder_features}_{args.decoder_layers}" + \
+                f"_lr{args.lr}_wsize{args.window_size}_wstride{args.window_stride}_bs{args.batch_size}"
+
+    model = create_model_from_DM(dm, name=modelname, 
         dsrc=args.mode, arch=args.encoder_architecture, dec_arch=args.decoder_architecture,
         task="cls", lr=args.lr, enc_feats=args.encoder_features, 
         dec_feats=args.decoder_features, dec_layers=args.decoder_layers)
