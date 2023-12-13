@@ -26,7 +26,8 @@ class DFDataset(Dataset):
             patterns: np.ndarray = None,
             w: float = 0.1,
             dm_transform = None,
-            ram: bool = False) -> None:
+            ram: bool = False,
+            cached: bool = True) -> None:
         super().__init__()
 
         '''
@@ -35,6 +36,7 @@ class DFDataset(Dataset):
 
         self.stsds = stsds
         self.ram = ram
+        self.cached = cached
 
         if not patterns.flags.c_contiguous:
             patterns = patterns.copy(order="c")
@@ -46,25 +48,31 @@ class DFDataset(Dataset):
 
         self.DM = []
 
-        self.cache_dir = None
-        hash = hashlib.sha1(patterns.data)
-        self.cache_dir = os.path.join(os.getcwd(), "cache" + hash.hexdigest())
+        if cached:
+            self.cache_dir = None
+            hash = hashlib.sha1(patterns.data)
+            self.cache_dir = os.path.join(os.getcwd(), "cache" + hash.hexdigest())
 
-        if not os.path.exists(self.cache_dir):
-            os.mkdir(self.cache_dir)
-        elif len(os.listdir(self.cache_dir)) > 0:
-            print("Loading cached dissimilarity frames if available...")
+            if not os.path.exists(self.cache_dir):
+                os.mkdir(self.cache_dir)
+            elif len(os.listdir(self.cache_dir)) > 0:
+                print("Loading cached dissimilarity frames if available...")
 
-        for s in range(self.stsds.splits.shape[0] - 1):
-            save_path = os.path.join(self.cache_dir, f"part{s}.npz")
+            for s in range(self.stsds.splits.shape[0] - 1):
+                save_path = os.path.join(self.cache_dir, f"part{s}.npz")
 
-            if not os.path.exists(save_path):
-                self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path)
+                if not os.path.exists(save_path):
+                    self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path)
 
-            if self.ram:
-                self.DM.append(torch.from_numpy(np.load(save_path)))
-            else:
-                self.DM.append(torch.from_numpy(np.load(save_path, mmap_mode="r")))
+                if self.ram:
+                    self.DM.append(torch.from_numpy(np.load(save_path)))
+                else:
+                    self.DM.append(torch.from_numpy(np.load(save_path, mmap_mode="r")))
+        
+        else: # i.e. not cached
+            for s in range(self.stsds.splits.shape[0] - 1):
+                DM = self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path=None)
+                self.DM.append(torch.from_numpy(DM))
 
     def _compute_dm_cache(self, pattern, split, save_path):
         DM = compute_oDTW(self.stsds.STS[:, split[0]:split[1]], pattern, rho=self.rho)
@@ -73,8 +81,11 @@ class DFDataset(Dataset):
         DM = np.ascontiguousarray(np.transpose(DM, (2, 0, 1)))
         # therefore, DM has dimensions (n, num_frames, patt_len)
 
-        with open(save_path, "wb") as f:
-            np.save(f, DM)
+        if save_path is None:
+            return DM
+        else:
+            with open(save_path, "wb") as f:
+                np.save(f, DM)
 
     def __len__(self):
         return len(self.stsds)

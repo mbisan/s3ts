@@ -4,16 +4,17 @@ dataset = "WISDM"
 subjects_for_test = [30, 31, 32, 33, 34, 35]
 epochs = 10
 
-BATCH_SIZES = [64*3]
-LEARNING_RATES = [1e-3]
+BATCH_SIZES = [128]
+LEARNING_RATES = [1e-4]
 ENCODERS = ["simplecnn"]
 ENCODER_FEATURES = [8]
 DECODERS = ["mlp"]
 MODES = ["dtw", "img", "ts"]
 DECODER_FEATURES = [16]
-WINDOW_SIZES = [30]
+WINDOW_SIZES = [20]
 WINDOW_STRIDES = [1, 2]
 DECODER_LAYERS = 1
+RAM = 32
 
 def create_jobs(mode, batch_size, window_size, window_stride, learning_rate, encoder, encoder_features, decoder, decoder_features):
 
@@ -24,7 +25,7 @@ def create_jobs(mode, batch_size, window_size, window_stride, learning_rate, enc
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=32GB
+#SBATCH --mem={RAM}GB
 #SBATCH --time=10:00:00
 #SBATCH --job-name={jobname}
 #SBATCH --output=R-%x.%j.out

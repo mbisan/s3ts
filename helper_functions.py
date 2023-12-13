@@ -59,17 +59,20 @@ def load_dmdataset(
     print(f"Loaded dataset {dataset_name} with a total of {len(ds)} observations for window size {window_size}")
 
     # load medoids if already computed
-    if not os.path.exists(os.path.join(dataset_home_directory, dataset_name, f"meds{window_size}.npz")):
-        print("Computing medoids...")
-        meds = sts_medoids(ds, n=compute_n)
-        with open(os.path.join(dataset_home_directory, dataset_name, f"meds{window_size}.npz"), "wb") as f:
-            np.save(f, meds)
-    else:
-        meds = np.load(os.path.join(dataset_home_directory, dataset_name, f"meds{window_size}.npz"))
-        assert meds.shape[2] == pattern_size
+    # if not os.path.exists(os.path.join(dataset_home_directory, dataset_name, f"meds{window_size}.npz")):
+    #     print("Computing medoids...")
+    #     meds = sts_medoids(ds, n=compute_n)
+    #     with open(os.path.join(dataset_home_directory, dataset_name, f"meds{window_size}.npz"), "wb") as f:
+    #         np.save(f, meds)
+    # else:
+    #     meds = np.load(os.path.join(dataset_home_directory, dataset_name, f"meds{window_size}.npz"))
+    #     assert meds.shape[2] == pattern_size
+
+    print("Computing medoids...")
+    meds = sts_medoids(ds, n=compute_n)
     
-    print("Computing/loading dissimilarity frames...")
-    dfds = DFDataset(ds, patterns=meds, w=0.1, dm_transform=None, ram=False)
+    print("Computing dissimilarity frames...")
+    dfds = DFDataset(ds, patterns=meds, w=0.1, dm_transform=None, cached=False)
 
     data_split = split_by_test_subject(ds, subjects_for_test)
 
