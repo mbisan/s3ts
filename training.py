@@ -66,7 +66,7 @@ if __name__ == "__main__":
         help="Mode of training, options: ts for time series as input for the model, img (default) for dissimilarity frames as input, dtw for dtw-layer encoding")
     parser.add_argument("--reduce_imbalance", action="store_true", 
         help="Wether to subsample imbalanced classes")
-    parser.add_argument("--no-reduce_imbalance", dest="reduce_inbalance", action="store_false")
+    parser.add_argument("--no-reduce_imbalance", dest="reduce_imbalance", action="store_false")
 
     args = parser.parse_args()
     
