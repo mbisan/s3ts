@@ -406,7 +406,7 @@ class MHEALTHDataset(STSDataset):
             subject = f.replace("labels_", "")
             # get separated STS
             data = filter(
-                lambda x: (sensor in x) and (not "labels" in x) and (subject in x),
+                lambda x: (sensor in x) and (not "labels" in x) and (subject in x) and (not "ecg" in x),
                 os.listdir(dataset_dir))
             
             data = sorted(data)

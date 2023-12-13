@@ -35,7 +35,7 @@ def load_dataset(dataset_name, dataset_home_directory, window_size, window_strid
             wsize=window_size, wstride=window_stride, normalize=normalize, label_mapping=harth_label_mapping)
     elif dataset_name == "MHEALTH":
         ds = MHEALTHDataset(
-            os.path.join(dataset_home_directory, dataset_name), sensor="acc",
+            os.path.join(dataset_home_directory, dataset_name), sensor="",
             wsize=window_size, wstride=window_stride, normalize=normalize)
     
     return ds
