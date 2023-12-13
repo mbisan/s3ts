@@ -57,7 +57,7 @@ class LSTSDataset(LightningDataModule):
         val_indices = np.arange(total_observations)[data_split["val"](self.stsds.indices)]
 
         if reduce_train_imbalance:
-            train_indices = reduce_imbalance(train_indices, self.dfds.stsds.SCS[self.dfds.stsds.indices[train_indices]], seed=random_seed)
+            train_indices = reduce_imbalance(train_indices, self.stsds.SCS[self.stsds.indices[train_indices]], seed=random_seed)
 
         self.ds_train = StreamingTimeSeriesCopy(self.stsds, train_indices)
         self.ds_test = StreamingTimeSeriesCopy(self.stsds, test_indices)
