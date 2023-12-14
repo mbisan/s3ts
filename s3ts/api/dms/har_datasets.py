@@ -55,14 +55,14 @@ class DFDataset(Dataset):
 
             if not os.path.exists(self.cache_dir):
                 os.mkdir(self.cache_dir)
-            elif len(os.listdir(self.cache_dir)) > 0:
+            elif len(os.listdir(self.cache_dir)) == len(self.stsds.splits)-1:
                 print("Loading cached dissimilarity frames if available...")
 
             for s in range(self.stsds.splits.shape[0] - 1):
                 save_path = os.path.join(self.cache_dir, f"part{s}.npz")
 
                 if not os.path.exists(save_path):
-                    self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path)
+                    self._compute_dm(patterns, self.stsds.splits[s:s+2], save_path)
 
                 if self.ram:
                     self.DM.append(torch.from_numpy(np.load(save_path)))
@@ -71,10 +71,16 @@ class DFDataset(Dataset):
         
         else: # i.e. not cached
             for s in range(self.stsds.splits.shape[0] - 1):
-                DM = self._compute_dm_cache(patterns, self.stsds.splits[s:s+2], save_path=None)
+                DM = self._compute_dm(patterns, self.stsds.splits[s:s+2], save_path=None)
                 self.DM.append(torch.from_numpy(DM))
 
-    def _compute_dm_cache(self, pattern, split, save_path):
+    def __del__(self):
+        if not self.cache_dir is None:
+            for file in os.listdir(self.cache_dir):
+                os.remove(os.path.join(self.cache_dir, file))
+            os.rmdir(self.cache_dir)
+
+    def _compute_dm(self, pattern, split, save_path):
         DM = compute_oDTW(self.stsds.STS[:, split[0]:split[1]], pattern, rho=self.rho)
 
         # put time dimension in the first dimension
