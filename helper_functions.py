@@ -35,8 +35,14 @@ def load_dataset(dataset_name, dataset_home_directory, window_size, window_strid
             wsize=window_size, wstride=window_stride, normalize=normalize, label_mapping=harth_label_mapping)
     elif dataset_name == "MHEALTH":
         ds = MHEALTHDataset(
-            os.path.join(dataset_home_directory, dataset_name), sensor="",
+            os.path.join(dataset_home_directory, dataset_name), sensor=["acc", "gyro"],
             wsize=window_size, wstride=window_stride, normalize=normalize)
+    elif dataset_name == "HARTH-TESTS":
+        ds = HARTHDataset(
+            os.path.join(dataset_home_directory, "HARTH"), 
+            wsize=window_size, wstride=window_stride, normalize=normalize, label_mapping=harth_label_mapping)
+        ds.indices = ds.indices[ds.indices <= ds.subject_indices[2]] ## only first 2
+        ds.splits = ds.splits[ds.splits <= ds.subject_indices[2]]
     
     return ds
 
@@ -53,7 +59,7 @@ def load_dmdataset(
         subjects_for_test = None,
         reduce_train_imbalance = False):
     
-    pattern_size = window_size
+    assert pattern_size < window_size
     
     ds = load_dataset(dataset_name, dataset_home_directory, window_size, window_stride, normalize)
         
@@ -70,10 +76,10 @@ def load_dmdataset(
     #     assert meds.shape[2] == pattern_size
 
     print("Computing medoids...")
-    meds = sts_medoids(ds, n=compute_n)
+    meds = sts_medoids(ds, pattern_size=pattern_size, n=compute_n)
     
     print("Computing dissimilarity frames...")
-    dfds = DFDataset(ds, patterns=meds, w=0.1, dm_transform=None, cached=False)
+    dfds = DFDataset(ds, patterns=meds, w=0.1, dm_transform=None, cached=True, ram=False)
 
     data_split = split_by_test_subject(ds, subjects_for_test)
 
