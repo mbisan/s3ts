@@ -71,14 +71,14 @@ class STSDataset(Dataset):
     
     def normalizeSTS(self, mode):
         self.mean = np.expand_dims(self.STS.mean(1), 1)
-        self.percentile5 = np.expand_dims(np.percentile(self.STS, 5, axis=1), 1)
-        self.percentile95 = np.expand_dims(np.percentile(self.STS, 95, axis=1), 1)
+        self.percentile1 = np.expand_dims(np.percentile(self.STS, 1, axis=1), 1)
+        self.percentile99 = np.expand_dims(np.percentile(self.STS, 99, axis=1), 1)
 
-        self.STS = (self.STS - self.mean) / (self.percentile95 - self.percentile5)
+        self.STS = (self.STS - self.mean) / (self.percentile99 - self.percentile1)
 
 # Methods to obtain patterns
 
-def sts_medoids(dataset: STSDataset, n = 100, random_seed: int = 45):
+def sts_medoids(dataset: STSDataset, n = 100, pattern_size = -1, random_seed: int = 45):
     np.random.seed(random_seed)
 
     window_id, window_lb = dataset.getSameClassWindowIndex()
@@ -97,6 +97,8 @@ def sts_medoids(dataset: STSDataset, n = 100, random_seed: int = 45):
         selected_c.append(np.full(n, c, np.int32))
 
     selected_w = np.concatenate(selected_w) # (n, dims, len)
+    if pattern_size>0:
+        selected_w = selected_w[:,:,-pattern_size:]
     meds, meds_id = compute_medoids(selected_w, np.concatenate(selected_c, axis=0))
 
     return meds[:,0,:,:]
@@ -182,7 +184,7 @@ def reduce_imbalance(indices, labels, seed = 42):
 
     mask = torch.ones_like(labels, dtype=bool)
     for id in torch.argwhere(counts > mean):
-        mask[labels == cl[id]] = torch.rand(counts[id], generator=rng) < mean/counts[id]
+        mask[labels == cl[id]] = torch.rand(counts[id], generator=rng) < counts[torch.arange(counts.shape[0]) != id].float().mean()/counts[id]
     
     return indices[mask]
 
@@ -388,8 +390,12 @@ class MHEALTHDataset(STSDataset):
                 wsize: window size
                 wstride: window stride
         '''
-
-        assert sensor in ("", "acc", "ecg", "gyro", "mag")
+        
+        if isinstance(sensor, list):
+            for s in sensor:
+                assert s in ("acc", "ecg", "gyro", "mag", "chest")
+        elif sensor == "":
+            sensor = ["acc", "ecg", "gyro", "mag", "chest"]
 
         # load dataset
         files = list(filter(
@@ -405,9 +411,11 @@ class MHEALTHDataset(STSDataset):
 
             subject = f.replace("labels_", "")
             # get separated STS
-            data = filter(
-                lambda x: (sensor in x) and (not "labels" in x) and (subject in x) and (not "ecg" in x),
-                os.listdir(dataset_dir))
+            data = []
+            for s in sensor:
+                data += list(filter(
+                    lambda x: (s in x) and (not "labels" in x) and (subject in x),
+                    os.listdir(dataset_dir)))
             
             data = sorted(data)
 

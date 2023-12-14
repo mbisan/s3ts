@@ -269,9 +269,11 @@ def prepare_mhealth(dataset_dir):
         ds.columns = columns
 
         # save acc and other sensor data separately
+        with open(os.path.join(dataset_dir, f"chest_subject{i}.npz"), "wb") as savefile:
+            np.save(savefile, ds[["chest_acc_x", "chest_acc_y", "chest_acc_z"]].to_numpy())
+        
         with open(os.path.join(dataset_dir, f"acc_subject{i}.npz"), "wb") as savefile:
-            np.save(savefile, ds[["chest_acc_x", "chest_acc_y", "chest_acc_z",
-                                  "lankle_acc_x", "lankle_acc_y", "lankle_acc_z",
+            np.save(savefile, ds[["lankle_acc_x", "lankle_acc_y", "lankle_acc_z",
                                   "rankle_acc_x", "rankle_acc_y", "rankle_acc_z"]].to_numpy())
         
         with open(os.path.join(dataset_dir, f"mag_subject{i}.npz"), "wb") as savefile:
